@@ -32,7 +32,7 @@ ID3D11RenderTargetView* g_D3D11RenderTargetView;
 ID3D11VertexShader* g_D3D11VertexShader;
 ID3D11PixelShader* g_D3D11PixelShader;
 ID3D11InputLayout* g_D3D11VertexLayout;
-UINT g_Stride, g_Offset;
+UINT g_VertexCount, g_VertexSize;
 ID3D11Buffer* g_D3D11VertexBuffer;
 D3D11_VIEWPORT g_D3D11ViewPort;
 int g_ElementDescCount;
@@ -146,24 +146,14 @@ HRESULT CompileShaderFromFile(IN const wchar_t* fileName, IN const char* entryPo
 	return hr;
 }
 
-inline HRESULT CreateVertexBufferInline(ID3D11Device* device, ID3D11Buffer** vertexBuffer, UINT* stride, UINT* offset)
+inline HRESULT CreateVertexBufferInline(ID3D11Device* device, ID3D11Buffer** vertexBuffer, UINT vertexSize, UINT vertexCount, void* vertices)
 {
 	HRESULT hr = S_OK;
-
-	*stride = 12;
-	*offset = 0;
-
-	float vertices[] =
-	{
-		0.0f, 0.5f, 0.5f,
-		0.5f, -0.5f, 0.5f,
-		-0.5f, -0.5f, 0.5f
-	};
 
 	D3D11_BUFFER_DESC bufferDesc;
 	memset(&bufferDesc, 0, sizeof(D3D11_BUFFER_DESC));
 	bufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	bufferDesc.ByteWidth = sizeof(float) * 3 * 3;
+	bufferDesc.ByteWidth = vertexSize * vertexCount;
 	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bufferDesc.CPUAccessFlags = 0;
 	D3D11_SUBRESOURCE_DATA subrscData;
@@ -211,7 +201,15 @@ HRESULT DXShaderResourceInit(const wchar_t* shaderFileName, bool debug)
 	PSBlob->Release();
 	FAILED_MESSAGE_RETURN(hr, L"fail to create pixel shader..");
 
-	hr = CreateVertexBufferInline(g_D3D11Device, &g_D3D11VertexBuffer, &g_Stride, &g_Offset);
+	g_VertexCount = 3;
+	g_VertexSize = 3 * sizeof(float);
+	float vertices[] =
+	{
+		0.0f, 0.5f, 0.5f,
+		0.5f, -0.5f, 0.5f,
+		-0.5f, -0.5f, 0.5f
+	};
+	hr = CreateVertexBufferInline(g_D3D11Device, &g_D3D11VertexBuffer, g_VertexSize, g_VertexCount, vertices);
 	FAILED_MESSAGE_RETURN(hr, L"fail to create vertex buffer..");
 
 	return hr;
@@ -246,6 +244,8 @@ void DXEntryClean()
 	if (g_DXGISwapChain) g_DXGISwapChain->Release();
 	if (g_D3D11ImmediateContext) g_D3D11ImmediateContext->Release();
 	if (g_D3D11Device) g_D3D11Device->Release();
+
+	if (g_D3D11InputElementDescArray) free(g_D3D11InputElementDescArray);
 }
 
 void DXEntryFrameUpdate()
@@ -255,7 +255,8 @@ void DXEntryFrameUpdate()
 	g_D3D11ImmediateContext->ClearRenderTargetView(g_D3D11RenderTargetView, clearColor);
 
 	g_D3D11ImmediateContext->IASetInputLayout(g_D3D11VertexLayout);
-	g_D3D11ImmediateContext->IASetVertexBuffers(0, 1, &g_D3D11VertexBuffer, &g_Stride, &g_Offset);
+	UINT offset = 0;
+	g_D3D11ImmediateContext->IASetVertexBuffers(0, 1, &g_D3D11VertexBuffer, &g_VertexSize, &offset);
 	g_D3D11ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	g_D3D11ImmediateContext->RSSetViewports(1, &g_D3D11ViewPort);

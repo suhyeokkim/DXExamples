@@ -2,6 +2,9 @@
 #include <d3dcompiler.h>
 #include <dxgi1_6.h>
 #include <vector>
+#include <DirectXMath.h>
+
+using namespace DirectX;
 
 #include "dxentry.h"
 #include "defined.h"
@@ -32,11 +35,18 @@ ID3D11RenderTargetView* g_D3D11RenderTargetView;
 ID3D11VertexShader* g_D3D11VertexShader;
 ID3D11PixelShader* g_D3D11PixelShader;
 ID3D11InputLayout* g_D3D11VertexLayout;
-UINT g_Stride, g_Offset;
-ID3D11Buffer* g_D3D11VertexBuffer;
 D3D11_VIEWPORT g_D3D11ViewPort;
 int g_ElementDescCount;
 D3D11_INPUT_ELEMENT_DESC* g_D3D11InputElementDescArray;
+
+UINT g_VertexCount, g_VertexSize;
+ID3D11Buffer* g_D3D11VertexBuffer;
+UINT g_PrimCount, g_PrimSize;
+ID3D11Buffer* g_D3D11IndexBuffer;
+ID3D11Buffer* g_D3D11ConstantBuffer;
+XMMATRIX g_World;
+XMMATRIX g_View;
+XMMATRIX g_Projection;
 
 inline HRESULT GetDXGIAdaptersInline(IDXGIFactory1* factory, int* adapterCount, IDXGIAdapter1** dxgiAdapterArray)
 {
@@ -146,24 +156,14 @@ HRESULT CompileShaderFromFile(IN const wchar_t* fileName, IN const char* entryPo
 	return hr;
 }
 
-inline HRESULT CreateVertexBufferInline(ID3D11Device* device, ID3D11Buffer** vertexBuffer, UINT* stride, UINT* offset)
+inline HRESULT CreateVertexBufferInline(ID3D11Device* device, ID3D11Buffer** vertexBuffer, UINT vertexSize, UINT vertexCount, void* vertices)
 {
 	HRESULT hr = S_OK;
-
-	*stride = 12;
-	*offset = 0;
-
-	float vertices[] =
-	{
-		0.0f, 0.5f, 0.5f,
-		0.5f, -0.5f, 0.5f,
-		-0.5f, -0.5f, 0.5f
-	};
 
 	D3D11_BUFFER_DESC bufferDesc;
 	memset(&bufferDesc, 0, sizeof(D3D11_BUFFER_DESC));
 	bufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	bufferDesc.ByteWidth = sizeof(float) * 3 * 3;
+	bufferDesc.ByteWidth = vertexSize * vertexCount;
 	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bufferDesc.CPUAccessFlags = 0;
 	D3D11_SUBRESOURCE_DATA subrscData;
@@ -171,6 +171,48 @@ inline HRESULT CreateVertexBufferInline(ID3D11Device* device, ID3D11Buffer** ver
 	subrscData.pSysMem = vertices;
 	hr = device->CreateBuffer(&bufferDesc, &subrscData, vertexBuffer);
 	FAILED_MESSAGE_RETURN(hr, L"fail to create vertex buffer");
+
+	return hr;
+}
+
+inline HRESULT CreateIndexBufferInline(ID3D11Device* device, ID3D11Buffer** indexBuffer, UINT primSize, UINT primCount, void* indices)
+{
+	HRESULT hr = S_OK;
+
+	D3D11_BUFFER_DESC bufferDesc;
+	memset(&bufferDesc, 0, sizeof(D3D11_BUFFER_DESC));
+	bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	bufferDesc.ByteWidth = primSize * primCount;
+	bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bufferDesc.CPUAccessFlags = 0;
+	D3D11_SUBRESOURCE_DATA subrscData;
+	memset(&subrscData, 0, sizeof(subrscData));
+	subrscData.pSysMem = indices;
+	hr = device->CreateBuffer(&bufferDesc, &subrscData, indexBuffer);
+	FAILED_MESSAGE_RETURN(hr, L"fail to create vertex buffer");
+
+	return hr;
+}
+
+struct Tutorial4ConstantBuffer
+{
+	DirectX::XMMATRIX world;
+	DirectX::XMMATRIX view;
+	DirectX::XMMATRIX projection;
+};
+
+inline HRESULT CreateConstantBufferInline(ID3D11Device* device, ID3D11Buffer** constantBuffer, UINT size)
+{
+	HRESULT hr = S_OK;
+
+	D3D11_BUFFER_DESC bufferDesc;
+	memset(&bufferDesc, 0, sizeof(D3D11_BUFFER_DESC));
+	bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	bufferDesc.ByteWidth = size;
+	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	bufferDesc.CPUAccessFlags = 0;
+	hr = device->CreateBuffer(&bufferDesc, nullptr, constantBuffer);
+	FAILED_MESSAGE_RETURN(hr, L"fail to create constant buffer");
 
 	return hr;
 }
@@ -186,7 +228,7 @@ HRESULT DXShaderResourceInit(const wchar_t* shaderFileName, bool debug)
 	hr = g_D3D11Device->CreateVertexShader(VSBlob->GetBufferPointer(), VSBlob->GetBufferSize(), nullptr, &g_D3D11VertexShader);
 	FAILED_MESSAGE_RETURN(hr, L"fail to create vertex shader..");
 
-	g_ElementDescCount = 1;
+	g_ElementDescCount = 2;
 	g_D3D11InputElementDescArray = new D3D11_INPUT_ELEMENT_DESC[g_ElementDescCount];
 	g_D3D11InputElementDescArray[0].SemanticName = "POSITION";
 	g_D3D11InputElementDescArray[0].SemanticIndex = 0;
@@ -195,6 +237,14 @@ HRESULT DXShaderResourceInit(const wchar_t* shaderFileName, bool debug)
 	g_D3D11InputElementDescArray[0].AlignedByteOffset = 0;
 	g_D3D11InputElementDescArray[0].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
 	g_D3D11InputElementDescArray[0].InstanceDataStepRate = 0;
+
+	g_D3D11InputElementDescArray[1].SemanticName = "COLOR";
+	g_D3D11InputElementDescArray[1].SemanticIndex = 0;
+	g_D3D11InputElementDescArray[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	g_D3D11InputElementDescArray[1].InputSlot = 0;
+	g_D3D11InputElementDescArray[1].AlignedByteOffset = 12;
+	g_D3D11InputElementDescArray[1].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+	g_D3D11InputElementDescArray[1].InstanceDataStepRate = 0;
 
 	hr = g_D3D11Device->CreateInputLayout(
 		g_D3D11InputElementDescArray, g_ElementDescCount,
@@ -211,8 +261,73 @@ HRESULT DXShaderResourceInit(const wchar_t* shaderFileName, bool debug)
 	PSBlob->Release();
 	FAILED_MESSAGE_RETURN(hr, L"fail to create pixel shader..");
 
-	hr = CreateVertexBufferInline(g_D3D11Device, &g_D3D11VertexBuffer, &g_Stride, &g_Offset);
+	g_VertexCount = 8;
+	g_VertexSize = sizeof(float) * 7;
+	float vertices[] =
+	{
+		-1.0f, +1.0f, -1.0f,
+		+0.0f, +0.0f, +1.0f, +1.0f,
+
+		+1.0f, +1.0f, -1.0f,
+		+0.0f, +1.0f, +0.0f, +1.0f,
+
+		+1.0f, +1.0f, +1.0f,
+		+0.0f, +1.0f, +1.0f, +1.0f,
+
+		-1.0f, +1.0f, +1.0f,
+		+1.0f, +0.0f, +0.0f, +1.0f,
+
+		-1.0f, -1.0f, -1.0f,
+		+1.0f, +0.0f, +1.0f, +1.0f,
+
+		+1.0f, -1.0f, -1.0f,
+		+1.0f, +1.0f, +0.0f, +1.0f,
+
+		+1.0f, -1.0f, +1.0f,
+		+1.0f, +1.0f, +1.0f, +1.0f,
+
+		-1.0f, -1.0f, +1.0f,
+		+0.0f, +0.0f, +0.0f, +1.0f,
+	};
+	hr = CreateVertexBufferInline(g_D3D11Device, &g_D3D11VertexBuffer, g_VertexSize, g_VertexCount, vertices);
 	FAILED_MESSAGE_RETURN(hr, L"fail to create vertex buffer..");
+
+	g_PrimCount = 12;
+	g_PrimSize = sizeof(CHAR) * 3;
+	CHAR indices[] = {
+		3, 1, 0,
+		2, 1, 3,
+		0, 5, 4,
+		1, 5, 0,
+		3, 4, 7,
+		0, 4, 3,
+		1, 6, 5,
+		2, 6, 1,
+		2, 7, 6,
+		3, 7, 2,
+		6, 4, 5,
+		7, 4, 6,
+	};
+
+	hr = CreateIndexBufferInline(g_D3D11Device, &g_D3D11IndexBuffer, g_PrimSize, g_PrimCount, indices);
+	FAILED_MESSAGE_RETURN(hr, L"fail to create index buffer..");
+
+	hr = CreateConstantBufferInline(g_D3D11Device, &g_D3D11ConstantBuffer, sizeof(Tutorial4ConstantBuffer));
+	FAILED_MESSAGE_RETURN(hr, L"fail to create constant buffer..");
+
+	g_World = DirectX::XMMatrixIdentity();
+	XMVECTOR 
+		eye = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f),
+		at  = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
+		up  = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	g_View = DirectX::XMMatrixLookAtLH(eye, at, up);
+	g_Projection = DirectX::XMMatrixPerspectiveFovLH(XM_PIDIV2, g_D3D11ViewPort.Width / g_D3D11ViewPort.Height, 0.01f, 100.0f);
+
+	Tutorial4ConstantBuffer constantBuffer;
+	constantBuffer.world = (g_World);
+	constantBuffer.view = (g_View);
+	constantBuffer.projection = (g_Projection);
+	g_D3D11ImmediateContext->UpdateSubresource(g_D3D11ConstantBuffer, 0, nullptr, &constantBuffer, 0, 0);
 
 	return hr;
 }
@@ -227,7 +342,7 @@ HRESULT DXEntryInit(HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, UIN
 	hr = DXDeviceInit(width, height, maxFrameRate, debug);
 	FAILED_MESSAGE_RETURN(hr, L"fail to initialize device..");
 
-	hr = DXShaderResourceInit(L"./Tutorial2.hlsl", debug);
+	hr = DXShaderResourceInit(L"./Tutorial4.hlsl", debug);
 	FAILED_MESSAGE_RETURN(hr, L"fail to create resource view..");
 
 	return hr;
@@ -246,23 +361,42 @@ void DXEntryClean()
 	if (g_DXGISwapChain) g_DXGISwapChain->Release();
 	if (g_D3D11ImmediateContext) g_D3D11ImmediateContext->Release();
 	if (g_D3D11Device) g_D3D11Device->Release();
+
+	if (g_D3D11InputElementDescArray) free(g_D3D11InputElementDescArray);
 }
 
 void DXEntryFrameUpdate()
 {
-	g_D3D11ImmediateContext->OMSetRenderTargets(1, &g_D3D11RenderTargetView, nullptr);
+	static float time = 0.f;
+	
+	static DWORD startTime = GetTickCount();
+	DWORD currentTime = GetTickCount();
+	time = (currentTime - startTime) / 1000.0f;
+
+	g_World = DirectX::XMMatrixRotationY(time);
+
+	Tutorial4ConstantBuffer constantBuffer;
+	constantBuffer.world = (g_World);
+	constantBuffer.view = (g_View);
+	constantBuffer.projection = (g_Projection);
+	g_D3D11ImmediateContext->UpdateSubresource(g_D3D11ConstantBuffer, 0, nullptr, &constantBuffer, 0, 0);
+
 	float clearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f };
 	g_D3D11ImmediateContext->ClearRenderTargetView(g_D3D11RenderTargetView, clearColor);
 
+	g_D3D11ImmediateContext->RSSetViewports(1, &g_D3D11ViewPort);
+	g_D3D11ImmediateContext->OMSetRenderTargets(1, &g_D3D11RenderTargetView, nullptr);
+
 	g_D3D11ImmediateContext->IASetInputLayout(g_D3D11VertexLayout);
-	g_D3D11ImmediateContext->IASetVertexBuffers(0, 1, &g_D3D11VertexBuffer, &g_Stride, &g_Offset);
+	UINT offset = 0;
+	g_D3D11ImmediateContext->IASetVertexBuffers(0, 1, &g_D3D11VertexBuffer, &g_VertexSize, &offset);
+	g_D3D11ImmediateContext->IASetIndexBuffer(g_D3D11IndexBuffer, DXGI_FORMAT_R8_UINT, 0);
 	g_D3D11ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	g_D3D11ImmediateContext->RSSetViewports(1, &g_D3D11ViewPort);
-
 	g_D3D11ImmediateContext->VSSetShader(g_D3D11VertexShader, nullptr, 0);
+	g_D3D11ImmediateContext->VSSetConstantBuffers(0, 1, &g_D3D11ConstantBuffer);
 	g_D3D11ImmediateContext->PSSetShader(g_D3D11PixelShader, nullptr, 0);
-	g_D3D11ImmediateContext->Draw(3, 0);
+	g_D3D11ImmediateContext->DrawIndexed(g_PrimCount * 3, 0, 0);
 
 	g_DXGISwapChain->Present(0, 0);
 }
