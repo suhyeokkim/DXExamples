@@ -62,22 +62,16 @@ inline HWND GetCreatedWindow(HINSTANCE hInstance, LPWNDCLASSW wndClass, LPCWSTR 
 	return CreateWindowW(wndClass->lpszClassName, windowTitle, WS_POPUP | WS_BORDER | WS_CAPTION | WS_SYSMENU, 100, 100, width, height, 0, (HMENU)nullptr, hInstance, 0);
 }
 
-inline void WindowLoop(HWND hWnd)
+void WindowLoop(HWND hWnd)
 {
-	MSG msg;
-	while (true)
-	{
-		if (PeekMessage(&msg, hWnd, 0, 0, PM_REMOVE))
-		{
-			if (msg.message == WM_QUIT)
-				break; 
-			else
-			{
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-			}
+	MSG msg = { 0, };
 
-			UpdateWindow(hWnd);
+	while (msg.message != WM_QUIT)
+	{
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
 		}
 		else
 		{
