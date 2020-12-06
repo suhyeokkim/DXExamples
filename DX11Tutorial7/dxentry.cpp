@@ -202,6 +202,7 @@ HRESULT DXDeviceInit(UINT width, UINT height, UINT maxFrameRate, bool debug)
 	return hr;
 }
 
+// TODO:: naive resizing function..
 HRESULT DXEntryResize(UINT width, UINT height)
 {
 	if (!g_D3D11ImmediateContext) return S_OK;
