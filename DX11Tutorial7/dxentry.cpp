@@ -4,6 +4,7 @@
 #include <vector>
 #include <DirectXMath.h>
 #include <DirectXTex.h>
+#include <mutex>
 
 using namespace DirectX;
 
@@ -32,9 +33,11 @@ IDXGISwapChain* g_DXGISwapChain;
 ID3D11Device* g_D3D11Device;
 ID3D11DeviceContext* g_D3D11ImmediateContext;
 bool g_IsHDR;
+UINT g_MaxFrameRate;
 ID3D11RenderTargetView* g_D3D11RenderTargetView;
 ID3D11Texture2D* g_D3D11DepthStencilTexture;
 ID3D11DepthStencilView* g_D3D11DepthStencialView;
+std::mutex g_ContextMutex;
 
 /* D3D11 shader resources */
 int g_ElementDescCount;
@@ -133,7 +136,7 @@ inline HRESULT CreateDepthStencilInline(ID3D11Device* device, ID3D11Texture2D** 
 	descDepth.MiscFlags = 0;
 
 	hr = device->CreateTexture2D(&descDepth, nullptr, buffer);
-	FAILED_MESSAGE_RETURN(hr, "fail to create texture2d for depthstencil..");
+	FAILED_MESSAGE_RETURN(hr, L"fail to create texture2d for depthstencil..");
 
 	D3D11_DEPTH_STENCIL_VIEW_DESC descView;
 	memset(&descView, 0, sizeof(D3D11_DEPTH_STENCIL_VIEW_DESC));
@@ -141,7 +144,7 @@ inline HRESULT CreateDepthStencilInline(ID3D11Device* device, ID3D11Texture2D** 
 	descView.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	descView.Texture2D.MipSlice = 0;
 	hr = device->CreateDepthStencilView(*buffer, &descView, view);
-	FAILED_MESSAGE_RETURN(hr, "fail to create depthstencialview..");
+	FAILED_MESSAGE_RETURN(hr, L"fail to create depthstencialview..");
 
 	return hr;
 }
@@ -176,7 +179,7 @@ HRESULT DXDeviceInit(UINT width, UINT height, UINT maxFrameRate, bool debug)
 		&g_D3D11Device, &maxSupportedFeatureLevel, &g_D3D11ImmediateContext);
 	FAILED_MESSAGE_RETURN(hr, L"fail to create D3D11Device..");
 
-	hr = CreateSwapChainInline(g_DXGIFactory, g_D3D11Device, &g_DXGISwapChain, width, height, maxFrameRate, g_IsHDR = false);
+	hr = CreateSwapChainInline(g_DXGIFactory, g_D3D11Device, &g_DXGISwapChain, width, height, g_MaxFrameRate = maxFrameRate, g_IsHDR = false);
 	FAILED_MESSAGE_RETURN(hr, L"fail to create SwapChain..");
 
 	ID3D11Texture2D* backBuffer = nullptr;
@@ -203,20 +206,23 @@ HRESULT DXEntryResize(UINT width, UINT height)
 {
 	if (!g_D3D11ImmediateContext) return S_OK;
 
+	std::lock_guard<std::mutex> lock(g_ContextMutex);
+
 	HRESULT hr = S_OK;
 
 	g_D3D11ImmediateContext->OMSetRenderTargets(0, nullptr, nullptr);
 	g_D3D11RenderTargetView->Release();
+	g_DXGISwapChain->Release();
 
-	hr = g_DXGISwapChain->ResizeBuffers(0, width, height, g_IsHDR? DXGI_FORMAT_R10G10B10A2_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM, 0);
-	FAILED_MESSAGE_RETURN(hr, "fail to resizing swapchain..");
+	hr = CreateSwapChainInline(g_DXGIFactory, g_D3D11Device, &g_DXGISwapChain, width, height, g_MaxFrameRate, g_IsHDR);
+	FAILED_MESSAGE_RETURN(hr, L"fail to create SwapChain..");
 
-	ID3D11Texture2D* backBuffer;
+	ID3D11Texture2D* backBuffer = nullptr;
 	hr = g_DXGISwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
-	FAILED_MESSAGE_RETURN(hr, "fail to get backbuffer..");
+	FAILED_MESSAGE_RETURN(hr, L"fail to get buffer from swapchain..");
 
 	hr = g_D3D11Device->CreateRenderTargetView(backBuffer, nullptr, &g_D3D11RenderTargetView);
-	FAILED_MESSAGE_RETURN(hr, "fail to create resized RTV..");
+	FAILED_MESSAGE_RETURN(hr, L"fail to create resized RTV..");
 	backBuffer->Release();
 
 	g_D3D11DepthStencilTexture->Release();
@@ -590,6 +596,8 @@ void DrawCube(int indexCount)
 
 void DXEntryFrameUpdate()
 {
+	std::lock_guard<std::mutex> lock(g_ContextMutex);
+
 	g_D3D11ImmediateContext->ClearDepthStencilView(g_D3D11DepthStencialView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	g_D3D11ImmediateContext->ClearDepthStencilView(g_D3D11DepthStencialView, D3D11_CLEAR_STENCIL, 0.0f, 0);
 	float clearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f };

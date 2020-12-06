@@ -38,7 +38,7 @@ LRESULT CALLBACK MsgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
 		UINT width = LOWORD(lParam);
 		UINT height = HIWORD(lParam);
-		FAILED_MESSAGE_RETURN_CODE(DXEntryResize(width, height), "fail to resize d3d objects..", 0);
+		FAILED_MESSAGE_RETURN_CODE(DXEntryResize(width, height), L"fail to resize d3d objects..", 0);
 		break;
 	}
 
@@ -67,7 +67,7 @@ inline HWND GetCreatedWindow(HINSTANCE hInstance, LPWNDCLASSW wndClass, LPCWSTR 
 	SetRect(&rc, 0, 0, width, height);
 	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
 
-	return CreateWindowW(wndClass->lpszClassName, windowTitle, WS_POPUP | WS_BORDER | WS_CAPTION | WS_SYSMENU, 100, 100, width, height, 0, (HMENU)nullptr, hInstance, 0);
+	return CreateWindowW(wndClass->lpszClassName, windowTitle, WS_POPUP | WS_BORDER | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME, 100, 100, width, height, 0, (HMENU)nullptr, hInstance, 0);
 }
 
 void WindowLoop(HWND hWnd)
