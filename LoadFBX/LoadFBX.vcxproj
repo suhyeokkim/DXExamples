@@ -23,6 +23,7 @@
     <ProjectGuid>{28C46CBC-3352-495F-8C9C-B58F7B741194}</ProjectGuid>
     <RootNamespace>FBXTutorials</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
+    <ProjectName>LoadFBX</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
