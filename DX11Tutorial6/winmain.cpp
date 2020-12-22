@@ -91,7 +91,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
 	UINT nDefaultWidth = 1280, nDefaultHeight = 800, maxFrameRate = 144;
 
-	WCHAR strWindowTitle[] = L"Test";
+	WCHAR strWindowTitle[] = L"DirectX11 Tutorial 6(Clone)";
 	HWND hWnd = GetCreatedWindow(hInstance, &wndClass, strWindowTitle, nDefaultWidth, nDefaultHeight);
 
 	ShowWindow(hWnd, SW_SHOW);
