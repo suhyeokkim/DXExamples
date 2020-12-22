@@ -17,7 +17,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DX11Tutorial", "DX11Tutoria
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FBXTutorials", "FBXTutorials", "{AAA02C74-0EB4-49DB-BE60-05B3DA11EECB}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LoadFBX", "LoadFBX\LoadFBX.vcxproj", "{28C46CBC-3352-495F-8C9C-B58F7B741194}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImportScene", "ImportScene\ImportScene.vcxproj", "{28C46CBC-3352-495F-8C9C-B58F7B741194}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
