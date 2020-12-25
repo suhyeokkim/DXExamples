@@ -21,7 +21,7 @@ HINSTANCE g_hInstance;
 
 // DXGI objects
 IDXGIFactory7* g_DXGIFactory;
-IDXGISwapChain* g_DXGISwapChain;
+IDXGISwapChain1* g_DXGISwapChain;
 
 // D3D11 device objects
 ID3D11Device* g_D3D11Device;
@@ -38,7 +38,7 @@ D3D11_VIEWPORT g_D3D11ViewPort;
 int g_ElementDescCount;
 D3D11_INPUT_ELEMENT_DESC* g_D3D11InputElementDescArray;
 
-inline HRESULT GetDXGIAdaptersInline(IDXGIFactory1* factory, int* adapterCount, IDXGIAdapter1** dxgiAdapterArray)
+inline HRESULT GetDXGIAdaptersInline(IDXGIFactory7* factory, int* adapterCount, IDXGIAdapter1** dxgiAdapterArray)
 {
 	std::vector<IDXGIAdapter1*> dxgiAdapters;
 	IDXGIAdapter1* dxgiAdapter;
@@ -51,24 +51,24 @@ inline HRESULT GetDXGIAdaptersInline(IDXGIFactory1* factory, int* adapterCount, 
 	return *adapterCount > 0? S_OK: E_FAIL;
 }
 
-inline HRESULT CreateSwapChainInline(IDXGIFactory* factory, ID3D11Device* device, IDXGISwapChain** swapChain, UINT width, UINT height, UINT maxFrameRate, bool isHDR10)
+inline HRESULT CreateSwapChainInline(IDXGIFactory7* factory, ID3D11Device* device, HWND hWnd, UINT width, UINT height, bool isHDR10, IDXGISwapChain1** swapChain)
 {
-	DXGI_SWAP_CHAIN_DESC swapChainDesc;
+	DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
 	memset(&swapChainDesc, 0, sizeof(swapChainDesc));
 
-	swapChainDesc.BufferCount = 1;
-	swapChainDesc.BufferDesc.Width = width;
-	swapChainDesc.BufferDesc.Height = height;
-	swapChainDesc.BufferDesc.Format = isHDR10 ? DXGI_FORMAT_R10G10B10A2_UNORM: DXGI_FORMAT_R8G8B8A8_UNORM;
-	swapChainDesc.BufferDesc.RefreshRate.Numerator = maxFrameRate;
-	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+	swapChainDesc.BufferCount = 2;
+	swapChainDesc.Width = width;
+	swapChainDesc.Height = height;
+	swapChainDesc.Format = isHDR10 ? DXGI_FORMAT_R10G10B10A2_UNORM: DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapChainDesc.OutputWindow = g_hWnd;
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.SampleDesc.Quality = 0;
-	swapChainDesc.Windowed = TRUE;
+	swapChainDesc.Stereo = FALSE;    
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
+	swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
+	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
-	return factory->CreateSwapChain(device, &swapChainDesc, swapChain);
+	return factory->CreateSwapChainForHwnd(device, hWnd, &swapChainDesc, nullptr, nullptr, swapChain);
 }
 
 inline HRESULT CreateRenderTargetViewInline(ID3D11Device* device, ID3D11Texture2D* backBuffer, ID3D11RenderTargetView** rtv)
@@ -101,7 +101,7 @@ HRESULT DXDeviceInit(UINT width, UINT height, UINT maxFrameRate, bool debug)
 		&g_D3D11Device, &maxSupportedFeatureLevel, &g_D3D11ImmediateContext);
 	FAILED_MESSAGE_RETURN(hr, L"fail to create D3D11Device..");
 
-	hr = CreateSwapChainInline(g_DXGIFactory, g_D3D11Device, &g_DXGISwapChain, width, height, maxFrameRate, false);
+	hr = CreateSwapChainInline(g_DXGIFactory, g_D3D11Device, g_hWnd, width, height, false, &g_DXGISwapChain);
 	FAILED_MESSAGE_RETURN(hr, L"fail to create SwapChain..");
 
 	ID3D11Texture2D* backBuffer = nullptr;

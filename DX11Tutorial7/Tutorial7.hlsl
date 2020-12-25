@@ -18,6 +18,7 @@ cbuffer Tutoiral7OnFrameCB : register(b2)
 struct VS_INPUT
 {
 	float3 pos : POSITION;
+	float3 normal : NORMAL;
 	float2 uv : TEXCOORD0;
 };
 
