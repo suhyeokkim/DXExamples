@@ -5,9 +5,10 @@
     <ClCompile Include="fbximport.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\SimpleFramework\datatypes.h" />
     <ClInclude Include="..\SimpleFramework\defined.h" />
     <ClInclude Include="fbximport.h" />
+    <ClInclude Include="datatypes.h" />
+    <ClInclude Include="defined.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="char_max.FBX" />

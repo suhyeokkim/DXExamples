@@ -25,10 +25,10 @@ void DestroyFBX()
 	}
 }
 
-bool SceneToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const FBXAllocaters* allocs);
+bool SceneToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs);
 
-FBXAllocaters g_GlobalAllocater = { malloc, realloc, free };
-bool ImportFBX(const wchar_t* fileDirectory, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const FBXAllocaters* allocs)
+Allocaters g_GlobalAllocater = { malloc, realloc, free };
+bool ImportFBX(const wchar_t* fileDirectory, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
 	if (g_FbxManager == nullptr)
 	{
@@ -70,7 +70,7 @@ IMPORTFBX_FAIL:
 	return false;
 }
 
-bool ImportFBX(const char* fileDirectory, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const FBXAllocaters* allocs)
+bool ImportFBX(const char* fileDirectory, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
 	if (g_FbxManager == nullptr)
 	{
@@ -108,7 +108,7 @@ IMPORTFBX_FAIL:
 	return false;
 }
 
-uint ImportFBX(uint chunkCount, const char* const * fileDirectories, FBXChunk* chunk, const FBXLoadOptionChunk* opt, const FBXAllocaters* allocs)
+uint ImportFBX(uint chunkCount, const char* const * fileDirectories, FBXChunk* chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
 	uint validChunkCount = 0;
 	char fbxObjectName[512];
@@ -139,7 +139,7 @@ uint ImportFBX(uint chunkCount, const char* const * fileDirectories, FBXChunk* c
 	return validChunkCount;
 }
 
-uint ImportFBX(uint chunkCount, const wchar_t* const * fileDirectories, FBXChunk* chunk, const FBXLoadOptionChunk* opt, const FBXAllocaters* allocs)
+uint ImportFBX(uint chunkCount, const wchar_t* const * fileDirectories, FBXChunk* chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
 	uint validChunkCount = 0;
 	char fileDirBuffer[512], fbxObjectName[512];
@@ -173,11 +173,11 @@ uint ImportFBX(uint chunkCount, const wchar_t* const * fileDirectories, FBXChunk
 	return validChunkCount;
 }
 
-uint TraversalFBXNode(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const FBXAllocaters* allocs);
-bool SkeletonToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXAllocaters* allocs);
-bool BlendShapeToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXAllocaters* allocs);
+uint TraversalFBXNode(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs);
+bool SkeletonToChunk(FbxScene* fbxScene, FBXChunk& chunk, const Allocaters* allocs);
+bool BlendShapeToChunk(FbxScene* fbxScene, FBXChunk& chunk, const Allocaters* allocs);
 
-bool SceneToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const FBXAllocaters* allocs)
+bool SceneToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
 	chunk.allocs = allocs;
 	//FbxGeometryConverter* conv = new FbxGeometryConverter(g_FbxManager);
@@ -192,10 +192,10 @@ bool SceneToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk*
 	return true;
 }
 
-bool MeshToChunk(const char *name, FbxMesh* fbxMesh, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const FBXAllocaters* allocs);
-bool SkeletonToChunk(FbxNode* fbxNode, FBXChunk& chunk, const FBXAllocaters* allocs);
+bool MeshToChunk(const char *name, FbxMesh* fbxMesh, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs);
+bool SkeletonToChunk(FbxNode* fbxNode, FBXChunk& chunk, const Allocaters* allocs);
 
-uint TraversalFBXNode(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const FBXAllocaters* allocs)
+uint TraversalFBXNode(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
 	uint count = 0;
 	FbxNodeAttribute* attr = node->GetNodeAttribute();
@@ -224,7 +224,7 @@ uint TraversalFBXNode(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* 
 	return count;
 }
 
-bool MeshToChunk(const char* name, FbxMesh* fbxMesh, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const FBXAllocaters* allocs)
+bool MeshToChunk(const char* name, FbxMesh* fbxMesh, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
 	chunk.meshCount++;
 	if (chunk.meshs == nullptr)
@@ -610,17 +610,17 @@ MESH_IMPORT_FAIL:
 	return false;
 }
 
-bool SkeletonToChunk(FbxNode* fbxNode, FBXChunk& chunk, const FBXAllocaters* allocs)
+bool SkeletonToChunk(FbxNode* fbxNode, FBXChunk& chunk, const Allocaters* allocs)
 {
 	return true;
 }
 
-bool SkeletonToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXAllocaters* allocs)
+bool SkeletonToChunk(FbxScene* fbxScene, FBXChunk& chunk, const Allocaters* allocs)
 {
 	return true;
 }
 
-bool BlendShapeToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXAllocaters* allocs)
+bool BlendShapeToChunk(FbxScene* fbxScene, FBXChunk& chunk, const Allocaters* allocs)
 {
 	return true;
 }

@@ -22,13 +22,6 @@ struct FBXLoadOptionChunk
 	FBXLoadOptionChunk() : flags(0), sampleFPS(60) { }
 };
 
-struct FBXAllocaters
-{
-	std::function<void*(size_t)> alloc;
-	std::function<void*(void*, size_t)> realloc;
-	std::function<void(void*)> dealloc;
-};
-
 struct FBXPivotChunk
 {
 	double prevRotation[3];
@@ -98,7 +91,7 @@ struct FBXChunk
 	Matrix4x4** globalAffineTransforms;
 
 	// allocater
-	const FBXAllocaters* allocs;
+	const Allocaters* allocs;
 
 	FBXChunk() :
 		meshCount(0), meshs(nullptr), materialPropertyCount(0), textureRefs(0),
@@ -152,17 +145,17 @@ void DestroyFBX();
 
 bool ImportFBX(
 	const wchar_t* fileDirectory, FBXChunk& chunk, 
-	const FBXLoadOptionChunk* opt = nullptr, const FBXAllocaters* allocs = nullptr
+	const FBXLoadOptionChunk* opt = nullptr, const Allocaters* allocs = nullptr
 );
 bool ImportFBX(
 	const char* fileDirectory, FBXChunk& chunk, 
-	const FBXLoadOptionChunk* opt = nullptr, const FBXAllocaters* allocs = nullptr
+	const FBXLoadOptionChunk* opt = nullptr, const Allocaters* allocs = nullptr
 );
 uint ImportFBX(
 	uint chunkCount, const char* const * fileDirectories, FBXChunk* chunk, 
-	const FBXLoadOptionChunk* opt = nullptr, const FBXAllocaters* allocs = nullptr
+	const FBXLoadOptionChunk* opt = nullptr, const Allocaters* allocs = nullptr
 );
 uint ImportFBX(
 	uint chunkCount, const wchar_t* const * fileDirectories, FBXChunk* chunk, 
-	const FBXLoadOptionChunk* opt = nullptr, const FBXAllocaters* allocs = nullptr
+	const FBXLoadOptionChunk* opt = nullptr, const Allocaters* allocs = nullptr
 );

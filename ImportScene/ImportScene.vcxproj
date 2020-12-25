@@ -100,7 +100,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(FRAMEWORK_PATH);$(FBXSDK_PATH)include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(FBXSDK_PATH)include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -148,8 +148,9 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\SimpleFramework\datatypes.h" />
     <ClInclude Include="..\SimpleFramework\defined.h" />
+    <ClInclude Include="datatypes.h" />
+    <ClInclude Include="defined.h" />
     <ClInclude Include="fbximport.h" />
   </ItemGroup>
   <ItemGroup>
