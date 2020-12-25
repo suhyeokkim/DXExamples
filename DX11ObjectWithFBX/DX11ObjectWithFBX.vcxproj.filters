@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="dxentry.h" />
+    <ClInclude Include="defined.h" />
+    <ClInclude Include="datatypes.h" />
+    <ClInclude Include="fbximport.h" />
+    <ClInclude Include="dxutil.h" />
+    <ClInclude Include="dxres.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="winmain.cpp" />
+    <ClCompile Include="dxentry.cpp" />
+    <ClCompile Include="fbximport.cpp" />
+    <ClCompile Include="datatypes.cpp" />
+    <ClCompile Include="dxres.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{648431a7-9347-44a8-90d0-4a70fe168dd1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Char_Max.png">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="Face_00.png">
+      <Filter>Resources</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="char_max.FBX">
+      <Filter>Resources</Filter>
+    </None>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="object.hlsl">
+      <Filter>Resources</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>
