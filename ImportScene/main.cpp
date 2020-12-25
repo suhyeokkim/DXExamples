@@ -11,13 +11,14 @@ void PrintFBXChunk(FILE* fp, FBXChunk* chunk)
 		fprintf(fp, "meshname:%s, vertexcount:%d, indexcount:%d\n", m.name, m.geometry.vertexCount, m.geometry.indexCount);
 
 		uint j, k;
+		Vector4f* v4;
 		Vector3f* v3;
 		Vector2f* v2;
 		for (j = 0; j < m.geometry.indexCount; j++)
 			fprintf(fp, "idx%d: %d\n", j, m.geometry.indices[j]);
 
-		for (j = 0; j < m.geometry.vertexCount && (v3 = m.geometry.vertices + j); j++)
-			fprintf(fp, "pos%d: (%.2f, %.2f, %.2f)\n", j, v3->x, v3->y, v3->z);
+		for (j = 0; j < m.geometry.vertexCount && (v4 = m.geometry.vertices + j); j++)
+			fprintf(fp, "pos%d: (%.2f, %.2f, %.2f)\n", j, v4->x, v4->y, v4->z);
 		for (j = 0; j < m.geometry.vertexCount && (v3 = m.geometry.tangents + j); j++)
 			fprintf(fp, "tan%d: (%.2f, %.2f, %.2f)\n", j, v3->x, v3->y, v3->z);
 		for (j = 0; j < m.geometry.vertexCount && (v3 = m.geometry.normals + j); j++)

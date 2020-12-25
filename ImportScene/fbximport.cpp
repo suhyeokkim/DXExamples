@@ -180,14 +180,14 @@ bool BlendShapeToChunk(FbxScene* fbxScene, FBXChunk& chunk, const Allocaters* al
 bool SceneToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
 	chunk.allocs = allocs;
-	//FbxGeometryConverter* conv = new FbxGeometryConverter(g_FbxManager);
-	//conv->Triangulate(fbxScene, true);
+	FbxGeometryConverter* conv = new FbxGeometryConverter(g_FbxManager);
+	conv->Triangulate(fbxScene, true);
 
 	TraversalFBXNode(fbxScene->GetRootNode(), chunk, opt, allocs);
 	SkeletonToChunk(fbxScene, chunk, allocs);
 	BlendShapeToChunk(fbxScene, chunk, allocs);
 
-	//delete conv;
+	delete conv;
 
 	return true;
 }
@@ -206,10 +206,8 @@ uint TraversalFBXNode(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* 
 		switch (type)
 		{
 		case FbxNodeAttribute::EType::eMesh:
-		{
 			if (MeshToChunk(node->GetNameOnly(), node->GetMesh(), chunk, opt, allocs))
 				count++;
-		}
 			break;
 		case FbxNodeAttribute::EType::eSkeleton:
 			if (SkeletonToChunk(node, chunk, allocs))
@@ -241,12 +239,13 @@ bool MeshToChunk(const char* name, FbxMesh* fbxMesh, FBXChunk& chunk, const FBXL
 
 	// controlpoint to vertex
 	FbxVector4* fbxVertices = fbxMesh->GetControlPoints();
-	mesh.geometry.vertices = (Vector3f*)allocs->alloc(sizeof(Vector3f) * mesh.geometry.vertexCount);
+	mesh.geometry.vertices = (Vector4f*)allocs->alloc(sizeof(Vector4f) * mesh.geometry.vertexCount);
 	for (uint i = 0; i < mesh.geometry.vertexCount; i++)
 	{
 		mesh.geometry.vertices[i].x = static_cast<float>(fbxVertices[i].mData[0]);
 		mesh.geometry.vertices[i].y = static_cast<float>(fbxVertices[i].mData[1]);
 		mesh.geometry.vertices[i].z = static_cast<float>(fbxVertices[i].mData[2]);
+		mesh.geometry.vertices[i].w = 1.f;
 	}
 
 	// non-unifoirm polygon to uniform triangle
@@ -261,95 +260,23 @@ bool MeshToChunk(const char* name, FbxMesh* fbxMesh, FBXChunk& chunk, const FBXL
 		polygonSize = fbxMesh->GetPolygonSize(i);
 
 		FALSE_ERROR_MESSAGE_ARGS_RETURN_CODE(
-			polygonSize == 3 || polygonSize == 4,
-			L"fail to divide polygon(%d), because avaiable polygonsize is 3 or 4",
+			polygonSize == 3,
+			L"fail to divide polygon(%d), because only avaiable polygonsize is 3..",
 			false,
 			polygonSize
 		);
 
-		indexCount = (polygonSize - 2) * 3;
-		if (indexCount + lastTriangleIndex >= triangles.size())
-			triangles.reserve(triangles.size() * 2);
-
-		if (polygonSize == 4)
+		if (!opt->flipface)
 		{
-			bool zOrderQuad = false;
-			int idxs[4] = { 
-				fbxMesh->GetPolygonVertex(i, 0), fbxMesh->GetPolygonVertex(i, 1), 
-				fbxMesh->GetPolygonVertex(i, 2), fbxMesh->GetPolygonVertex(i, 3) 
-			};
-			Vector3f 
-				v0 = (mesh.geometry.vertices[idxs[1]] - mesh.geometry.vertices[idxs[0]]).normalized(), 
-				v1 = (mesh.geometry.vertices[idxs[3]] - mesh.geometry.vertices[idxs[2]]).normalized();
-			if (1.f - abs(Dot(v0, v1)) > EPSILON)
-				zOrderQuad = true;
-
-			v0 = (mesh.geometry.vertices[idxs[2]] - mesh.geometry.vertices[idxs[1]]).normalized();
-			v1 = (mesh.geometry.vertices[idxs[0]] - mesh.geometry.vertices[idxs[3]]).normalized();
-			if (1.f - abs(Dot(v0, v1)) > EPSILON)
-				zOrderQuad = true;
-
-			if (!zOrderQuad)
-			{
-				if (!opt->flipface)
-				{
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 0));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 1));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
-
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 0));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 3));
-				}
-				else
-				{
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 0));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 1));
-
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 0));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 3));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
-				}
-			}
-			else
-			{
-				if (!opt->flipface)
-				{
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 0));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 1));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
-
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 1));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 3));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
-				}
-				else
-				{
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 0));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 1));
-
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 1));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
-					triangles.push_back(fbxMesh->GetPolygonVertex(i, 3));
-				}
-			}
+			triangles.push_back(fbxMesh->GetPolygonVertex(i, 0));
+			triangles.push_back(fbxMesh->GetPolygonVertex(i, 1));
+			triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
 		}
 		else
 		{
-			if (!opt->flipface)
-			{
-				triangles.push_back(fbxMesh->GetPolygonVertex(i, 0));
-				triangles.push_back(fbxMesh->GetPolygonVertex(i, 1));
-				triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
-			}
-			else
-			{
-				triangles.push_back(fbxMesh->GetPolygonVertex(i, 0));
-				triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
-				triangles.push_back(fbxMesh->GetPolygonVertex(i, 1));
-			}
+			triangles.push_back(fbxMesh->GetPolygonVertex(i, 0));
+			triangles.push_back(fbxMesh->GetPolygonVertex(i, 2));
+			triangles.push_back(fbxMesh->GetPolygonVertex(i, 1));
 		}
 	}
 
@@ -559,8 +486,14 @@ bool MeshToChunk(const char* name, FbxMesh* fbxMesh, FBXChunk& chunk, const FBXL
 					for (int itemIndex = 0; itemIndex < fbxMesh->GetPolygonSize(polyIndex); itemIndex++)
 					{
 						int controlPointIndex = fbxMesh->GetPolygonVertex(polyIndex, itemIndex);
+						
 						uvs[controlPointIndex].x = static_cast<float>(fbxUV->GetDirectArray()[controlPointIndex].mData[0]);
 						uvs[controlPointIndex].y = static_cast<float>(fbxUV->GetDirectArray()[controlPointIndex].mData[1]);
+
+						if (opt->flipU)
+							uvs[controlPointIndex].x = 1.f - uvs[controlPointIndex].x;
+						if (opt->flipV)
+							uvs[controlPointIndex].y = 1.f - uvs[controlPointIndex].y;
 					}
 				}					
 			}
@@ -574,6 +507,11 @@ bool MeshToChunk(const char* name, FbxMesh* fbxMesh, FBXChunk& chunk, const FBXL
 						int uvIndex = fbxUV->GetIndexArray()[controlPointIndex];
 						uvs[controlPointIndex].x = static_cast<float>(fbxUV->GetDirectArray()[uvIndex].mData[0]);
 						uvs[controlPointIndex].y = static_cast<float>(fbxUV->GetDirectArray()[uvIndex].mData[1]);
+
+						if (opt->flipU)
+							uvs[controlPointIndex].x = 1.f - uvs[controlPointIndex].x;
+						if (opt->flipV)
+							uvs[controlPointIndex].y = 1.f - uvs[controlPointIndex].y;
 					}
 				}
 			}
@@ -593,6 +531,11 @@ bool MeshToChunk(const char* name, FbxMesh* fbxMesh, FBXChunk& chunk, const FBXL
 						int textureUVIndex = fbxMesh->GetTextureUVIndex(polyIndex, itemIndex);
 						uvs[controlPointIndex].x = static_cast<float>(fbxUV->GetDirectArray()[textureUVIndex].mData[0]);
 						uvs[controlPointIndex].y = static_cast<float>(fbxUV->GetDirectArray()[textureUVIndex].mData[1]);
+
+						if (opt->flipU)
+							uvs[controlPointIndex].x = 1.f - uvs[controlPointIndex].x;
+						if (opt->flipV)
+							uvs[controlPointIndex].y = 1.f - uvs[controlPointIndex].y;
 					}
 				}
 			}

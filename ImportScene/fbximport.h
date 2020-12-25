@@ -10,10 +10,12 @@ struct FBXLoadOptionChunk
 		struct
 		{
 			uint flipface : 1;
+			uint flipU : 1;
+			uint flipV : 1;
 			uint fillVertexNomral : 1;
 			uint fillVertexTangent : 1;
 			uint fillVertexBinormal : 1;
-			uint padding : 4;
+			uint padding : 2;
 		};
 		byte flags;
 	};
@@ -38,7 +40,7 @@ struct FBXMeshChunk
 	struct FBXGeometryChunk
 	{
 		uint vertexCount;
-		Vector3f* vertices;
+		Vector4f* vertices;
 		Vector3f* normals;
 		Vector3f* tangents;
 		Vector3f* binormals;
