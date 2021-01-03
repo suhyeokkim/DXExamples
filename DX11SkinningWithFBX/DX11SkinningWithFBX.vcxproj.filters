@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="datatypes.cpp" />
+    <ClCompile Include="dxentry.cpp" />
+    <ClCompile Include="dxres.cpp" />
+    <ClCompile Include="fbximport.cpp" />
+    <ClCompile Include="winmain.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="datatypes.h" />
+    <ClInclude Include="defined.h" />
+    <ClInclude Include="dxentry.h" />
+    <ClInclude Include="dxres.h" />
+    <ClInclude Include="dxutil.h" />
+    <ClInclude Include="fbximport.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Char_Max.png">
+      <Filter>Resoureces</Filter>
+    </Image>
+    <Image Include="Face_00.png">
+      <Filter>Resoureces</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Resoureces">
+      <UniqueIdentifier>{dd3d9499-af98-4059-819b-2c5db45deb15}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="char_max.FBX">
+      <Filter>Resoureces</Filter>
+    </None>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="object.hlsl">
+      <Filter>Resoureces</Filter>
+    </FxCompile>
+    <FxCompile Include="dqs_compute.hlsl">
+      <Filter>Resoureces</Filter>
+    </FxCompile>
+    <FxCompile Include="dq.hlsl">
+      <Filter>Resoureces</Filter>
+    </FxCompile>
+    <FxCompile Include="lbs_compute.hlsl">
+      <Filter>Resoureces</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>

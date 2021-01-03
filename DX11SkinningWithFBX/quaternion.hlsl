@@ -1,0 +1,5 @@
+﻿#ifndef QUATERNION_ARITHMETIC
+#define QUATERNION_ARITHMETIC
+
+
+#endif
