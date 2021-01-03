@@ -10,10 +10,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="winmain.cpp" />
-    <ClCompile Include="dxentry.cpp" />
     <ClCompile Include="fbximport.cpp" />
     <ClCompile Include="datatypes.cpp" />
     <ClCompile Include="dxres.cpp" />
+    <ClCompile Include="dxentry.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Resources">
@@ -21,10 +21,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Char_Max.png">
+    <Image Include="Face_00.png">
       <Filter>Resources</Filter>
     </Image>
-    <Image Include="Face_00.png">
+    <Image Include="Char_Max.png">
       <Filter>Resources</Filter>
     </Image>
   </ItemGroup>

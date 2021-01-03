@@ -467,7 +467,6 @@ void Render()
 	g_DXGISwapChain->Present(0, 0);
 }
 
-
 HRESULT PipelineDependancySet()
 {
 	g_DependancyCount = 2;
@@ -534,9 +533,19 @@ HRESULT PipelineDependancySet()
 		g_Dependancies[0].ps.srvs[0].indices = (uint*)g_GlobalAllocaters.alloc(sizeof(uint));
 		g_Dependancies[0].ps.srvs[0].indices[0] = 0;
 
+		g_Dependancies[0].ps.samplerCount = 1;
+		g_Dependancies[0].ps.samplers =
+			(DX11ShaderResourceDependancy::DX11SamplerRef*)g_GlobalAllocaters.alloc(
+				sizeof(DX11ShaderResourceDependancy::DX11SamplerRef) * g_Dependancies[0].ps.samplerCount
+			);
+		g_Dependancies[0].ps.samplers[0].slotOrRegister = 0;
+		g_Dependancies[0].ps.samplers[0].indexCount = 1;
+		g_Dependancies[0].ps.samplers[0].indices = (uint*)g_GlobalAllocaters.alloc(sizeof(uint));
+		g_Dependancies[0].ps.samplers[0].indices[0] = 0;
+
 		g_Dependancies[0].drawType = DX11PipelineDependancy::DrawType::DRAW_INDEXED;
 		g_Dependancies[0].argsAsDraw.drawIndexedArgs.indexCount =
-			g_ExternalResources.geometryChunks[g_Dependancies[0].input.inputLayoutIndex].indexCount;
+			g_ExternalResources.geometryChunks[g_Dependancies[0].input.geometryIndex].indexCount;
 		g_Dependancies[0].argsAsDraw.drawIndexedArgs.startIndexLocation = 0;
 		g_Dependancies[0].argsAsDraw.drawIndexedArgs.baseVertexLocation = 0;
 	}
@@ -601,9 +610,19 @@ HRESULT PipelineDependancySet()
 		g_Dependancies[1].ps.srvs[0].indices = (uint*)g_GlobalAllocaters.alloc(sizeof(uint));
 		g_Dependancies[1].ps.srvs[0].indices[0] = 1;
 
+		g_Dependancies[1].ps.samplerCount = 1;
+		g_Dependancies[1].ps.samplers =
+			(DX11ShaderResourceDependancy::DX11SamplerRef*)g_GlobalAllocaters.alloc(
+				sizeof(DX11ShaderResourceDependancy::DX11SamplerRef) * g_Dependancies[1].ps.samplerCount
+			);
+		g_Dependancies[1].ps.samplers[0].slotOrRegister = 0;
+		g_Dependancies[1].ps.samplers[0].indexCount = 1;
+		g_Dependancies[1].ps.samplers[0].indices = (uint*)g_GlobalAllocaters.alloc(sizeof(uint));
+		g_Dependancies[1].ps.samplers[0].indices[0] = 0;
+
 		g_Dependancies[1].drawType = DX11PipelineDependancy::DrawType::DRAW_INDEXED;
 		g_Dependancies[1].argsAsDraw.drawIndexedArgs.indexCount =
-			g_ExternalResources.geometryChunks[g_Dependancies[1].input.inputLayoutIndex].indexCount;
+			g_ExternalResources.geometryChunks[g_Dependancies[1].input.geometryIndex].indexCount;
 		g_Dependancies[1].argsAsDraw.drawIndexedArgs.startIndexLocation = 0;
 		g_Dependancies[1].argsAsDraw.drawIndexedArgs.baseVertexLocation = 0;
 	}

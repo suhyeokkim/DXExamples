@@ -26,4 +26,3 @@ void Quaternion::Rotate(Vector3f& p) const
 	result.z = (num08 - num11) * p.x + (num09 + num10) * p.y + (1 - (num04 + num05)) * p.z;
 	p = result;
 }
-
