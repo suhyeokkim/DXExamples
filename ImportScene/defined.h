@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <windows.h>
+#include <functional>
 
 #define IN
 #define OUT
@@ -32,6 +33,15 @@
 		WCHAR szErrorBuffer[MAX_PATH]; \
 		wsprintfW(szErrorBuffer, L"*ERROR* MESSAGE::%s\n", str); \
 		_putws(szErrorBuffer); \
+		continue; \
+	}
+#define ERROR_MESSAGE_CONTINUE_ARGS(fmt, ...) \
+	{ \
+		WCHAR szErrorBuffer1[MAX_PATH]; \
+		wsprintfW(szErrorBuffer1, fmt, __VA_ARGS__); \
+		WCHAR szErrorBuffer2[MAX_PATH]; \
+		wsprintfW(szErrorBuffer2, L"*ERROR* MESSAGE::%s\n", szErrorBuffer1); \
+		_putws(szErrorBuffer2); \
 		continue; \
 	}
 #define ERROR_MESSAGE_GOTO(str, go) \
@@ -133,6 +143,16 @@
 		WCHAR szErrorBuffer[MAX_PATH]; \
 		wsprintfW(szErrorBuffer, L"*ERROR* MESSAGE::%s\n", str); \
 		_putws(szErrorBuffer); \
+		continue; \
+	}
+#define FALSE_ERROR_MESSAGE_CONTINUE_ARGS(x, fmt, ...) \
+	if (!(x)) \
+	{ \
+		WCHAR szErrorBuffer1[MAX_PATH]; \
+		wsprintfW(szErrorBuffer1, fmt, __VA_ARGS__); \
+		WCHAR szErrorBuffer2[MAX_PATH]; \
+		wsprintfW(szErrorBuffer2, L"*ERROR* MESSAGE::%s\n", szErrorBuffer1); \
+		_putws(szErrorBuffer2); \
 		continue; \
 	}
 #define FALSE_ERROR_MESSAGE_GOTO(x, str, go) \
@@ -251,7 +271,7 @@
 		WCHAR szErrorBuffer1[MAX_PATH]; \
 		wsprintfW(szErrorBuffer1, fmt, __VA_ARGS__); \
 		WCHAR szErrorBuffer2[MAX_PATH]; \
-		wsprintfW(szErrorBuffer2, L"*ERROR* MESSAGE::%s\n", szErrorBuffer1); \
+		wsprintfW(szErrorBuffer2, L"*ERROR* CODE:%x, MESSAGE::%s\n", x, szErrorBuffer1); \
 		_putws(szErrorBuffer2); \
 	}
 #define FAILED_ERROR_MESSAGE_CONTINUE(x, str) \
@@ -261,6 +281,15 @@
 		wsprintfW(szErrorBuffer, L"*ERROR* MESSAGE::%s\n", str); \
 		_putws(szErrorBuffer); \
 		continue; \
+	}
+#define FAILED_ERROR_MESSAGE_CONTINUE_ARGS(x, fmt, ...) \
+	if (((HRESULT)(x)) < 0) \
+	{ \
+		WCHAR szErrorBuffer1[MAX_PATH]; \
+		wsprintfW(szErrorBuffer1, fmt, __VA_ARGS__); \
+		WCHAR szErrorBuffer2[MAX_PATH]; \
+		wsprintfW(szErrorBuffer2, L"*ERROR* MESSAGE::%s\n", szErrorBuffer1); \
+		_putws(szErrorBuffer2); \
 	}
 #define FAILED_ERROR_MESSAGE_GOTO(x, str, go) \
 	if (((HRESULT)(x)) < 0) \
@@ -276,6 +305,16 @@
 		WCHAR szErrorBuffer[MAX_PATH]; \
 		wsprintfW(szErrorBuffer, L"*ERROR* MESSAGE::%s\n", str); \
 		_putws(szErrorBuffer); \
+		return (HRESULT)(x); \
+	}
+#define FAILED_ERROR_MESSAGE_RETURN_ARGS(x, fmt, ...) \
+	if (((HRESULT)(x)) < 0) \
+	{ \
+		WCHAR szErrorBuffer1[MAX_PATH]; \
+		wsprintfW(szErrorBuffer1, fmt, __VA_ARGS__); \
+		WCHAR szErrorBuffer2[MAX_PATH]; \
+		wsprintfW(szErrorBuffer2, L"*ERROR* MESSAGE::%s\n", szErrorBuffer1); \
+		_putws(szErrorBuffer2); \
 		return (HRESULT)(x); \
 	}
 #define FAILED_ERROR_MESSAGE_RETURN_CODE(x, str, failcode) \
@@ -316,6 +355,16 @@
 		WCHAR szErrorBuffer[MAX_PATH]; \
 		wsprintfW(szErrorBuffer, L"(WARN) MESSAGE::%s\n", str); \
 		_putws(szErrorBuffer); \
+		continue; \
+	}
+#define FAILED_WARN_MESSAGE_CONTINUE_ARGS(x, fmt, ...) \
+	if (((HRESULT)(x)) < 0) \
+	{ \
+		WCHAR szErrorBuffer1[MAX_PATH]; \
+		wsprintfW(szErrorBuffer1, fmt, __VA_ARGS__); \
+		WCHAR szErrorBuffer2[MAX_PATH]; \
+		wsprintfW(szErrorBuffer2, L"(WARN) MESSAGE::%s\n", szErrorBuffer1); \
+		_putws(szErrorBuffer2); \
 		continue; \
 	}
 #define FAILED_WARN_MESSAGE_GOTO(x, str, go) \
@@ -368,11 +417,55 @@
 		x = nullptr; \
 	} 
 #define SAFE_DEALLOC(x, func) \
-	if (x) \
+	if ((x)) \
 	{ \
-		func(x); \
+		func((x)); \
 		x = nullptr; \
 	} 
+#define SAFE_RELEASE(x) \
+	if ((x)) \
+	{ \
+		(x)->Release(); \
+		x = nullptr; \
+	} 
+
+#define ALLOC_AND_WCSCPY(dst, src, alloc) \
+{ \
+	uint len = wcslen(src); \
+	dst = (wchar_t*)alloc(sizeof(wchar_t) * (len + 1)); \
+	wcscpy_s(dst, (len + 1), src); \
+}
+
+#define ALLOC_AND_STRCPY(dst, src, alloc) \
+{ \
+	uint len = strlen(src); \
+	dst = (char*)alloc(sizeof(char) * (len + 1)); \
+	strcpy_s(dst, (len + 1), src); \
+}
+
+#define REALLOC_RANGE_ZEROMEM(start, origin_count, new_count, type, ptr, reallocer) \
+	uint start = (uint)origin_count; \
+	origin_count += (uint)new_count; \
+	ptr = (type*)reallocer(ptr, sizeof(type) * origin_count); \
+	memset(ptr + start, 0, sizeof(type) * new_count); 
+
+#define REALLOC_EXISTVAL_RANGE_ZEROMEM(start, origin_count, new_count, type, ptr, reallocer) \
+	start = (uint)origin_count; \
+	origin_count += (uint)new_count; \
+	ptr = (type*)reallocer(ptr, sizeof(type) * origin_count); \
+	memset(ptr + start, 0, sizeof(type) * new_count); 
+
+#define REALLOC_RANGE_MEMCPY(start, origin_count, new_count, type, dest, src, reallocer) \
+	uint start = (uint)origin_count; \
+	origin_count += (uint)new_count; \
+	dest = (type*)reallocer(dest, sizeof(type) * origin_count); \
+	memcpy(dest, src, sizeof(type) * new_count); 
+
+#define REALLOC_EXISTVAL_RANGE_MEMCPY(start, origin_count, new_count, type, dest, src, reallocer) \
+	start = (uint)origin_count; \
+	origin_count += (uint)new_count; \
+	dest = (type*)reallocer(dest, sizeof(type) * origin_count); \
+	memcpy(dest, src, sizeof(type) * new_count); 
 
 typedef unsigned short ushort;
 typedef signed char sbyte;

@@ -132,7 +132,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(FRAMEWORK_PATH);$(FBXSDK_PATH)include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(FBXSDK_PATH)include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -144,11 +144,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="datatypes.cpp" />
     <ClCompile Include="fbximport.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\SimpleFramework\defined.h" />
     <ClInclude Include="datatypes.h" />
     <ClInclude Include="defined.h" />
     <ClInclude Include="fbximport.h" />

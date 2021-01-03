@@ -20,8 +20,9 @@ struct FBXLoadOptionChunk
 		byte flags;
 	};
 	uint sampleFPS : 8;
+	uint fbxSkinIndex : 8;
 
-	FBXLoadOptionChunk() : flags(0), sampleFPS(60) { }
+	FBXLoadOptionChunk() : flags(0), sampleFPS(60), fbxSkinIndex(0) { }
 };
 
 struct FBXPivotChunk
@@ -40,12 +41,14 @@ struct FBXMeshChunk
 	struct FBXGeometryChunk
 	{
 		uint vertexCount;
-		Vector4f* vertices;
+		Vector3f* vertices;
 		Vector3f* normals;
 		Vector3f* tangents;
 		Vector3f* binormals;
 		uint uvSlotCount;
 		Vector2f** uvSlots;
+		Vector4i* boneIndices;
+		Vector4f* boneWeights;
 		uint indexCount;
 		uint* indices;
 	} geometry;
@@ -63,8 +66,12 @@ struct FBXMeshChunk
 
 struct FBXHierarchyNode
 {
-	int parentIndexOffset;
-	int nameStartIndex;
+	char* name;
+	int parentIndex;
+	int childIndexStart;
+	int childCount;
+	Matrix4x4 inverseGlobalTransformMatrix;
+	TRS localTransform;
 };
 
 struct FBXChunk
@@ -79,27 +86,25 @@ struct FBXChunk
 
 	// hierarchy
 	uint hierarchyCount;
-	wchar_t* hierarchyNames;
 	FBXHierarchyNode* hierarchyNodes;
 
-	// skeleton
-	uint skeletonCount;
-	int* skeletonHierarchyIndices;
-
 	// animation
-	uint frameKeyCount;
-	uint fpsCount;
-	uint transformCount;
-	Matrix4x4** globalAffineTransforms;
+	uint animationCount;
+	struct FBXAnimation
+	{
+		char* animationName;
+		uint frameKeyCount;
+		uint fpsCount;
+		Matrix4x4* globalAffineTransforms;
+	}* animations;
 
 	// allocater
 	const Allocaters* allocs;
 
 	FBXChunk() :
 		meshCount(0), meshs(nullptr), materialPropertyCount(0), textureRefs(0),
-		hierarchyCount(0), hierarchyNames(nullptr), hierarchyNodes(nullptr),
-		skeletonCount(0), skeletonHierarchyIndices(nullptr),
-		frameKeyCount(0), fpsCount(0), transformCount(0), globalAffineTransforms(nullptr), allocs(nullptr)
+		hierarchyCount(0), hierarchyNodes(nullptr), animationCount(0), animations(nullptr), 
+		allocs(nullptr)
 	{}
 	~FBXChunk()
 	{
@@ -113,6 +118,8 @@ struct FBXChunk
 				SAFE_DEALLOC(mesh->geometry.normals, allocs->dealloc);
 				SAFE_DEALLOC(mesh->geometry.tangents, allocs->dealloc);
 				SAFE_DEALLOC(mesh->geometry.binormals, allocs->dealloc);
+				SAFE_DEALLOC(mesh->geometry.boneIndices, allocs->dealloc);
+				SAFE_DEALLOC(mesh->geometry.boneWeights, allocs->dealloc);
 
 				SAFE_DEALLOC(mesh->geometry.indices, allocs->dealloc);
 
@@ -122,22 +129,20 @@ struct FBXChunk
 						SAFE_DEALLOC(mesh->geometry.uvSlots[j], allocs->dealloc);
 					allocs->dealloc(mesh->geometry.uvSlots);
 				}
-				
+
 				SAFE_DEALLOC(mesh->submesh.submeshs, allocs->dealloc);
 			}
 			allocs->dealloc(meshs);
 		}
 
 		SAFE_DEALLOC(textureRefs, allocs->dealloc);
-		SAFE_DEALLOC(hierarchyNames, allocs->dealloc);
 		SAFE_DEALLOC(hierarchyNodes, allocs->dealloc);
-		SAFE_DEALLOC(skeletonHierarchyIndices, allocs->dealloc);
-
-		if (globalAffineTransforms)
+		if (animations)
 		{
-			for (uint i = 0; i < frameKeyCount; i++)
-				SAFE_DEALLOC(globalAffineTransforms[i], allocs->dealloc);
-			allocs->dealloc(globalAffineTransforms);
+			for (int i = 0; i < animationCount; i++)
+				SAFE_DEALLOC(animations[i].globalAffineTransforms, allocs->dealloc);
+
+			allocs->dealloc(animations);
 		}
 	}
 };

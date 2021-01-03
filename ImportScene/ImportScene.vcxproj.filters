@@ -3,9 +3,9 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="fbximport.cpp" />
+    <ClCompile Include="datatypes.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\SimpleFramework\defined.h" />
     <ClInclude Include="fbximport.h" />
     <ClInclude Include="datatypes.h" />
     <ClInclude Include="defined.h" />

@@ -13,6 +13,8 @@
 #define PiOver2			(1.57079632679489661923f)
 #define PiOver4			(0.78539816339744830961f)
 #define Sqrt2			(1.41421356237309504880f)
+#define DEG2RAD			(Pi / 180.0f)
+#define RAD2DEG			(180.0f / Pi)
 
 inline float Lerp(float start, float end, float norm)
 {
@@ -924,6 +926,7 @@ Vector4<Type>::operator Vector3<Type>() const
 	return Vector3<Type>(this->x, this->y, this->z);
 }
 
+struct Matrix4x4;
 struct Quaternion
 {
 	union
@@ -975,8 +978,19 @@ struct Quaternion
 		return Vector4f(x, y, z, w);
 	}
 
-	void Rotate(Vector3f& position) const;
+	void Rotate(Vector3f& p) const;
+	void ToMatrix(Matrix4x4& matrix) const;
+
+	static Quaternion Identity() { return Quaternion(0, 0, 0, 1); }
 };
+
+inline Quaternion AngleAxis(float radian, const Vector3f& axis)
+{
+	if (IsNan(axis) || axis == Vector3f::Zero()) return Quaternion::Identity();
+
+	float sin = sinf(radian * DEG2RAD / 2.f);
+	return Quaternion(sin * axis.x, sin * axis.y, sin * axis.z, cosf(radian / 2.f * DEG2RAD));
+}
 
 inline void Inverse(Quaternion& q)
 {
@@ -1024,10 +1038,22 @@ inline float Luminance(const Vector3f& v)
 	return 0.212671f * v.x + 0.715160f * v.y + 0.072169f * v.z;
 }
 
-/*
-	- column-major matrix 4x4 in Unity
-	https://en.wikipedia.org/wiki/Row-_and_column-major_order
-*/
+enum class EulerAngleOrder : int
+{
+	OrderXYZ,
+	OrderXZY,
+	OrderYZX,
+	OrderYXZ,
+	OrderZXY,
+	OrderZYX,
+};
+
+struct Matrix4x4;
+void EulerAngleToMatrix(const Vector3f& eulerAngle, const EulerAngleOrder order, Matrix4x4& matirx);
+void EulerAngleToQuaternion(const Vector3f& eulerAngle, const EulerAngleOrder order, Quaternion& q);
+void EulerAngleToQuaternion(const Vector3f& eulerAngle, const EulerAngleOrder order, Quaternion& q);
+
+// ??-major matrix 4x4, https://en.wikipedia.org/wiki/Row-_and_column-major_order
 struct Matrix4x4
 {
 	union
@@ -1056,12 +1082,13 @@ struct Matrix4x4
 		};
 		struct
 		{
-			Vector4f v0;
-			Vector4f v1;
-			Vector4f v2;
-			Vector4f v3;
+			Vector4f c0;
+			Vector4f c1;
+			Vector4f c2;
+			Vector4f c3;
 		};
 		char data[64];
+		float dataf[16];
 	};
 
 	Matrix4x4()
@@ -1074,12 +1101,12 @@ struct Matrix4x4
 		m02(mat.m02), m12(mat.m12), m22(mat.m22), m32(mat.m32),
 		m03(mat.m03), m13(mat.m13), m23(mat.m23), m33(mat.m33)
 	{}
-	Matrix4x4(const Vector4f& v0, const Vector4f& v1, const Vector4f& v2, const Vector4f& v3)
+	Matrix4x4(const Vector4f& c0, const Vector4f& c1, const Vector4f& c2, const Vector4f& c3)
 	{
-		this->v0 = v0;
-		this->v1 = v1;
-		this->v2 = v2;
-		this->v3 = v3;
+		this->c0 = c0;
+		this->c1 = c1;
+		this->c2 = c2;
+		this->c3 = c3;
 	}
 
 
@@ -1129,12 +1156,53 @@ struct Matrix4x4
 		m.m00 = m.m11 = m.m22 = m.m33 = 1;
 		return m;
 	}
-	static Matrix4x4 FromTRS(Vector3f translate, Quaternion rotation, Vector3f scale)
+
+	float operator [](int index)
 	{
-		Matrix4x4 m;
-		return m;
+		return dataf[index];
 	}
 
+	static Matrix4x4 FromTRS(Vector3f translate, Quaternion r, Vector3f scale)
+	{
+		Matrix4x4 m0;
+		r.ToMatrix(m0);
+
+		m0.dataf[0] *= scale.x;
+		m0.dataf[1] *= scale.x;
+		m0.dataf[2] *= scale.x;
+		m0.dataf[4] *= scale.y;
+		m0.dataf[5] *= scale.y;
+		m0.dataf[6] *= scale.y;
+		m0.dataf[8] *= scale.z;
+		m0.dataf[9] *= scale.z;
+		m0.dataf[10] *= scale.z;
+		m0.dataf[12] = translate.x;
+		m0.dataf[13] = translate.y;
+		m0.dataf[14] = translate.z;
+
+		return m0;
+	}
+
+	static Matrix4x4 FromTRS(Vector3f translate, Vector3f eulerAngle, EulerAngleOrder order, Vector3f scale)
+	{
+		Matrix4x4 m0;
+		EulerAngleToMatrix(eulerAngle, order, m0);
+
+		m0.dataf[0] *= scale.x;
+		m0.dataf[1] *= scale.x;
+		m0.dataf[2] *= scale.x;
+		m0.dataf[4] *= scale.y;
+		m0.dataf[5] *= scale.y;
+		m0.dataf[6] *= scale.y;
+		m0.dataf[8] *= scale.z;
+		m0.dataf[9] *= scale.z;
+		m0.dataf[10] *= scale.z;
+		m0.dataf[12] = translate.x;
+		m0.dataf[13] = translate.y;
+		m0.dataf[14] = translate.z;
+
+		return m0;
+	}
 };
 
 struct Ray
@@ -1297,4 +1365,36 @@ inline Vector3f ToBasisFromFrame(const Vector3f& v, const Vector3f& t, const Vec
 			t.x * v.x + b.x * v.y + n.x * v.z,
 			t.y * v.x + b.y * v.y + n.y * v.z,
 			t.z * v.x + b.z * v.y + n.z * v.z);
+}
+
+// TODO:: dq helper
+struct DQ
+{
+	Quaternion real;
+	Quaternion dual;
+};
+
+// TODO:: TRS helper
+struct TRS
+{
+	Vector3f translate;
+	Quaternion rotation;
+	Vector3f scale;
+};
+
+inline void TRSToAffine(const TRS& trs, Matrix4x4& mat)
+{
+	mat = Matrix4x4::FromTRS(trs.translate, trs.rotation, trs.scale);
+}
+inline void AffineToTRS(const Matrix4x4& mat, TRS& trs)
+{
+	// TODO:: affine to trs
+}
+inline void TRSToDQ(const TRS& trs, DQ& dq)
+{
+	// TODO:: trs to dq
+}
+inline void DQToTRS(const DQ& dq, TRS& trs)
+{
+	// TODO:: dq to trs
 }
