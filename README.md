@@ -17,7 +17,7 @@
 # directx11 연습
 
 - ObjectWithFBX : FBX에서 추출한 정점/인덱스 데이터 렌더링
-- (SkinningWithFBX) : FBX에서 추출한 정점/인덱스/스켈레톤/애니메이션 렌더링
+- SkinningWithFBX : FBX에서 추출한 지오메트리/스켈레톤/애니메이션 렌더링
 
 # fbx 튜토리얼
-- ImportScene : 지오메트리 (, 스켈레톤, 애니메이션) 추출
+- ImportScene : 지오메트리, 스켈레톤, 키 애니메이션 추출
