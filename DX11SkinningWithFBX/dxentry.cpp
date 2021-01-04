@@ -50,6 +50,8 @@ uint g_DependancyCount;
 DX11PipelineDependancy* g_Dependancies;
 DX11ContextState g_ContextState;
 
+// TODO:: DX OBJECT LEAK
+
 _declspec(align(16)) struct ImmutableCB
 {
 	Vector4f position;
@@ -180,7 +182,7 @@ HRESULT DXEntryResize(UINT width, UINT height)
 	return hr;
 }
 
-HRESULT PipelineDependancySet(uint* dependCount, DX11PipelineDependancy** depends, const Allocaters* allocs);
+HRESULT PipelineDependancySet(DX11Resources* res, uint* dependCount, DX11PipelineDependancy** depends, const Allocaters* allocs);
 
 HRESULT DXShaderResourceInit(bool debug)
 {
@@ -192,6 +194,7 @@ HRESULT DXShaderResourceInit(bool debug)
 	FALSE_ERROR_MESSAGE_RETURN_CODE(
 		ImportFBX(L"./char_max.fbx", c, &opt), L"fail to load fbxfile as \"ImportFBX\"", E_FAIL
 	);
+
 	FBXChunkConfig::FBXMeshConfig meshConfigs[] = { true, true };
 	FBXChunkConfig config { meshConfigs };
 
@@ -232,7 +235,7 @@ HRESULT DXShaderResourceInit(bool debug)
 	);
 
 	// pipeline dependancy from resources
-	PipelineDependancySet(&g_DependancyCount, &g_Dependancies, &g_GlobalAllocaters);
+	PipelineDependancySet(&g_ExternalResources, &g_DependancyCount, &g_Dependancies, &g_GlobalAllocaters);
 
 	// context prepare
 	DependancyContextStatePrepare(&g_ContextState, &g_GlobalAllocaters, g_DependancyCount, g_Dependancies);
@@ -261,7 +264,7 @@ HRESULT DXEntryInit(HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, UIN
 		hr = DXShaderResourceInit(debug);
 		FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create resource view..");
 	}
-	printf("intialize time : %.3f\n", (float)(GetTickCount()- startMilliSecond) / 1000.f);
+	printf("intialize time : %dms\n", GetTickCount()- startMilliSecond);
 
 	return hr;
 }
@@ -292,8 +295,7 @@ void DXEntryClean()
 	ReleaseContext(&g_ContextState, &g_GlobalAllocaters);
 
 	if (g_Dependancies)
-		for (uint i = 0; i < g_DependancyCount; i++)
-			ReleaseDependancy(g_Dependancies + i, &g_GlobalAllocaters);
+		ReleaseDependancy(g_DependancyCount, g_Dependancies, &g_GlobalAllocaters);
 }
 
 Vector4f 
@@ -316,7 +318,7 @@ void DXEntryFrameUpdate()
 	{
 		ReadKey();
 		UpdateConstantBuffer();
-		//*/
+		/*/
 		Render();
 		/*/
 		RenderDependancy();
@@ -429,8 +431,10 @@ void Render()
 	auto pixelShader = g_ExternalResources.shaders.pss[objectShaderFile.psIndices[0]];
 
 	auto anim = g_ExternalResources.anims[0];
-	auto boneBindPoseSRV = g_ExternalResources.srvs[g_ExternalResources.binePoseTransformSRVIndex];
+	auto boneSet = g_ExternalResources.boneSets[0];
+	auto boneBindPoseSRV = g_ExternalResources.srvs[boneSet.binePoseTransformSRVIndex];
 	auto bonePoseSRV = g_ExternalResources.srvs[anim.animPoseTransformSRVIndex];
+
 
 	for (int i = 0; i < g_ExternalResources.geometryCount; i++)
 	{
@@ -441,7 +445,7 @@ void Render()
 		UINT offsets[2] = { 0, 0 };
 
 		SkinningConfigCB cb;
-		cb.boneCount = g_ExternalResources.boneCount;
+		cb.boneCount = boneSet.boneCount;
 		cb.frameIndex = ((GetTickCount() - g_StartTick) / 33) % anim.frameKeyCount;
 		cb.vertexCount = geometry.vertexCount;
 
@@ -487,253 +491,168 @@ void Render()
 	g_DXGISwapChain->Present(0, 0);
 }
 
-HRESULT PipelineDependancySet(uint* dependCount, DX11PipelineDependancy** depends, const Allocaters* allocs)
+HRESULT PipelineDependancySet(DX11Resources* res, uint* dependCount, DX11PipelineDependancy** depends, const Allocaters* allocs)
 {
-	*dependCount = 6;
+	const DX11Resources::DX11BoneSet& boneSet = res->boneSets[0];
+
+	*dependCount = 8;
 	*depends = (DX11PipelineDependancy*)allocs->alloc(sizeof(DX11PipelineDependancy) * g_DependancyCount);
 	memset(*depends, 0, sizeof(DX11PipelineDependancy) * g_DependancyCount);
 
+	for (int i = 0; i < 2; i++)
 	{
-		(*depends)[0].pipelineKind = PIPELINE_KIND::COMPUTE;
-		DX11ComputePipelineDependancy& compute = ((*depends))[0].compute;
-		DX11ShaderResourceDependancy& srd = compute.resources;
+		const DX11Resources::DX11GeometryChunk& geomChunk = res->geometryChunks[i];
 
-		srd.shaderFileIndex = 1;
-		srd.shaderIndex = 0;
+		{
+			(*depends)[4 * i + 0].pipelineKind = PIPELINE_KIND::COPY;
+			DX11CopyDependancy& cpy = ((*depends))[4 * i + 0].copy;
+			cpy.kind = CopyKind::UPDATE_SUBRESOURCE;
+			cpy.dstBufferIndex = res->constantBufferIndices[3];
+			cpy.dstSubres = 0;
+			cpy.getBoxFunc = 
+				[](D3D11_BOX* box) -> const D3D11_BOX* 
+				{ 
+					return (const D3D11_BOX*)nullptr; 
+				};
+			cpy.dataBufferSize = sizeof(SkinningConfigCB);
+			cpy.copyToBufferFunc =
+				[=](void* ptr) -> void 
+				{
+					SkinningConfigCB* cb = reinterpret_cast<SkinningConfigCB*>(ptr);
+					cb->boneCount = boneSet.boneCount;
+					cb->frameIndex = ((GetTickCount() - g_StartTick) / 33) % res->anims[0].frameKeyCount;
+					cb->vertexCount = geomChunk.vertexCount;
+				};
+			cpy.srcRowPitch = 0;
+			cpy.srcDepthPitch = 0;
+		}
+		{
+			(*depends)[4 * i + 1].pipelineKind = PIPELINE_KIND::COMPUTE;
+			DX11ComputePipelineDependancy& compute = ((*depends))[4 * i + 1].compute;
+			DX11ShaderResourceDependancy& srd = compute.resources;
 
-		srd.srvCount = 3;
-		srd.srvs =
-			(DX11ShaderResourceDependancy::DX11SRVRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11SRVRef) * srd.srvCount
-			);
-		srd.srvs[0].indexCount = 3;
-		srd.srvs[0].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
-		srd.srvs[0].indices[0] = 1;
-		srd.srvs[0].slotOrRegister = 0;
-		srd.srvs[1].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
-		srd.srvs[1].indices[0] = 3;
-		srd.srvs[1].slotOrRegister = 1;
-		srd.srvs[2].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
-		srd.srvs[2].indices[0] = 4;
-		srd.srvs[2].slotOrRegister = 2;
+			srd.shaderFileIndex = 1;
+			srd.shaderIndex = 0;
 
-		srd.uavCount = 1;
-		srd.uavs =
-			(DX11ShaderResourceDependancy::DX11UAVRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11UAVRef) * srd.uavCount
-			);
-		srd.uavs[0].indexCount = 1;
-		srd.uavs[0].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
-		srd.uavs[0].indices[0] = 1;
-		srd.uavs[0].slotOrRegister = 0;
-	}
-	{
-		// TODO:: copy buffer to buffer index
-		(*depends)[1].pipelineKind = PIPELINE_KIND::COPY;
-		DX11CopyDependancy& cpy = ((*depends))[1].copy;
-		cpy.kind = CopyKind::COPY_RESOURCE;
-		cpy.srcBufferIndex = 0;
-		cpy.dstBufferIndex = 0;
-	}
-	{
-		(*depends)[2].pipelineKind = PIPELINE_KIND::COMPUTE;
-		DX11ComputePipelineDependancy& compute = ((*depends))[1].compute;
-		DX11ShaderResourceDependancy& srd = compute.resources;
+			srd.srvCount = 3;
+			srd.srvs =
+				(DX11ShaderResourceDependancy::DX11SRVRef*)allocs->alloc(
+					sizeof(DX11ShaderResourceDependancy::DX11SRVRef) * srd.srvCount
+				);
+			srd.srvs[0].indexCount = 1;
+			srd.srvs[0].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
+			srd.srvs[0].indices[0] = geomChunk.vertexDataSRVIndex;
+			srd.srvs[0].slotOrRegister = 0;
+			srd.srvs[1].indexCount = 1;
+			srd.srvs[1].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
+			srd.srvs[1].indices[0] = boneSet.binePoseTransformSRVIndex;
+			srd.srvs[1].slotOrRegister = 1;
+			srd.srvs[2].indexCount = 1;
+			srd.srvs[2].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
+			srd.srvs[2].indices[0] = res->anims[0].animPoseTransformSRVIndex;
+			srd.srvs[2].slotOrRegister = 2;
 
-		srd.shaderFileIndex = 1;
-		srd.shaderIndex = 0;
+			srd.uavCount = 1;
+			srd.uavs =
+				(DX11ShaderResourceDependancy::DX11UAVRef*)allocs->alloc(
+					sizeof(DX11ShaderResourceDependancy::DX11UAVRef) * srd.uavCount
+				);
+			srd.uavs[0].indexCount = 1;
+			srd.uavs[0].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
+			srd.uavs[0].indices[0] = geomChunk.vertexStreamUAVIndex;
+			srd.uavs[0].slotOrRegister = 0;
 
-		srd.srvCount = 3;
-		srd.srvs =
-			(DX11ShaderResourceDependancy::DX11SRVRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11SRVRef) * srd.srvCount
-			);
-		srd.srvs[0].indexCount = 3;
-		srd.srvs[0].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
-		srd.srvs[0].indices[0] = 2;
-		srd.srvs[0].slotOrRegister = 0;
-		srd.srvs[1].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
-		srd.srvs[1].indices[0] = 3;
-		srd.srvs[1].slotOrRegister = 1;
-		srd.srvs[2].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
-		srd.srvs[2].indices[0] = 4;
-		srd.srvs[2].slotOrRegister = 2;
+			srd.constantBufferCount = 1;
+			srd.constantBuffers =
+				(DX11ShaderResourceDependancy::DX11ConstantBufferRef*)allocs->alloc(
+					sizeof(DX11ShaderResourceDependancy::DX11ConstantBufferRef) * srd.constantBufferCount
+				);
+			srd.constantBuffers[0].slotOrRegister = 0;
+			srd.constantBuffers[0].indexCount = 1;
+			srd.constantBuffers[0].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
+			srd.constantBuffers[0].indices[0] = 3;
+			srd.constantBuffers[0].slotOrRegister = 0;
 
-		srd.uavCount = 1;
-		srd.uavs =
-			(DX11ShaderResourceDependancy::DX11UAVRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11UAVRef) * srd.uavCount
-			);
-		srd.uavs[0].indexCount = 1;
-		srd.uavs[0].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
-		srd.uavs[0].indices[0] = 1;
-		srd.uavs[0].slotOrRegister = 0;
-	}
-	{
-		// TODO:: copy buffer to buffer index
-		(*depends)[3].pipelineKind = PIPELINE_KIND::COPY;
-		DX11CopyDependancy& cpy = ((*depends))[3].copy;
-		cpy.kind = CopyKind::COPY_RESOURCE;
-		cpy.srcBufferIndex = 0;
-		cpy.dstBufferIndex = 0;
-	}
-	{
-		(*depends)[4].pipelineKind = PIPELINE_KIND::DRAW;
-		DX11DrawPipelineDependancy& draw = (*depends)[2].draw;
-		new (&draw) DX11DrawPipelineDependancy();
+			compute.dispatchType = DX11ComputePipelineDependancy::DispatchType::DISPATCH;
+			compute.argsAsDispatch.dispatch.threadGroupCountX = geomChunk.vertexCount;
+			compute.argsAsDispatch.dispatch.threadGroupCountY = 1;
+			compute.argsAsDispatch.dispatch.threadGroupCountZ = 1;
+		}
+		{
+			(*depends)[4 * i + 2].pipelineKind = PIPELINE_KIND::COPY;
+			DX11CopyDependancy& cpy = ((*depends))[4 * i + 2].copy;
+			cpy.kind = CopyKind::COPY_RESOURCE;
+			cpy.srcBufferIndex = geomChunk.vertexStreamBufferIndex;
+			cpy.dstBufferIndex = geomChunk.vertexBufferIndex;
+		}
+		{
+			(*depends)[4 * i + 3].pipelineKind = PIPELINE_KIND::DRAW;
+			DX11DrawPipelineDependancy& draw = (*depends)[4 * i + 3].draw;
+			new (&draw) DX11DrawPipelineDependancy();
 
-		draw.input.inputLayoutIndex = 0;
-		draw.input.geometryIndex = 0;
-		draw.input.vertexBufferOffset = 0;
-		draw.input.topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		draw.vs.shaderFileIndex = 0;
-		draw.vs.shaderIndex = 0;
-		draw.vs.constantBufferCount = 3;
-		draw.vs.constantBuffers =
-			(DX11ShaderResourceDependancy::DX11ConstantBufferRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11ConstantBufferRef) * draw.vs.constantBufferCount
-			);
-		draw.vs.constantBuffers[0].slotOrRegister = 0;
-		draw.vs.constantBuffers[0].indexCount = 1;
-		draw.vs.constantBuffers[0].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.vs.constantBuffers[0].indices[0] = 0;
-		draw.vs.constantBuffers[1].slotOrRegister = 1;
-		draw.vs.constantBuffers[1].indexCount = 1;
-		draw.vs.constantBuffers[1].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.vs.constantBuffers[1].indices[0] = 1;
-		draw.vs.constantBuffers[2].slotOrRegister = 2;
-		draw.vs.constantBuffers[2].indexCount = 1;
-		draw.vs.constantBuffers[2].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.vs.constantBuffers[2].indices[0] = 2;
+			draw.input.inputLayoutIndex = 0;
+			draw.input.geometryIndex = i;
+			draw.input.vertexBufferOffset = 0;
+			draw.input.topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			draw.vs.shaderFileIndex = 0;
+			draw.vs.shaderIndex = 0;
+			draw.vs.constantBufferCount = 3;
+			draw.vs.constantBuffers =
+				(DX11ShaderResourceDependancy::DX11ConstantBufferRef*)allocs->alloc(
+					sizeof(DX11ShaderResourceDependancy::DX11ConstantBufferRef) * draw.vs.constantBufferCount
+				);
+			draw.vs.constantBuffers[0].slotOrRegister = 0;
+			draw.vs.constantBuffers[0].indexCount = 1;
+			draw.vs.constantBuffers[0].indices = (uint*)allocs->alloc(sizeof(uint));
+			draw.vs.constantBuffers[0].indices[0] = 0;
+			draw.vs.constantBuffers[1].slotOrRegister = 1;
+			draw.vs.constantBuffers[1].indexCount = 1;
+			draw.vs.constantBuffers[1].indices = (uint*)allocs->alloc(sizeof(uint));
+			draw.vs.constantBuffers[1].indices[0] = 1;
+			draw.vs.constantBuffers[2].slotOrRegister = 2;
+			draw.vs.constantBuffers[2].indexCount = 1;
+			draw.vs.constantBuffers[2].indices = (uint*)allocs->alloc(sizeof(uint));
+			draw.vs.constantBuffers[2].indices[0] = 2;
 
-		draw.vs.samplerCount = 1;
-		draw.vs.samplers =
-			(DX11ShaderResourceDependancy::DX11SamplerRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11SamplerRef) * draw.vs.samplerCount
-			);
-		draw.vs.samplers[0].slotOrRegister = 0;
-		draw.vs.samplers[0].indexCount = 1;
-		draw.vs.samplers[0].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.vs.samplers[0].indices[0] = 0;
+			draw.ps.shaderFileIndex = 0;
+			draw.ps.shaderIndex = 0;
 
-		draw.ps.shaderFileIndex = 0;
-		draw.ps.shaderIndex = 0;
+			draw.ps.constantBufferCount = 1;
+			draw.ps.constantBuffers =
+				(DX11ShaderResourceDependancy::DX11ConstantBufferRef*)allocs->alloc(
+					sizeof(DX11ShaderResourceDependancy::DX11ConstantBufferRef) * draw.ps.constantBufferCount
+				);
+			draw.ps.constantBuffers[0].slotOrRegister = 2;
+			draw.ps.constantBuffers[0].indexCount = 1;
+			draw.ps.constantBuffers[0].indices = (uint*)allocs->alloc(sizeof(uint));
+			draw.ps.constantBuffers[0].indices[0] = 2;
 
-		draw.ps.constantBufferCount = 1;
-		draw.ps.constantBuffers =
-			(DX11ShaderResourceDependancy::DX11ConstantBufferRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11ConstantBufferRef) * draw.ps.constantBufferCount
-			);
-		draw.ps.constantBuffers[0].slotOrRegister = 2;
-		draw.ps.constantBuffers[0].indexCount = 1;
-		draw.ps.constantBuffers[0].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.ps.constantBuffers[0].indices[0] = 2;
+			draw.ps.srvCount = 1;
+			draw.ps.srvs =
+				(DX11ShaderResourceDependancy::DX11SRVRef*)allocs->alloc(
+					sizeof(DX11ShaderResourceDependancy::DX11SRVRef) * draw.ps.srvCount
+				);
+			draw.ps.srvs[0].slotOrRegister = 0;
+			draw.ps.srvs[0].indexCount = 1;
+			draw.ps.srvs[0].indices = (uint*)allocs->alloc(sizeof(uint));
+			draw.ps.srvs[0].indices[0] = res->texture2Ds[i].srvIndex;
 
-		draw.ps.srvCount = 1;
-		draw.ps.srvs =
-			(DX11ShaderResourceDependancy::DX11SRVRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11SRVRef) * draw.ps.srvCount
-			);
-		draw.ps.srvs[0].slotOrRegister = 0;
-		draw.ps.srvs[0].indexCount = 1;
-		draw.ps.srvs[0].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.ps.srvs[0].indices[0] = 0;
+			draw.ps.samplerCount = 1;
+			draw.ps.samplers =
+				(DX11ShaderResourceDependancy::DX11SamplerRef*)allocs->alloc(
+					sizeof(DX11ShaderResourceDependancy::DX11SamplerRef) * draw.ps.samplerCount
+				);
+			draw.ps.samplers[0].slotOrRegister = 0;
+			draw.ps.samplers[0].indexCount = 1;
+			draw.ps.samplers[0].indices = (uint*)allocs->alloc(sizeof(uint));
+			draw.ps.samplers[0].indices[0] = 0;
 
-		draw.ps.samplerCount = 1;
-		draw.ps.samplers =
-			(DX11ShaderResourceDependancy::DX11SamplerRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11SamplerRef) * draw.ps.samplerCount
-			);
-		draw.ps.samplers[0].slotOrRegister = 0;
-		draw.ps.samplers[0].indexCount = 1;
-		draw.ps.samplers[0].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.ps.samplers[0].indices[0] = 0;
-
-		draw.drawType = DX11DrawPipelineDependancy::DrawType::DRAW_INDEXED;
-		draw.argsAsDraw.drawIndexedArgs.indexCount =
-			g_ExternalResources.geometryChunks[draw.input.geometryIndex].indexCount;
-		draw.argsAsDraw.drawIndexedArgs.startIndexLocation = 0;
-		draw.argsAsDraw.drawIndexedArgs.baseVertexLocation = 0;
-	}
-	{
-		(*depends)[5].pipelineKind = PIPELINE_KIND::DRAW;
-		DX11DrawPipelineDependancy& draw = ((*depends))[3].draw;
-		new (&draw) DX11DrawPipelineDependancy();
-
-		draw.input.inputLayoutIndex = 0;
-		draw.input.geometryIndex = 1;
-		draw.input.vertexBufferOffset = 0;
-		draw.input.topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
-		draw.vs.shaderFileIndex = 0;
-		draw.vs.shaderIndex = 0;
-
-		draw.vs.constantBufferCount = 3;
-		draw.vs.constantBuffers =
-			(DX11ShaderResourceDependancy::DX11ConstantBufferRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11ConstantBufferRef) * draw.vs.constantBufferCount
-			);
-		draw.vs.constantBuffers[0].slotOrRegister = 0;
-		draw.vs.constantBuffers[0].indexCount = 1;
-		draw.vs.constantBuffers[0].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.vs.constantBuffers[0].indices[0] = 0;
-		draw.vs.constantBuffers[1].slotOrRegister = 1;
-		draw.vs.constantBuffers[1].indexCount = 1;
-		draw.vs.constantBuffers[1].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.vs.constantBuffers[1].indices[0] = 1;
-		draw.vs.constantBuffers[2].slotOrRegister = 2;
-		draw.vs.constantBuffers[2].indexCount = 1;
-		draw.vs.constantBuffers[2].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.vs.constantBuffers[2].indices[0] = 2;
-
-		draw.vs.samplerCount = 1;
-		draw.vs.samplers =
-			(DX11ShaderResourceDependancy::DX11SamplerRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11SamplerRef) * draw.vs.samplerCount
-			);
-		draw.vs.samplers[0].slotOrRegister = 0;
-		draw.vs.samplers[0].indexCount = 1;
-		draw.vs.samplers[0].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.vs.samplers[0].indices[0] = 0;
-
-		draw.ps.shaderFileIndex = 0;
-		draw.ps.shaderIndex = 0;
-
-		draw.ps.constantBufferCount = 1;
-		draw.ps.constantBuffers =
-			(DX11ShaderResourceDependancy::DX11ConstantBufferRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11ConstantBufferRef) * draw.ps.constantBufferCount
-			);
-		draw.ps.constantBuffers[0].slotOrRegister = 2;
-		draw.ps.constantBuffers[0].indexCount = 1;
-		draw.ps.constantBuffers[0].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.ps.constantBuffers[0].indices[0] = 2;
-
-		draw.ps.srvCount = 1;
-		draw.ps.srvs =
-			(DX11ShaderResourceDependancy::DX11SRVRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11SRVRef) * draw.ps.srvCount
-			);
-		draw.ps.srvs[0].slotOrRegister = 0;
-		draw.ps.srvs[0].indexCount = 1;
-		draw.ps.srvs[0].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.ps.srvs[0].indices[0] = 1;
-
-		draw.ps.samplerCount = 1;
-		draw.ps.samplers =
-			(DX11ShaderResourceDependancy::DX11SamplerRef*)allocs->alloc(
-				sizeof(DX11ShaderResourceDependancy::DX11SamplerRef) * draw.ps.samplerCount
-			);
-		draw.ps.samplers[0].slotOrRegister = 0;
-		draw.ps.samplers[0].indexCount = 1;
-		draw.ps.samplers[0].indices = (uint*)allocs->alloc(sizeof(uint));
-		draw.ps.samplers[0].indices[0] = 0;
-
-		draw.drawType = DX11DrawPipelineDependancy::DrawType::DRAW_INDEXED;
-		draw.argsAsDraw.drawIndexedArgs.indexCount =
-			g_ExternalResources.geometryChunks[draw.input.geometryIndex].indexCount;
-		draw.argsAsDraw.drawIndexedArgs.startIndexLocation = 0;
-		draw.argsAsDraw.drawIndexedArgs.baseVertexLocation = 0;
+			draw.drawType = DX11DrawPipelineDependancy::DrawType::DRAW_INDEXED;
+			draw.argsAsDraw.drawIndexedArgs.indexCount =
+				g_ExternalResources.geometryChunks[draw.input.geometryIndex].indexCount;
+			draw.argsAsDraw.drawIndexedArgs.startIndexLocation = 0;
+			draw.argsAsDraw.drawIndexedArgs.baseVertexLocation = 0;
+		}
 	}
 
 	return S_OK;

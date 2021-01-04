@@ -24,10 +24,10 @@ HRESULT LoadDX11Resoureces(DX11Resources* res, DX11RawResourceBuffer* rawBuffer,
 {
 	HRESULT hr = S_OK;
 
-	hr = LoadGeometryAndAnimationFromFBXChunk(res, rawBuffer, allocs, device, desc->fbxChunkCount, desc->fbxChunks, desc->fbxMeshConfigs);
+	hr = ReserveLoadGeometryAndAnimationFromFBXChunk(res, rawBuffer, allocs, device, desc->fbxChunkCount, desc->fbxChunks, desc->fbxMeshConfigs);
 	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to load geometries by FBX..");
 
-	hr = LoadTexture2DAndSRVFromDirectories(
+	hr = ReserveTexture2DAndSRVFromDirectories(
 		res, rawBuffer, allocs, device,
 		desc->textureDirCount, desc->texturedirs, desc->textureBufferSize, desc->allocatedtextureBuffer
 	);
@@ -35,13 +35,13 @@ HRESULT LoadDX11Resoureces(DX11Resources* res, DX11RawResourceBuffer* rawBuffer,
 
 	DX11CompileDescToShader* dtosBuffer = (DX11CompileDescToShader*)alloca(sizeof(DX11CompileDescToShader) * desc->shaderCompileCount);;
 
-	hr = LoadShaderFromDirectories(
+	hr = ReserveLoadShaderFromDirectories(
 		res, rawBuffer, allocs, device, 
 		desc->shaderCompileCount, desc->shaderCompileDescs, dtosBuffer
 	);
 	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to compile shaders..");
 
-	hr = LinkInputLayout(
+	hr = ReserveLoadInputLayout(
 		res, rawBuffer, allocs,
 		desc->shaderCompileCount, dtosBuffer, desc->inputLayoutCount, desc->inputLayoutDescs
 	);
@@ -51,15 +51,14 @@ HRESULT LoadDX11Resoureces(DX11Resources* res, DX11RawResourceBuffer* rawBuffer,
 		prevConstantBufferCount, res->constantBufferCount, desc->constantBufferCount,
 		uint, res->constantBufferIndices, allocs->realloc
 	);	
-	uint count = AppendConstantBuffers(rawBuffer, desc->constantBufferCount, desc->constantBufferSizes);
+	uint count = ReserveLoadConstantBuffers(rawBuffer, desc->constantBufferCount, desc->constantBufferSizes);
 	for (uint i = 0; i < desc->constantBufferCount; i++)
 		res->constantBufferIndices[i + prevConstantBufferCount] = count + i;
 
-	count = AppendSamplerStates(rawBuffer, desc->samplerCount, desc->samplerDescs);
-	// TODO:: sampler index out
+	count = ReserveLoadSamplerStates(rawBuffer, desc->samplerCount, desc->samplerDescs);
 
 	FAILED_ERROR_MESSAGE_RETURN(
-		CreateDX11RawResourcesByDesc(res, rawBuffer, allocs, device, true), 
+		CreateDX11RawResourcesByDesc(res, rawBuffer, allocs, device, true),
 		L"fail to create dx11 samplers.."
 	);
 
@@ -269,7 +268,7 @@ int FindEqualDescIndex(uint descCount, D3D11_INPUT_ELEMENT_DESC* descBuffer, uin
 	return -1;
 }
 
-HRESULT LoadGeometryAndAnimationFromFBXChunk(
+HRESULT ReserveLoadGeometryAndAnimationFromFBXChunk(
 	DX11Resources* res, DX11RawResourceBuffer* rawBuffer, const Allocaters* allocs, ID3D11Device* device,
 	uint chunkCount, const FBXChunk* chunks, const FBXChunkConfig* configs
 )
@@ -402,7 +401,7 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 					desc.buffer.CPUAccessFlags = 0;
 					desc.copyToPtr = vertexCopy;
 
-					g.vertexBufferIndex = AppendBuffer(rawBuffer, &desc);
+					g.vertexBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
 				}
 				{
 					DX11BufferDesc desc;
@@ -413,7 +412,7 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 					desc.buffer.CPUAccessFlags = 0;
 					desc.subres.pSysMem = m.geometry.indices;
 
-					g.indexBufferIndex = AppendBuffer(rawBuffer, &desc);
+					g.indexBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
 				}
 			}
 			else
@@ -429,7 +428,7 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 					desc.buffer.StructureByteStride = vertexSizes[0];
 					desc.copyToPtr = vertexCopy;
 
-					g.vertexDataBufferIndex = AppendBuffer(rawBuffer, &desc);
+					g.vertexDataBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
 				}
 
 				{
@@ -440,7 +439,7 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 					desc.buffer.BindFlags = D3D11_BIND_INDEX_BUFFER;
 					desc.buffer.CPUAccessFlags = 0;
 					desc.subres.pSysMem = m.geometry.indices;
-					g.indexBufferIndex = AppendBuffer(rawBuffer, &desc);
+					g.indexBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
 				}
 
 				{
@@ -453,7 +452,7 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 					desc.buffer.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
 					desc.buffer.StructureByteStride = vertexSizes[1];
 
-					g.vertexStreamBufferIndex = AppendBuffer(rawBuffer, &desc);
+					g.vertexStreamBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
 				}
 				{
 					DX11BufferDesc desc;
@@ -463,7 +462,7 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 					desc.buffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 					desc.buffer.CPUAccessFlags = 0;
 
-					g.vertexBufferIndex = AppendBuffer(rawBuffer, &desc);
+					g.vertexBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
 				}
 
 				{
@@ -476,7 +475,7 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 					desc.view.Buffer.FirstElement = 0;
 					desc.view.Buffer.NumElements = g.vertexCount;
 
-					g.vertexDataSRVIndex = AppendShaderResourceView(rawBuffer, &desc);
+					g.vertexDataSRVIndex = ReserveLoadShaderResourceView(rawBuffer, &desc);
 				}
 
 				{
@@ -490,7 +489,7 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 					desc.view.Buffer.NumElements = g.vertexCount;
 					desc.view.Buffer.Flags = 0;
 
-					g.vertexStreamUAVIndex = AppendUnorderedAccessViews(rawBuffer, &desc);
+					g.vertexStreamUAVIndex = ReserveLoadUnorderedAccessView(rawBuffer, &desc);
 				}
 			}
 
@@ -502,7 +501,87 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 #pragma endregion
 #pragma region load animations from fBX
 
-		res->boneCount = c.hierarchyCount;
+		int findBoneSetIndex = -1;
+		for (uint i = 0; i < res->boneSetCount; i++)
+		{
+			DX11Resources::DX11BoneSet& boneSet = res->boneSets[i];
+
+			if (boneSet.boneCount == c.hierarchyCount)
+			{
+				bool equal = true;
+				for (uint j = 0; j < boneSet.boneCount; j++)
+				{
+					if (boneSet.bones[j].parentIndex != c.hierarchyNodes[j].parentIndex ||
+						boneSet.bones[j].childCount != c.hierarchyNodes[j].childCount ||
+						boneSet.bones[j].childIndexStart != c.hierarchyNodes[j].childIndexStart ||
+						strcmp(boneSet.bones[j].name, c.hierarchyNodes[j].name) != 0 ||
+						memcmp(
+							&boneSet.bones[j].inverseGlobalTransformMatrix, 
+							&c.hierarchyNodes[j].inverseGlobalTransformMatrix,
+							sizeof(boneSet.bones[j].inverseGlobalTransformMatrix)
+						) != 0
+						)
+					{
+						equal = false;
+						break;
+					}
+				}
+
+				if (equal)
+				{
+					findBoneSetIndex = i;
+					break;
+				}
+			}
+		}
+
+
+		if (findBoneSetIndex < 0)
+		{
+			REALLOC_RANGE_ZEROMEM(
+				prevBoneSetCount, res->boneSetCount, 1,
+				DX11Resources::DX11BoneSet, res->boneSets, allocs->realloc
+			);
+
+			DX11Resources::DX11BoneSet& boneSet = res->boneSets[prevBoneSetCount];
+
+			boneSet.boneCount = c.hierarchyCount;
+			ALLOC_RANGE_ZEROMEM(
+				DX11Resources::DX11BoneSet::DX11Bone, boneSet.boneCount, boneSet.bones, allocs->alloc
+			);
+
+			for (uint i = 0; i < c.hierarchyCount; i++)
+				boneSet.bones[i].inverseGlobalTransformMatrix = c.hierarchyNodes[i].inverseGlobalTransformMatrix;
+
+			DX11BufferDesc bd;
+			memset(&bd, 0, sizeof(DX11BufferDesc));
+
+			bd.buffer.Usage = D3D11_USAGE_DEFAULT;
+			bd.buffer.ByteWidth = sizeof(Matrix4x4) * c.hierarchyCount;
+			bd.buffer.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+			bd.buffer.CPUAccessFlags = 0;
+			bd.buffer.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+			bd.buffer.StructureByteStride = sizeof(Matrix4x4);
+			bd.copyToPtr = [&](void* ptr) {
+				Matrix4x4* matrixBuffer = static_cast<Matrix4x4*>(ptr);
+				for (uint i = 0; i < boneSet.boneCount; i++)
+					matrixBuffer[i] = boneSet.bones[i].inverseGlobalTransformMatrix;
+			};
+			res->boneSets[prevBoneSetCount].bindPoseTransformBufferIndex = ReserveLoadBuffer(rawBuffer, &bd);
+
+			DX11SRVDesc srvd;
+			memset(&srvd, 0, sizeof(DX11SRVDesc));
+
+			srvd.bufferIndex = res->boneSets[prevBoneSetCount].bindPoseTransformBufferIndex;
+			srvd.view.Format = DXGI_FORMAT_UNKNOWN;
+			srvd.view.ViewDimension = D3D11_SRV_DIMENSION::D3D11_SRV_DIMENSION_BUFFER;
+			srvd.view.Buffer.FirstElement = 0;
+			srvd.view.Buffer.NumElements = c.hierarchyCount;
+
+			res->boneSets[prevBoneSetCount].binePoseTransformSRVIndex = ReserveLoadShaderResourceView(rawBuffer, &srvd);
+
+			findBoneSetIndex = prevBoneSetCount;
+		}
 
 		REALLOC_RANGE_ZEROMEM(
 			prevAnimCount, res->animCount, c.animationCount,
@@ -514,9 +593,10 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 			DX11Resources::DX11Animation& anim = res->anims[ai];
 			FBXChunk::FBXAnimation& fbxAnim = c.animations[ai - prevAnimCount];
 
-			ALLOC_AND_STRCPY(anim.animName, fbxAnim.animationName, allocs->alloc);			
+			ALLOC_AND_STRCPY(anim.animName, fbxAnim.animationName, allocs->alloc);
 			anim.fpsCount = fbxAnim.fpsCount;
 			anim.frameKeyCount = fbxAnim.frameKeyCount;
+			anim.boneSetIndex = findBoneSetIndex;
 
 			DX11BufferDesc bd;
 			memset(&bd, 0, sizeof(DX11BufferDesc));
@@ -529,7 +609,7 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 			bd.buffer.StructureByteStride = sizeof(Matrix4x4);
 			bd.subres.pSysMem = fbxAnim.globalAffineTransforms;
 
-			anim.animPoseTransformBufferIndex = AppendBuffer(rawBuffer, &bd);
+			anim.animPoseTransformBufferIndex = ReserveLoadBuffer(rawBuffer, &bd);
 
 			DX11SRVDesc srvd;
 			memset(&srvd, 0, sizeof(DX11SRVDesc));
@@ -540,36 +620,8 @@ HRESULT LoadGeometryAndAnimationFromFBXChunk(
 			srvd.view.Buffer.FirstElement = 0;
 			srvd.view.Buffer.NumElements = fbxAnim.frameKeyCount * c.hierarchyCount;
 
-			anim.animPoseTransformSRVIndex = AppendShaderResourceView(rawBuffer, &srvd);
+			anim.animPoseTransformSRVIndex = ReserveLoadShaderResourceView(rawBuffer, &srvd);
 		}
-
-		DX11BufferDesc bd;
-		memset(&bd, 0, sizeof(DX11BufferDesc));
-
-		bd.buffer.Usage = D3D11_USAGE_DEFAULT;
-		bd.buffer.ByteWidth = sizeof(Matrix4x4) * c.hierarchyCount;
-		bd.buffer.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		bd.buffer.CPUAccessFlags = 0;
-		bd.buffer.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-		bd.buffer.StructureByteStride = sizeof(Matrix4x4);
-		bd.copyToPtr = [&](void* ptr) {
-			Matrix4x4* matrixBuffer = static_cast<Matrix4x4*>(ptr);
-			for (uint i = 0; i < c.hierarchyCount; i++)
-				matrixBuffer[i] = c.hierarchyNodes[i].inverseGlobalTransformMatrix;
-		};
-
-		res->bindPoseTransformBufferIndex = AppendBuffer(rawBuffer, &bd);
-
-		DX11SRVDesc srvd;
-		memset(&srvd, 0, sizeof(DX11SRVDesc));
-
-		srvd.bufferIndex = res->bindPoseTransformBufferIndex;
-		srvd.view.Format = DXGI_FORMAT_UNKNOWN;
-		srvd.view.ViewDimension = D3D11_SRV_DIMENSION::D3D11_SRV_DIMENSION_BUFFER;
-		srvd.view.Buffer.FirstElement = 0;
-		srvd.view.Buffer.NumElements = c.hierarchyCount;
-
-		res->binePoseTransformSRVIndex = AppendShaderResourceView(rawBuffer, &srvd);
 
 #pragma endregion
 
@@ -604,88 +656,56 @@ inline size_t GetFileSize(FILE* fp)
 	return size;
 }
 
-HRESULT LoadTexture2DAndSRVFromDirectories(
+HRESULT ReserveTexture2DAndSRVFromDirectories(
 	DX11Resources* res, DX11RawResourceBuffer* rawBuffer, const Allocaters* allocs, ID3D11Device* device, 
 	uint dirCount, const wchar_t** dirs, uint textureBufferSize, void* allocatedtextureBuffer
 )
 {
 	ASSERT(dirs != nullptr);
 
-	size_t currentTextureBufferSize = textureBufferSize ? textureBufferSize : 2024 * 2024 * 4 * 4;
-	void* textureBuffer = allocatedtextureBuffer? allocatedtextureBuffer: allocs->alloc(currentTextureBufferSize);
-	int textureBufferArrayCapacity = dirCount;
-
-	res->texture2Ds = 
-		(DX11Resources::DX11Texture2D*)allocs->realloc(
-			res->texture2Ds, 
-			sizeof(DX11Resources::DX11Texture2D) * (textureBufferArrayCapacity + res->texture2DCount)
-		);
-	memset(
-		res->texture2Ds + res->texture2DCount, 
-		0,
-		sizeof(DX11Resources::DX11Texture2D) * (textureBufferArrayCapacity + res->texture2DCount)
-	);
-
-	FILE* fp; size_t size;
+	uint prevSize= rawBuffer->tex2DDescs.size();
 	for (uint i = 0; i < dirCount; i++)
 	{
-		if (dirs[i] == nullptr)
-			continue;
-
-		_wfopen_s(&fp, dirs[i], L"rb");
-		size = GetFileSize(fp);
-		if (currentTextureBufferSize < size)
+		DX11SRVDesc srvd;
+		memset(&srvd, 0, sizeof(srvd));
+		srvd.texture2DIndex = prevSize + i;
+		srvd.view.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvd.view.Texture2D.MipLevels = 1;
+		srvd.view.Texture2D.MostDetailedMip = 0;
+		srvd.getSRVFormat = [=](DXGI_FORMAT* format) -> bool
 		{
-			currentTextureBufferSize = size;
-			textureBuffer = allocs->realloc(textureBuffer, currentTextureBufferSize);
-		}
-		size_t readSize = fread(textureBuffer, 1, size, fp);
-		fclose(fp);
-		fp = nullptr;
+			if (
+				res->texture2Ds && 
+				srvd.texture2DIndex < res->texture2DCount &&
+				res->texture2Ds[srvd.texture2DIndex].texture
+				)
+			{
+				D3D11_TEXTURE2D_DESC td;
+				res->texture2Ds[srvd.texture2DIndex].texture->GetDesc(&td);
+				*format = td.Format;
+				return true;
+			}
+			else
+				return false;
+		};
 
-		if (readSize != size)
-			continue;
+		DX11Texture2DDesc texDesc;
+		memset(&texDesc, 0, sizeof(texDesc));
+		texDesc.srvIndex = ReserveLoadShaderResourceView(rawBuffer, &srvd);
+		texDesc.fileName = dirs[i];
+		texDesc.usage = D3D11_USAGE::D3D11_USAGE_DEFAULT;
+		texDesc.bindFlags = D3D11_BIND_SHADER_RESOURCE;
+		texDesc.miscFlags = 0;
+		texDesc.cpuAccessFlags = 0;
+		texDesc.forceSRGB = false;
 
-		DirectX::ScratchImage img;
-		FAILED_WARN_MESSAGE_CONTINUE_ARGS(
-			DirectX::LoadFromWICMemory(textureBuffer, size, DirectX::WIC_FLAGS::WIC_FLAGS_NONE, nullptr, img), 
-			L"fail to load image from file:\"%s\"..",
-			dirs[i]
-			);
-
-		FAILED_WARN_MESSAGE_CONTINUE(
-			DirectX::CreateTextureEx(
-				device,
-				img.GetImages(), img.GetImageCount(), img.GetMetadata(),
-				D3D11_USAGE::D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, false,
-				reinterpret_cast<ID3D11Resource**>(&res->texture2Ds[i + res->texture2DCount].texture)
-			),
-			L"fail to create d3d11 texture2d object.."
-		);
-
-		D3D11_TEXTURE2D_DESC td;
-		res->texture2Ds[i + res->texture2DCount].texture->GetDesc(&td);
-
-		DX11SRVDesc desc;
-		memset(&desc, 0, sizeof(desc));
-		desc.texture2DIndex = i + res->texture2DCount;
-		desc.view.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		desc.view.Format = td.Format;
-		desc.view.Texture2D.MipLevels = 1;
-		desc.view.Texture2D.MostDetailedMip = 0;
-
-		res->texture2Ds[i + res->texture2DCount].srvIndex = AppendShaderResourceView(
-			rawBuffer, &desc
-		);
+		ReserveLoadTexture2D(rawBuffer, &texDesc);
 	}
-
-	res->texture2DCount += dirCount;
-	SAFE_DEALLOC(textureBuffer, allocs->dealloc);
 
 	return S_OK;
 }
 
-HRESULT LoadShaderFromDirectories(
+HRESULT ReserveLoadShaderFromDirectories(
 	DX11Resources* res, DX11RawResourceBuffer* rawBuffer, const Allocaters* allocs, ID3D11Device* device, 
 	uint compileCount, const DX11ShaderCompileDesc* descs, DX11CompileDescToShader* descToFileShader
 )
@@ -723,7 +743,7 @@ HRESULT LoadShaderFromDirectories(
 
 		DX11Resources::DX11ShaderFile& file = files[fileIndex];
 		ShaderKind s;
-		uint index = AppendShader(rawBuffer, &dsc, &s);
+		uint index = ReserveLoadShader(rawBuffer, &dsc, &s);
 		if (index == UINT_MAX)
 			continue;
 
@@ -753,7 +773,7 @@ HRESULT LoadShaderFromDirectories(
 	return S_OK;
 }
 
-HRESULT LinkInputLayout(
+HRESULT ReserveLoadInputLayout(
 	DX11Resources* res, DX11RawResourceBuffer* rawBuffer, const Allocaters* allocs,
 	uint descCount, const DX11CompileDescToShader* dtoss,
 	uint inputLayoutCount, const DX11InputLayoutDesc* inputLayoutDesc
@@ -772,7 +792,7 @@ HRESULT LinkInputLayout(
 		desc.vertexLayoutChunkIndex = d.layoutChunkIndex;
 		desc.vertexShaderIndex = dtof.shaderIndex;
 
-		res->inputLayouts[i].inputLayoutIndex = AppendInputLayout(rawBuffer, desc);
+		res->inputLayouts[i].inputLayoutIndex = ReserveLoadInputLayout(rawBuffer, desc);
 		res->inputLayouts[i].vertexShaderIndex = dtof.shaderIndex;
 		res->inputLayouts[i].layoutChunkIndex = d.layoutChunkIndex;
 	}
@@ -780,12 +800,12 @@ HRESULT LinkInputLayout(
 	return S_OK;
 }
 
-uint AppendInputLayouts(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11ILDesc* descs)
+uint ReserveLoadInputLayouts(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11ILDesc* descs)
 {
 	rawResBuffer->inputLayoutDescs.insert(rawResBuffer->inputLayoutDescs.end(), descs, descs + additioanlCount);
 	return (uint)rawResBuffer->inputLayoutDescs.size() - additioanlCount;
 }
-uint AppendConstantBuffers(DX11RawResourceBuffer* rawResBuffer, uint constantBufferCount, const uint* bufferSizes)
+uint ReserveLoadConstantBuffers(DX11RawResourceBuffer* rawResBuffer, uint constantBufferCount, const uint* bufferSizes)
 {
 	for (uint i = 0; i < constantBufferCount; i++)
 	{
@@ -800,7 +820,7 @@ uint AppendConstantBuffers(DX11RawResourceBuffer* rawResBuffer, uint constantBuf
 
 	return (uint)rawResBuffer->bufferDescs.size() - constantBufferCount;
 }
-void AppendShaders(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11ShaderCompileDesc* descs, OUT ShaderKind* kinds, OUT int* indices)
+void ReserveLoadShaders(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11ShaderCompileDesc* descs, OUT ShaderKind* kinds, OUT int* indices)
 {
 	for (uint i = 0; i < additioanlCount; i++)
 	{
@@ -812,38 +832,38 @@ void AppendShaders(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, co
 		rawResBuffer->shaderCompileDesces[index].push_back(descs[i]);
 	}
 }
-uint AppendSamplerStates(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const D3D11_SAMPLER_DESC* descs)
+uint ReserveLoadSamplerStates(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const D3D11_SAMPLER_DESC* descs)
 {
 	rawResBuffer->samplerDescs.insert(rawResBuffer->samplerDescs.end(), descs, descs + additioanlCount);
 	return (uint)rawResBuffer->samplerDescs.size() - additioanlCount;
 }
-uint AppendShaderResourceViews(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11SRVDesc* descs)
+uint ReserveLoadShaderResourceViews(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11SRVDesc* descs)
 {
 	rawResBuffer->srvDescs.insert(rawResBuffer->srvDescs.end(), descs, descs + additioanlCount);
 	return (uint)rawResBuffer->srvDescs.size() - additioanlCount;
 }
-uint AppendUnorderedAccessViews(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11UAVDesc* descs)
+uint ReserveLoadUnorderedAccessViews(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11UAVDesc* descs)
 {
 	rawResBuffer->uavDescs.insert(rawResBuffer->uavDescs.end(), descs, descs + additioanlCount);
 	return (uint)rawResBuffer->uavDescs.size() - additioanlCount;
 }
-uint AppendBuffers(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11BufferDesc* descs)
+uint ReserveLoadBuffers(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11BufferDesc* descs)
 {
 	rawResBuffer->bufferDescs.insert(rawResBuffer->bufferDescs.end(), descs, descs + additioanlCount);
 	return (uint)rawResBuffer->bufferDescs.size() - additioanlCount;
 }
-uint AppendTex2Ds(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11Texture2DDesc* descs)
+uint ReserveLoadTexture2Ds(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11Texture2DDesc* descs)
 {
 	rawResBuffer->tex2DDescs.insert(rawResBuffer->tex2DDescs.end(), descs, descs + additioanlCount);
 	return (uint)rawResBuffer->tex2DDescs.size() - additioanlCount;
 }
 
-uint AppendInputLayout(DX11RawResourceBuffer* rawResBuffer, const DX11ILDesc& desc)
+uint ReserveLoadInputLayout(DX11RawResourceBuffer* rawResBuffer, const DX11ILDesc& desc)
 {
 	rawResBuffer->inputLayoutDescs.push_back(desc);
 	return (uint)rawResBuffer->inputLayoutDescs.size() - 1;
 }
-uint AppendConstantBuffer(DX11RawResourceBuffer* rawResBuffer, const uint bufferSize)
+uint ReserveLoadConstantBuffer(DX11RawResourceBuffer* rawResBuffer, const uint bufferSize)
 {
 	D3D11_BUFFER_DESC bufferDesc;
 	memset(&bufferDesc, 0, sizeof(D3D11_BUFFER_DESC));
@@ -857,12 +877,12 @@ uint AppendConstantBuffer(DX11RawResourceBuffer* rawResBuffer, const uint buffer
 	rawResBuffer->bufferDescs.push_back(desc);
 	return (uint)rawResBuffer->bufferDescs.size() - 1;
 }
-uint AppendSamplerState(DX11RawResourceBuffer* rawResBuffer, const D3D11_SAMPLER_DESC* desc)
+uint ReserveLoadSamplerState(DX11RawResourceBuffer* rawResBuffer, const D3D11_SAMPLER_DESC* desc)
 {
 	rawResBuffer->samplerDescs.push_back(*desc);
 	return (uint)rawResBuffer->samplerDescs.size() - 1;
 }
-uint AppendShader(DX11RawResourceBuffer* rawResBuffer, const DX11ShaderCompileDesc* desc, OUT ShaderKind* s)
+uint ReserveLoadShader(DX11RawResourceBuffer* rawResBuffer, const DX11ShaderCompileDesc* desc, OUT ShaderKind* s)
 {
 	int index = ShaderTargetToIndex(desc->target[0]);
 	FALSE_ERROR_MESSAGE_RETURN_CODE(index >= 0, L"fail to identify shader by target..", UINT_MAX);
@@ -870,22 +890,22 @@ uint AppendShader(DX11RawResourceBuffer* rawResBuffer, const DX11ShaderCompileDe
 	rawResBuffer->shaderCompileDesces[index].push_back(*desc);
 	return (uint)rawResBuffer->shaderCompileDesces[index].size() - 1;
 }
-uint AppendShaderResourceView(DX11RawResourceBuffer* rawResBuffer, const DX11SRVDesc* desc)
+uint ReserveLoadShaderResourceView(DX11RawResourceBuffer* rawResBuffer, const DX11SRVDesc* desc)
 {
 	rawResBuffer->srvDescs.push_back(*desc);
 	return (uint)rawResBuffer->srvDescs.size() - 1;
 }
-uint AppendUnorderedAccessViews(DX11RawResourceBuffer* rawResBuffer, const DX11UAVDesc* desc)
+uint ReserveLoadUnorderedAccessView(DX11RawResourceBuffer* rawResBuffer, const DX11UAVDesc* desc)
 {
 	rawResBuffer->uavDescs.push_back(*desc);
 	return (uint)rawResBuffer->uavDescs.size() - 1;
 }
-uint AppendBuffer(DX11RawResourceBuffer* rawResBuffer, const DX11BufferDesc* desc)
+uint ReserveLoadBuffer(DX11RawResourceBuffer* rawResBuffer, const DX11BufferDesc* desc)
 {
 	rawResBuffer->bufferDescs.push_back(*desc);
 	return (uint)rawResBuffer->bufferDescs.size() - 1;
 }
-uint AppendTex2D(DX11RawResourceBuffer* rawResBuffer, const DX11Texture2DDesc* desc)
+uint ReserveLoadTexture2D(DX11RawResourceBuffer* rawResBuffer, const DX11Texture2DDesc* desc)
 {
 	rawResBuffer->tex2DDescs.push_back(*desc);
 	return (uint)rawResBuffer->tex2DDescs.size() - 1;
@@ -981,13 +1001,60 @@ HRESULT CreateDX11RawResourcesByDesc(DX11Resources* res, DX11RawResourceBuffer* 
 		);
 	}
 
+	size_t prevSize = 0;
+	void* ptr = nullptr;
+
+	REALLOC_RANGE_ZEROMEM(
+		prevTexture2DCount, res->texture2DCount, rawBuffer->tex2DDescs.size(),
+		DX11Resources::DX11Texture2D, res->texture2Ds, allocs->realloc
+	);
+	for (uint i = prevTexture2DCount; i < res->texture2DCount; i++)
+	{
+		DX11Resources::DX11Texture2D& tex2DChunk = res->texture2Ds[i];
+		DX11Texture2DDesc& desc = rawBuffer->tex2DDescs[i - prevTexture2DCount];
+
+		tex2DChunk.srvIndex = desc.srvIndex;
+
+		if (!desc.fileName)
+			ERROR_MESSAGE_CONTINUE_ARGS(L"fail to load texture because fileName is null..(idx:%d)", i);
+
+		FILE* fp;
+		_wfopen_s(&fp, desc.fileName, L"rb");
+		size_t size = GetFileSize(fp);
+		if (prevSize < size)
+		{
+			prevSize = size;
+			ptr = allocs->realloc(ptr, prevSize);
+		}
+		size_t readSize = fread(ptr, 1, size, fp);
+		fclose(fp);
+		fp = nullptr;
+
+		if (readSize != size)
+			continue;
+
+		DirectX::ScratchImage img;
+		FAILED_WARN_MESSAGE_CONTINUE_ARGS(
+			DirectX::LoadFromWICMemory(ptr, size, DirectX::WIC_FLAGS::WIC_FLAGS_NONE, nullptr, img),
+			L"fail to load image from file:\"%s\"..",
+			desc.fileName
+		);
+
+		FAILED_WARN_MESSAGE_CONTINUE(
+			DirectX::CreateTextureEx(
+				device,
+				img.GetImages(), img.GetImageCount(), img.GetMetadata(),
+				desc.usage, desc.bindFlags, desc.cpuAccessFlags, desc.miscFlags, desc.forceSRGB,
+				reinterpret_cast<ID3D11Resource**>(&tex2DChunk.texture)
+			),
+			L"fail to create d3d11 texture2d object.."
+		);
+	}
+
 	REALLOC_RANGE_ZEROMEM(
 		prevBufferCount, res->bufferCount, rawBuffer->bufferDescs.size(),
 		ID3D11Buffer*, res->buffers, allocs->realloc
 	);
-
-	size_t prevSize = 0;
-	void* ptr = nullptr;
 	for (uint i = prevBufferCount; i < res->bufferCount; i++)
 	{
 		DX11BufferDesc& d = rawBuffer->bufferDescs[i];
@@ -1018,8 +1085,6 @@ HRESULT CreateDX11RawResourcesByDesc(DX11Resources* res, DX11RawResourceBuffer* 
 				fclose(fp);
 				d.subres.pSysMem = ptr;
 			}
-			else if (d.bufferPtr)
-				d.subres.pSysMem = d.bufferPtr;
 		}
 
 		FAILED_ERROR_MESSAGE_ARGS(
@@ -1037,6 +1102,14 @@ HRESULT CreateDX11RawResourcesByDesc(DX11Resources* res, DX11RawResourceBuffer* 
 	for (uint i = prevSRVCount; i < res->srvCount; i++)
 	{
 		ID3D11Resource* dx11res = nullptr;
+
+		if ((bool)rawBuffer->srvDescs[i].getSRVFormat)
+		{
+			// TODO:: 텍스쳐 로드 확인 용 스핀락, 비동기 로드시 고쳐야함
+			DXGI_FORMAT format;
+			while (!rawBuffer->srvDescs[i].getSRVFormat(&format));
+			rawBuffer->srvDescs[i].view.Format = format;
+		}
 
 		switch (rawBuffer->srvDescs[i].view.ViewDimension)
 		{
@@ -1110,8 +1183,10 @@ HRESULT DependancyContextStatePrepare(DX11ContextState* state, const Allocaters*
 	for (uint i = 0; i < dependCount; i++)
 	{
 		const DX11PipelineDependancy& depend = depends[i];
-		if (depend.pipelineKind == PIPELINE_KIND::DRAW)
+
+		switch (depend.pipelineKind)
 		{
+		case PIPELINE_KIND::DRAW:
 			for (int k = 0; k < 5; k++)
 			{
 				const DX11ShaderResourceDependancy& shaderDep = depend.draw.dependants[k];
@@ -1119,55 +1194,64 @@ HRESULT DependancyContextStatePrepare(DX11ContextState* state, const Allocaters*
 				for (uint j = 0; j < shaderDep.constantBufferCount; j++)
 				{
 					auto ref = shaderDep.constantBuffers[j];
-					maxCount = max(ref.indexCount, maxCount);
+					maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 				}
 				for (uint j = 0; j < shaderDep.samplerCount; j++)
 				{
 					auto ref = shaderDep.samplers[j];
-					maxCount = max(ref.indexCount, maxCount);
+					maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 				}
 				for (uint j = 0; j < shaderDep.srvCount; j++)
 				{
 					auto ref = shaderDep.srvs[j];
-					maxCount = max(ref.indexCount, maxCount);
+					maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 				}
 				for (uint j = 0; j < shaderDep.uavCount; j++)
 				{
 					auto ref = shaderDep.uavs[j];
-					maxCount = max(ref.indexCount, maxCount);
+					maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 				}
 			}
-		}
-		else if (depend.pipelineKind == PIPELINE_KIND::COMPUTE)
+			break;
+		case PIPELINE_KIND::COMPUTE:
 		{
 			const DX11ShaderResourceDependancy& shaderDep = depend.compute.resources;
 
 			for (uint j = 0; j < shaderDep.constantBufferCount; j++)
 			{
 				auto ref = shaderDep.constantBuffers[j];
-				maxCount = max(ref.indexCount, maxCount);
+				maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 			}
 			for (uint j = 0; j < shaderDep.samplerCount; j++)
 			{
 				auto ref = shaderDep.samplers[j];
-				maxCount = max(ref.indexCount, maxCount);
+				maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 			}
 			for (uint j = 0; j < shaderDep.srvCount; j++)
 			{
 				auto ref = shaderDep.srvs[j];
-				maxCount = max(ref.indexCount, maxCount);
+				maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 			}
 			for (uint j = 0; j < shaderDep.uavCount; j++)
 			{
 				auto ref = shaderDep.uavs[j];
-				maxCount = max(ref.indexCount, maxCount);
+				maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 			}
+		}
+			break;
+		case PIPELINE_KIND::COPY:
+			if (depend.copy.kind == CopyKind::UPDATE_SUBRESOURCE)
+			{
+				maxCount = max(depend.copy.dataBufferSize + sizeof(D3D11_BOX), maxCount);				 
+			}
+			break;
 		}
 	}
 
 	if (state->bufferCount < maxCount)
 	{
-		state->bufferPtrBuffer = (void**)allocs->realloc(state->bufferPtrBuffer, sizeof(void*) * maxCount);
+		state->bufferCount = maxCount;
+		state->bufferPtrBuffer = (void**)allocs->realloc(state->bufferPtrBuffer, maxCount);
 		state->numberBuffer = (uint*)allocs->realloc(state->numberBuffer, sizeof(uint) * 2);
 	}
 		
@@ -1177,11 +1261,21 @@ HRESULT Copy(ID3D11DeviceContext* deviceContext, DX11ContextState* state, const 
 {
 	for (uint i = 0; i < dependCount; i++)
 	{
+		const DX11CopyDependancy& cd = depends[i];
+
 		switch (depends[i].kind)
 		{
 		case CopyKind::COPY_RESOURCE:
 			deviceContext->CopyResource(res->buffers[depends[i].dstBufferIndex], res->buffers[depends[i].srcBufferIndex]);
 			break;
+		case CopyKind::UPDATE_SUBRESOURCE:
+		{
+			const D3D11_BOX* destBox = cd.getBoxFunc((D3D11_BOX*)state->bufferPtrBuffer);
+			void* dataPtr = ((byte*)state->bufferPtrBuffer + sizeof(D3D11_BOX));
+			cd.copyToBufferFunc(dataPtr);
+			deviceContext->UpdateSubresource(res->buffers[cd.dstBufferIndex], cd.dstSubres, destBox, dataPtr, cd.srcRowPitch, cd.srcDepthPitch);
+			break;
+		}
 		}
 	}
 
@@ -1237,7 +1331,7 @@ HRESULT ComputeExplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* 
 
 		if (srd.shaderFileIndex < 0) continue;
 
-		deviceContext->CSSetShader(res->shaders.css[res->shaderFiles[srd.shaderFileIndex].csIndices[srd.shaderIndex]], nullptr, 0);
+		deviceContext->CSSetShader(res->shaders.css[res->shaderFiles[srd.shaderFileIndex].csIndices[srd.shaderIndex]].cs, nullptr, 0);
 
 		for (uint j = 0; j < srd.constantBufferCount; j++)
 		{
@@ -1310,7 +1404,7 @@ HRESULT DrawExplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* sta
 
 		if (depend.vs.shaderFileIndex >= 0)
 		{
-			deviceContext->VSSetShader(res->shaders.vss[res->shaderFiles[depend.vs.shaderFileIndex].vsIndices[depend.vs.shaderIndex]], nullptr, 0);
+			deviceContext->VSSetShader(res->shaders.vss[res->shaderFiles[depend.vs.shaderFileIndex].vsIndices[depend.vs.shaderIndex]].vs, nullptr, 0);
 
 			for (uint j = 0; j < depend.vs.constantBufferCount; j++)
 			{
@@ -1337,7 +1431,7 @@ HRESULT DrawExplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* sta
 
 		if (depend.ps.shaderFileIndex >= 0)
 		{
-			deviceContext->PSSetShader(res->shaders.pss[res->shaderFiles[depend.ps.shaderFileIndex].psIndices[depend.ps.shaderIndex]], nullptr, 0);
+			deviceContext->PSSetShader(res->shaders.pss[res->shaderFiles[depend.ps.shaderFileIndex].psIndices[depend.ps.shaderIndex]].ps, nullptr, 0);
 
 			for (uint j = 0; j < depend.ps.constantBufferCount; j++)
 			{
@@ -1365,7 +1459,7 @@ HRESULT DrawExplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* sta
 
 		if (depend.gs.shaderFileIndex >= 0)
 		{
-			deviceContext->GSSetShader(res->shaders.gss[res->shaderFiles[depend.gs.shaderFileIndex].gsIndices[depend.gs.shaderIndex]], nullptr, 0);
+			deviceContext->GSSetShader(res->shaders.gss[res->shaderFiles[depend.gs.shaderFileIndex].gsIndices[depend.gs.shaderIndex]].gs, nullptr, 0);
 
 			for (uint j = 0; j < depend.gs.constantBufferCount; j++)
 			{
@@ -1392,7 +1486,7 @@ HRESULT DrawExplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* sta
 
 		if (depend.hs.shaderFileIndex >= 0)
 		{
-			deviceContext->HSSetShader(res->shaders.hss[res->shaderFiles[depend.hs.shaderFileIndex].hsIndices[depend.hs.shaderIndex]], nullptr, 0);
+			deviceContext->HSSetShader(res->shaders.hss[res->shaderFiles[depend.hs.shaderFileIndex].hsIndices[depend.hs.shaderIndex]].hs, nullptr, 0);
 
 			for (uint j = 0; j < depend.hs.constantBufferCount; j++)
 			{
@@ -1419,7 +1513,7 @@ HRESULT DrawExplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* sta
 
 		if (depend.ds.shaderFileIndex >= 0)
 		{
-			deviceContext->DSSetShader(res->shaders.dss[res->shaderFiles[depend.ds.shaderFileIndex].dsIndices[depend.ds.shaderIndex]], nullptr, 0);
+			deviceContext->DSSetShader(res->shaders.dss[res->shaderFiles[depend.ds.shaderFileIndex].dsIndices[depend.ds.shaderIndex]].ds, nullptr, 0);
 
 			for (uint j = 0; j < depend.ds.constantBufferCount; j++)
 			{
@@ -1466,21 +1560,78 @@ HRESULT DrawImplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* sta
 {
 	return E_NOTIMPL;
 }
-HRESULT ReleaseDependancy(DX11PipelineDependancy* dependancy, const Allocaters* allocs)
+HRESULT ReleaseShaderDependancy(DX11ShaderResourceDependancy* dependancy, const Allocaters* allocs);
+HRESULT ReleaseDrawDependancy(DX11DrawPipelineDependancy* dependancy, const Allocaters* allocs);
+HRESULT ReleaseComputeDependancy(DX11ComputePipelineDependancy* dependancy, const Allocaters* allocs);
+HRESULT ReleaseCopyDependancy(DX11CopyDependancy* dependancy, const Allocaters* allocs);
+
+HRESULT ReleaseDependancy(uint dependCount, DX11PipelineDependancy* dependancy, const Allocaters* allocs)
 {
-	return E_NOTIMPL;
+	if (dependancy)
+	{
+		for (uint i = 0; i < dependCount; i++)
+		{
+			switch (dependancy[i].pipelineKind)
+			{
+			case PIPELINE_KIND::DRAW:
+				ReleaseDrawDependancy(&dependancy[i].draw, allocs);
+				break;
+			case PIPELINE_KIND::COMPUTE:
+				ReleaseComputeDependancy(&dependancy[i].compute, allocs);
+				break;
+			case PIPELINE_KIND::COPY:
+				ReleaseCopyDependancy(&dependancy[i].copy, allocs);
+				break;
+			}
+			
+		}
+
+		allocs->dealloc(dependancy);
+	}
+
+	return S_OK;
+}
+HRESULT ReleaseShaderDependancy(DX11ShaderResourceDependancy* dependancy, const Allocaters* allocs)
+{
+	for (uint i = 0; i < dependancy->srvCount; i++)
+		SAFE_DEALLOC(dependancy->srvs[i].indices, allocs->dealloc);
+	SAFE_DEALLOC(dependancy->srvs, allocs->dealloc);
+
+	for (uint i = 0; i < dependancy->uavCount; i++)
+		SAFE_DEALLOC(dependancy->uavs[i].indices, allocs->dealloc);
+	SAFE_DEALLOC(dependancy->uavs, allocs->dealloc);
+
+	for (uint i = 0; i < dependancy->samplerCount; i++)
+		SAFE_DEALLOC(dependancy->samplers[i].indices, allocs->dealloc);
+	SAFE_DEALLOC(dependancy->samplers, allocs->dealloc);
+
+	for (uint i = 0; i < dependancy->constantBufferCount; i++)
+		SAFE_DEALLOC(dependancy->constantBuffers[i].indices, allocs->dealloc);
+	SAFE_DEALLOC(dependancy->constantBuffers, allocs->dealloc);
+
+	return S_OK;
 }
 HRESULT ReleaseDrawDependancy(DX11DrawPipelineDependancy* dependancy, const Allocaters* allocs)
 {
-	return E_NOTIMPL;
+	for (int i = 0; i < 5; i++)
+		ReleaseShaderDependancy(dependancy->dependants + i, allocs);
+
+	return S_OK;
 }
 HRESULT ReleaseComputeDependancy(DX11ComputePipelineDependancy* dependancy, const Allocaters* allocs)
 {
-	return E_NOTIMPL;
+	ReleaseShaderDependancy(&dependancy->resources, allocs);
+	return S_OK;
+}
+HRESULT ReleaseCopyDependancy(DX11CopyDependancy* dependancy, const Allocaters* allocs)
+{
+	return S_OK;
 }
 HRESULT ReleaseContext(DX11ContextState* context, const Allocaters* allocs)
 {
-	return E_NOTIMPL;
+	SAFE_DEALLOC(context->bufferPtrBuffer, allocs->dealloc);
+	SAFE_DEALLOC(context->numberBuffer, allocs->dealloc);
+	return S_OK;
 }
 
 bool EqualInputElementDesc(int descCount, D3D11_INPUT_ELEMENT_DESC* descArray0, D3D11_INPUT_ELEMENT_DESC* descArray1)

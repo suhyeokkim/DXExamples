@@ -178,7 +178,6 @@ uint ImportFBX(uint chunkCount, const wchar_t* const * fileDirectories, FBXChunk
 
 void HierarchyAllocate(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs);
 uint TraversalFBXNode(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs);
-bool SkeletonToChunk(FbxScene* fbxScene, FBXChunk& chunk, const Allocaters* allocs);
 bool AnimationToChunk(FbxNode* node, FBXChunk& chunk, const Allocaters* allocs);
 bool BlendShapeToChunk(FbxScene* fbxScene, FBXChunk& chunk, const Allocaters* allocs);
 
@@ -217,7 +216,6 @@ bool SceneToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk*
 
 	HierarchyAllocate(fbxScene, chunk, opt, allocs);
 	TraversalFBXNode(fbxScene->GetRootNode(), chunk, opt, allocs);
-	SkeletonToChunk(fbxScene, chunk, allocs);
 	BlendShapeToChunk(fbxScene, chunk, allocs);
 
 	return true;
@@ -304,7 +302,6 @@ void HierarchyAllocate(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionC
 }
 
 bool MeshToChunk(FbxNode* node,  FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs);
-bool SkeletonToChunk(FbxNode* fbxNode, FBXChunk& chunk, const Allocaters* allocs);
 
 uint TraversalFBXNode(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
@@ -336,7 +333,6 @@ bool MeshToChunk(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, 
 	const char* name = node->GetNameOnly();
 	FbxMesh* fbxMesh = node->GetMesh();
 
-	// TODO:: 피봇 설정
 	chunk.meshCount++;
 	if (chunk.meshs == nullptr)
 		chunk.meshs = (FBXMeshChunk*)allocs->alloc(sizeof(FBXMeshChunk));
@@ -345,9 +341,7 @@ bool MeshToChunk(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, 
 
 	FBXMeshChunk& mesh = chunk.meshs[chunk.meshCount - 1];
 	memset(chunk.meshs + (chunk.meshCount - 1), 0, sizeof(FBXMeshChunk));
-	size_t nameLen = strlen(name);
-	mesh.name = (char*)allocs->alloc(sizeof(char) * (nameLen+1));
-	strcpy_s(mesh.name, sizeof(char) * (nameLen + 1), name);
+	ALLOC_AND_STRCPY(mesh.name, name, allocs->alloc);
 	mesh.geometry.vertexCount = fbxMesh->GetControlPointsCount();
 
 	// controlpoint to vertex
@@ -398,18 +392,8 @@ bool MeshToChunk(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, 
 
 #pragma region TODO:: 서브메시 할당!
 
-	{
-		mesh.submesh.submeshCount = fbxMesh->GetElementPolygonGroupCount();
-		mesh.submesh.submeshs = (FBXMeshChunk::FBXSubmesh::Submesh*)allocs->alloc(sizeof(FBXMeshChunk::FBXSubmesh::Submesh) * mesh.submesh.submeshCount);
-	}
-	if (!submeshExist)
-	{
-		mesh.submesh.submeshCount = 1;
-		mesh.submesh.submeshs = (FBXMeshChunk::FBXSubmesh::Submesh*)allocs->alloc(sizeof(FBXMeshChunk::FBXSubmesh::Submesh) * mesh.submesh.submeshCount);
-		mesh.submesh.submeshs[0].indexStart = 0;
-		mesh.submesh.submeshs[0].materialRef = 0;
-		mesh.submesh.submeshs[0].indexCount = static_cast<int>(triangles.size());
-	}
+	mesh.submesh.submeshCount = 0;
+	mesh.submesh.submeshs = nullptr;
 
 #pragma endregion
 
@@ -861,16 +845,6 @@ bool AnimationToChunk(FbxNode* node, FBXChunk& chunk, const Allocaters* allocs)
 		}
 	}
 
-	return true;
-}
-
-bool SkeletonToChunk(FbxNode* fbxNode, FBXChunk& chunk, const Allocaters* allocs)
-{
-	return true;
-}
-
-bool SkeletonToChunk(FbxScene* fbxScene, FBXChunk& chunk, const Allocaters* allocs)
-{
 	return true;
 }
 

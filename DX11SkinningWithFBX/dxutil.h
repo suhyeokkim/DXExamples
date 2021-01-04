@@ -6,6 +6,21 @@
 #include <d3dcompiler.h>
 #include "fbximport.h"
 
+struct ProfileTime
+{
+	const char* string;
+	DWORD startTime;
+
+	ProfileTime(const char* string) : string(string)
+	{
+		startTime = GetTickCount();
+	}
+	~ProfileTime() 
+	{
+		printf("%s : %dms\n", string, GetTickCount() - startTime);
+	}
+};
+
 inline HRESULT CompileShaderFromFile(IN const wchar_t* fileName, IN const char* entryPoint, IN const char* sm, IN bool debug, OUT ID3DBlob** outBlob)
 {
 	HRESULT hr = S_OK;
@@ -41,85 +56,6 @@ inline HRESULT CompileShaderFromFile(IN const wchar_t* fileName, IN const char* 
 	//	disassembled->Release();
 	//}
 	if (errorBlob) errorBlob->Release();
-
-	return hr;
-}
-
-
-inline HRESULT CreateVertexBufferInline(ID3D11Device* device, ID3D11Buffer** vertexBuffer, UINT vertexSize, UINT vertexCount, void* vertices)
-{
-	HRESULT hr = S_OK;
-
-	D3D11_BUFFER_DESC bufferDesc;
-	memset(&bufferDesc, 0, sizeof(D3D11_BUFFER_DESC));
-	bufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	bufferDesc.ByteWidth = vertexSize * vertexCount;
-	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bufferDesc.CPUAccessFlags = 0;
-	D3D11_SUBRESOURCE_DATA subrscData;
-	memset(&subrscData, 0, sizeof(subrscData));
-	subrscData.pSysMem = vertices;
-	hr = device->CreateBuffer(&bufferDesc, &subrscData, vertexBuffer);
-	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create vertex buffer..");
-
-	return hr;
-}
-
-inline HRESULT CreateIndexBufferInline(ID3D11Device* device, ID3D11Buffer** indexBuffer, UINT indexSize, UINT indexCount, void* indices)
-{
-	HRESULT hr = S_OK;
-
-	D3D11_BUFFER_DESC bufferDesc;
-	memset(&bufferDesc, 0, sizeof(D3D11_BUFFER_DESC));
-	bufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	bufferDesc.ByteWidth = indexSize * indexCount;
-	bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bufferDesc.CPUAccessFlags = 0;
-	D3D11_SUBRESOURCE_DATA subrscData;
-	memset(&subrscData, 0, sizeof(subrscData));
-	subrscData.pSysMem = indices;
-	hr = device->CreateBuffer(&bufferDesc, &subrscData, indexBuffer);
-	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create vertex buffer..");
-
-	return hr;
-}
-
-inline HRESULT CreateIndexBufferInline(ID3D11Device* device, ID3D11Buffer** indexBuffer, UINT indexSize, UINT primSize, UINT primCount, void* indices)
-{
-	return CreateIndexBufferInline(device, indexBuffer, indexSize, primSize * primCount, indices);
-}
-
-inline HRESULT CreateSampler(ID3D11Device* device, ID3D11SamplerState** sampler)
-{
-	HRESULT hr = S_OK;
-
-	D3D11_SAMPLER_DESC samplerDesc;
-	memset(&samplerDesc, 0, sizeof(D3D11_SAMPLER_DESC));
-	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	samplerDesc.MinLOD = 0;
-	samplerDesc.MaxLOD = 0;
-	hr = device->CreateSamplerState(&samplerDesc, sampler);
-	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create sampler state..");
-
-	return hr;
-}
-
-inline HRESULT CreateConstantBufferInline(ID3D11Device* device, ID3D11Buffer** constantBuffer, UINT size)
-{
-	HRESULT hr = S_OK;
-
-	D3D11_BUFFER_DESC bufferDesc;
-	memset(&bufferDesc, 0, sizeof(D3D11_BUFFER_DESC));
-	bufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	bufferDesc.ByteWidth = size;
-	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	bufferDesc.CPUAccessFlags = 0;
-	hr = device->CreateBuffer(&bufferDesc, nullptr, constantBuffer);
-	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create constant buffer");
 
 	return hr;
 }
@@ -187,24 +123,4 @@ inline HRESULT CreateDepthStencilInline(ID3D11Device* device, ID3D11Texture2D** 
 	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create depthstencialview..");
 
 	return hr;
-}
-
-inline HRESULT CreateShaderResourceViewInline(ID3D11Device* device, ID3D11Texture2D* res, ID3D11ShaderResourceView** srv)
-{
-	D3D11_TEXTURE2D_DESC texDesc;
-	res->GetDesc(&texDesc);
-
-	D3D11_SHADER_RESOURCE_VIEW_DESC desc;
-	memset(&desc, 0, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-	desc.Format = texDesc.Format;
-	desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	desc.Texture2D.MipLevels = 1;
-	desc.Texture2D.MostDetailedMip = 0;
-
-	return device->CreateShaderResourceView(res, &desc, srv);
-}
-
-inline HRESULT CreateRenderTargetViewInline(ID3D11Device* device, ID3D11Texture2D* backBuffer, ID3D11RenderTargetView** rtv)
-{
-	return device->CreateRenderTargetView(backBuffer, nullptr, rtv);
 }

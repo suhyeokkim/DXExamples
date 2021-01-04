@@ -443,6 +443,14 @@
 	strcpy_s(dst, (len + 1), src); \
 }
 
+#define ALLOC_RANGE_MEMCPY(type, count, dst, src, alloc) \
+	dst = (type*)alloc(sizeof(type) * count); \
+	memcpy(dst, src, sizeof(type) * count);
+
+#define ALLOC_RANGE_ZEROMEM(type, count, dst, alloc) \
+	dst = (type*)alloc(sizeof(type) * count); \
+	memset(dst, 0, sizeof(type) * count);
+
 #define REALLOC_RANGE_ZEROMEM(start, origin_count, new_count, type, ptr, reallocer) \
 	uint start = (uint)origin_count; \
 	origin_count += (uint)new_count; \

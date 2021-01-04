@@ -5,7 +5,6 @@
 #include <d3d11_4.h>
 #include "fbximport.h"
 
-// TODO:: 
 // TODO:: 리소스 로드 후 인덱스 반환
 
 struct DX11ShaderCompileDesc
@@ -16,20 +15,24 @@ struct DX11ShaderCompileDesc
 };
 struct DX11Texture2DDesc
 {
-	wchar_t* fileName;
-	void* bufferPtr;
-	D3D11_TEXTURE2D_DESC desc;
+	uint srvIndex;
+	const wchar_t* fileName;
+	D3D11_USAGE usage;
+	uint bindFlags;
+	uint miscFlags;
+	uint cpuAccessFlags;
+	bool forceSRGB;
 };
 struct DX11BufferDesc
 {
 	wchar_t* fileName;
-	void* bufferPtr;
 	std::function<void(void*)> copyToPtr;
 	D3D11_BUFFER_DESC buffer;
 	D3D11_SUBRESOURCE_DATA subres;
 };
 struct DX11SRVDesc
 {
+	std::function<bool(DXGI_FORMAT*)> getSRVFormat;
 	D3D11_SHADER_RESOURCE_VIEW_DESC view;
 	union
 	{
@@ -112,23 +115,23 @@ struct DX11RawResourceBuffer
 	~DX11RawResourceBuffer() { }
 };
 
-uint AppendInputLayouts(DX11RawResourceBuffer* rawResBuffer, uint additionalCount, const DX11ILDesc* ilDescs);
-uint AppendConstantBuffers(DX11RawResourceBuffer* rawResBuffer, uint constantBufferCount, const uint* bufferSizes);
-void AppendShaders(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11ShaderCompileDesc* descs, OUT ShaderKind* kinds, OUT int* indices);
-uint AppendSamplerStates(DX11RawResourceBuffer* rawResBuffer, uint samplerCount, const D3D11_SAMPLER_DESC* descs);
-uint AppendShaderResourceViews(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11SRVDesc* descs);
-uint AppendUnorderedAccessViews(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const  DX11UAVDesc* descs);
-uint AppendBuffers(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11BufferDesc* descs);
-uint AppendTex2Ds(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11Texture2DDesc* descs);
+uint ReserveLoadInputLayouts(DX11RawResourceBuffer* rawResBuffer, uint additionalCount, const DX11ILDesc* ilDescs);
+uint ReserveLoadConstantBuffers(DX11RawResourceBuffer* rawResBuffer, uint constantBufferCount, const uint* bufferSizes);
+void ReserveLoadShaders(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11ShaderCompileDesc* descs, OUT ShaderKind* kinds, OUT int* indices);
+uint ReserveLoadSamplerStates(DX11RawResourceBuffer* rawResBuffer, uint samplerCount, const D3D11_SAMPLER_DESC* descs);
+uint ReserveLoadShaderResourceViews(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11SRVDesc* descs);
+uint ReserveLoadUnorderedAccessViews(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const  DX11UAVDesc* descs);
+uint ReserveLoadBuffers(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11BufferDesc* descs);
+uint ReserveLoadTexture2Ds(DX11RawResourceBuffer* rawResBuffer, uint additioanlCount, const DX11Texture2DDesc* descs);
 
-uint AppendInputLayout(DX11RawResourceBuffer* rawResBuffer, const DX11ILDesc& desc);
-uint AppendConstantBuffer(DX11RawResourceBuffer* rawResBuffer, const uint bufferSize);
-uint AppendShader(DX11RawResourceBuffer* rawResBuffer, const DX11ShaderCompileDesc* desc, OUT ShaderKind* s);
-uint AppendSamplerState(DX11RawResourceBuffer* rawResBuffer, const D3D11_SAMPLER_DESC* desc);
-uint AppendShaderResourceView(DX11RawResourceBuffer* rawResBuffer, const DX11SRVDesc* desc);
-uint AppendUnorderedAccessViews(DX11RawResourceBuffer* rawResBuffer, const DX11UAVDesc* desc);
-uint AppendBuffer(DX11RawResourceBuffer* rawResBuffer, const DX11BufferDesc* desc);
-uint AppendTex2D(DX11RawResourceBuffer* rawResBuffer, const DX11Texture2DDesc* desc);
+uint ReserveLoadInputLayout(DX11RawResourceBuffer* rawResBuffer, const DX11ILDesc& desc);
+uint ReserveLoadConstantBuffer(DX11RawResourceBuffer* rawResBuffer, const uint bufferSize);
+uint ReserveLoadShader(DX11RawResourceBuffer* rawResBuffer, const DX11ShaderCompileDesc* desc, OUT ShaderKind* s);
+uint ReserveLoadSamplerState(DX11RawResourceBuffer* rawResBuffer, const D3D11_SAMPLER_DESC* desc);
+uint ReserveLoadShaderResourceView(DX11RawResourceBuffer* rawResBuffer, const DX11SRVDesc* desc);
+uint ReserveLoadUnorderedAccessView(DX11RawResourceBuffer* rawResBuffer, const DX11UAVDesc* desc);
+uint ReserveLoadBuffer(DX11RawResourceBuffer* rawResBuffer, const DX11BufferDesc* desc);
+uint ReserveLoadTexture2D(DX11RawResourceBuffer* rawResBuffer, const DX11Texture2DDesc* desc);
 
 struct DX11CompileDescToShader
 {
@@ -199,7 +202,8 @@ struct DX11Resources
 		D3D11_INPUT_ELEMENT_DESC* descs;
 	}*vertexLayouts;
 
-	// TODO:: 묶어야함
+#pragma region TODO:: 묶어야함
+
 	uint geometryCount;
 	struct DX11GeometryChunk
 	{
@@ -216,10 +220,23 @@ struct DX11Resources
 		uint vertexStreamUAVIndex;
 	}*geometryChunks;
 
-	uint boneCount;
-	uint bindPoseTransformBufferIndex;
-	uint binePoseTransformSRVIndex;
+	uint boneSetCount;
+	struct DX11BoneSet
+	{
+		uint boneCount;
+		struct DX11Bone
+		{
+			char* name;
+			int parentIndex;
+			int childIndexStart;
+			int childCount;
+			Matrix4x4 inverseGlobalTransformMatrix;
+		}* bones;
 
+		uint bindPoseTransformBufferIndex;
+		uint binePoseTransformSRVIndex;
+	}* boneSets;
+	
 	uint animCount;
 	struct DX11Animation
 	{
@@ -228,7 +245,10 @@ struct DX11Resources
 		uint fpsCount;
 		uint animPoseTransformBufferIndex;
 		uint animPoseTransformSRVIndex;
+		uint boneSetIndex;
 	}* anims;
+
+#pragma endregion
 
 	uint texture2DCount;
 	struct DX11Texture2D
@@ -364,19 +384,19 @@ HRESULT LoadDX11Resoureces(
 	DX11Resources* res, DX11RawResourceBuffer* rawBuffer, DX11ResourceDesc* desc, 
 	const Allocaters* allocs, ID3D11Device* device
 );
-HRESULT LoadGeometryAndAnimationFromFBXChunk(
+HRESULT ReserveLoadGeometryAndAnimationFromFBXChunk(
 	DX11Resources* res, DX11RawResourceBuffer* rawBuffer, const Allocaters* allocs, ID3D11Device* device,
 	uint chunkCount, const FBXChunk* chunks, const FBXChunkConfig* configs
 );
-HRESULT LoadTexture2DAndSRVFromDirectories(
+HRESULT ReserveTexture2DAndSRVFromDirectories(
 	DX11Resources* res, DX11RawResourceBuffer* rawBuffer, const Allocaters* allocs, ID3D11Device* device,
 	uint dirCount, const wchar_t** dirs, uint textureBufferSize = 0, void* allocatedtextureBuffer = nullptr
 );
-HRESULT LoadShaderFromDirectories(
+HRESULT ReserveLoadShaderFromDirectories(
 	DX11Resources* res, DX11RawResourceBuffer* rawBuffer, const Allocaters* allocs, ID3D11Device* device,
 	uint compileCount, const DX11ShaderCompileDesc* descs, DX11CompileDescToShader* descToFileShader
 );
-HRESULT LinkInputLayout(
+HRESULT ReserveLoadInputLayout(
 	DX11Resources* res, DX11RawResourceBuffer* rawBuffer, const Allocaters* allocs,
 	uint descCount, const DX11CompileDescToShader* dtoss,
 	uint inputLayoutCount, const DX11InputLayoutDesc* inputLayoutDesc
@@ -419,7 +439,13 @@ struct DX11PipelineDependancyDesc
 
 enum class CopyKind : uint
 {
-	COPY_RESOURCE
+	COPY_RESOURCE,
+	UPDATE_SUBRESOURCE,
+};
+enum class ResourceKind : uint
+{
+	Buffer,
+	Textur2D,
 };
 // dependant on DX11Resource
 struct DX11CopyDependancy
@@ -431,6 +457,17 @@ struct DX11CopyDependancy
 		{
 			uint srcBufferIndex;
 			uint dstBufferIndex;
+		};
+		struct
+		{
+			ResourceKind resKind;
+			uint resIndex;
+			uint dstSubres;
+			std::function<const D3D11_BOX*(D3D11_BOX*)> getBoxFunc;
+			uint dataBufferSize;
+			std::function<void(void*)> copyToBufferFunc;
+			uint srcRowPitch;
+			uint srcDepthPitch;
 		};
 	};
 };
@@ -561,6 +598,7 @@ struct DX11ContextState
 };
 
 HRESULT DependancyContextStatePrepare(DX11ContextState* state, const Allocaters* allocs, uint dependCount, const DX11PipelineDependancy* depends);
+
 HRESULT ExecuteExplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* state, const DX11Resources* res, uint dependCount, const DX11PipelineDependancy* depends);
 HRESULT ExecuteImplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* state, const DX11Resources* res, uint dependCount, const DX11PipelineDependancy* depends);
 HRESULT Copy(ID3D11DeviceContext* deviceContext, DX11ContextState* state, const DX11Resources* res, uint dependCount, const DX11CopyDependancy* depends);
@@ -568,5 +606,5 @@ HRESULT ComputeExplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* 
 HRESULT ComputeImplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* state, const DX11Resources* res, uint dependCount, const DX11ComputePipelineDependancy* depends);
 HRESULT DrawExplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* state, const DX11Resources* res, uint dependCount, const DX11DrawPipelineDependancy* depends);
 HRESULT DrawImplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* state, const DX11Resources* res, uint dependCount, const DX11DrawPipelineDependancy* depends);
-HRESULT ReleaseDependancy(DX11PipelineDependancy* dependancy, const Allocaters* allocs);
+HRESULT ReleaseDependancy(uint dependCount, DX11PipelineDependancy* dependancy, const Allocaters* allocs);
 HRESULT ReleaseContext(DX11ContextState* context, const Allocaters* allocs);
