@@ -445,13 +445,19 @@
 	strcpy_s(dst, (len + 1), src); \
 }
 
-#define ALLOC_RANGE_MEMCPY(type, count, dst, src, alloc) \
-	dst = (type*)alloc(sizeof(type) * count); \
-	memcpy(dst, src, sizeof(type) * count);
+#define ALLOC_RANGE_MEMCPY(count_val, new_count, type, dst, src, alloc) \
+{ \
+	count_val = new_count; \
+	dst = (type*)alloc(sizeof(type) * count_val); \
+	memcpy(dst, src, sizeof(type) * count_val); \
+}
 
-#define ALLOC_RANGE_ZEROMEM(type, count, dst, alloc) \
-	dst = (type*)alloc(sizeof(type) * count); \
-	memset(dst, 0, sizeof(type) * count);
+#define ALLOC_RANGE_ZEROMEM(count_val, new_count, type, dst, alloc) \
+{ \
+	count_val = new_count; \
+	dst = (type*)alloc(sizeof(type) * count_val); \
+	memset(dst, 0, sizeof(type) * count_val); \
+}
 
 #define REALLOC_RANGE_ZEROMEM(start, origin_count, new_count, type, ptr, reallocer) \
 	uint start = (uint)origin_count; \

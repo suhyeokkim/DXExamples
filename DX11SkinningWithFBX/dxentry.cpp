@@ -189,10 +189,11 @@ HRESULT DXShaderResourceInit(bool debug)
 	// load dx11 object 
 	// external resource depandency
 	FBXChunk c;
+	memset(&c, 0, sizeof(FBXChunk));
 	FBXLoadOptionChunk opt;
 	opt.flipV = 1;
 	FALSE_ERROR_MESSAGE_RETURN_CODE(
-		ImportFBX(L"./char_max.fbx", c, &opt), L"fail to load fbxfile as \"ImportFBX\"", E_FAIL
+		ImportFBX(L"./char_max.fbx", c, &opt, &g_GlobalAllocaters), L"fail to load fbxfile as \"ImportFBX\"", E_FAIL
 	);
 
 	FBXChunkConfig::FBXMeshConfig meshConfigs[] = { true, true };
@@ -301,8 +302,8 @@ void DXEntryClean()
 }
 
 Vector4f 
-	g_CurrentPos = Vector4f(0.0f, 0.f, 100.0f, 0.0f),
-	g_ObjectPos = Vector4f(0.0f, 0.f, 0.0f, 0.0f);
+	g_CurrentPos = Vector4f(-100.0f, 75.f, 150.0f, 0.0f),
+	g_ObjectPos = Vector4f(0.0f, 25.f, 0.0f, 0.0f);
 
 void ReadKey();
 void UpdateConstantBuffer(void* ptr);

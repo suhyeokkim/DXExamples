@@ -71,12 +71,9 @@ HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocater
 		}
 	}
 
-	if (state->bufferCount < maxCount)
-	{
-		state->bufferCount = maxCount;
-		state->bufferPtrBuffer = (void**)allocs->realloc(state->bufferPtrBuffer, maxCount);
-		state->numberBuffer = (uint*)allocs->realloc(state->numberBuffer, sizeof(uint) * 2);
-	}
+	state->bufferCount = maxCount;
+	state->bufferPtrBuffer = (void**)allocs->alloc(maxCount);
+	state->numberBuffer = (uint*)allocs->alloc(sizeof(uint) * 2);
 
 	return S_OK;
 }

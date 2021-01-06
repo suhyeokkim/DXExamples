@@ -29,8 +29,6 @@ void DestroyFBX()
 }
 
 bool SceneToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs);
-
-Allocaters g_GlobalAllocater = { malloc, realloc, free };
 bool ImportFBX(const wchar_t* fileDirectory, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
 	if (g_FbxManager == nullptr)
@@ -60,7 +58,7 @@ bool ImportFBX(const wchar_t* fileDirectory, FBXChunk& chunk, const FBXLoadOptio
 		IMPORTFBX_FAIL
 	);
 
-	importStatus = SceneToChunk(fbxScene, chunk, opt? opt: &dfltopt, allocs != nullptr ? allocs : &g_GlobalAllocater);
+	importStatus = SceneToChunk(fbxScene, chunk, opt? opt: &dfltopt, allocs);
 	FALSE_ERROR_MESSAGE_GOTO(importStatus, L"fail to copy to chunk..", IMPORTFBX_FAIL);
 
 	if (fbxImporter) fbxImporter->Destroy();
@@ -98,7 +96,7 @@ bool ImportFBX(const char* fileDirectory, FBXChunk& chunk, const FBXLoadOptionCh
 		IMPORTFBX_FAIL
 	);
 
-	importStatus = SceneToChunk(fbxScene, chunk, opt? opt: &dfltopt, allocs != nullptr ? allocs : &g_GlobalAllocater);
+	importStatus = SceneToChunk(fbxScene, chunk, opt? opt: &dfltopt, allocs);
 	FALSE_ERROR_MESSAGE_GOTO(importStatus, L"fail to copy to chunk..", IMPORTFBX_FAIL);
 
 	if (fbxImporter) fbxImporter->Destroy();
@@ -130,7 +128,7 @@ uint ImportFBX(uint chunkCount, const char* const * fileDirectories, FBXChunk* c
 		importStatus = fbxImporter->Import(fbxScene);
 		FALSE_ERROR_MESSAGE_CONTINUE(importStatus && fbxImporter->GetStatus() == FbxStatus::eSuccess, L"fail to import scene..");
 
-		importStatus = SceneToChunk(fbxScene, *(chunk + i), opt? opt + i: &dfltopt, allocs != nullptr ? allocs : &g_GlobalAllocater);
+		importStatus = SceneToChunk(fbxScene, *(chunk + i), opt? opt + i: &dfltopt, allocs);
 		FALSE_ERROR_MESSAGE_CONTINUE(importStatus, L"fail to copy to chunk..");
 
 		if (fbxImporter) fbxImporter->Destroy();
@@ -164,7 +162,7 @@ uint ImportFBX(uint chunkCount, const wchar_t* const * fileDirectories, FBXChunk
 		importStatus = fbxImporter->Import(fbxScene);
 		FALSE_ERROR_MESSAGE_CONTINUE(importStatus && fbxImporter->GetStatus() == FbxStatus::eSuccess, L"fail to import scene..");
 
-		importStatus = SceneToChunk(fbxScene, *(chunk + i), opt ? opt + i : &dfltopt, allocs != nullptr ? allocs : &g_GlobalAllocater);
+		importStatus = SceneToChunk(fbxScene, *(chunk + i), opt ? opt + i : &dfltopt, allocs);
 		FALSE_ERROR_MESSAGE_CONTINUE(importStatus, L"fail to copy to chunk..");
 
 		if (fbxImporter) fbxImporter->Destroy();
@@ -178,7 +176,7 @@ uint ImportFBX(uint chunkCount, const wchar_t* const * fileDirectories, FBXChunk
 
 void HierarchyAllocate(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs);
 uint TraversalFBXNode(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs);
-bool AnimationToChunk(FbxNode* node, FBXChunk& chunk, const Allocaters* allocs);
+bool AnimationToChunk(FbxScene* scene, FBXChunk& chunk, const Allocaters* allocs);
 bool BlendShapeToChunk(FbxScene* fbxScene, FBXChunk& chunk, const Allocaters* allocs);
 
 int GetFPS(const fbxsdk::FbxTime::EMode& mode)
@@ -214,8 +212,40 @@ bool SceneToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk*
 	conv->Triangulate(fbxScene, true);
 	delete conv;
 
+	uint meshCount = 0, animCount = 0;
+	{
+		std::vector<FbxNode*> nodeVector;
+		nodeVector.push_back(fbxScene->GetRootNode());
+
+		while (nodeVector.size())
+		{
+			FbxNode* node = nodeVector[nodeVector.size() - 1];
+			nodeVector.pop_back();
+			for (int i = 0; i < node->GetChildCount(); i++)
+				nodeVector.push_back(node->GetChild(i));
+
+			FbxNodeAttribute* attr = node->GetNodeAttribute();
+			if (!attr) continue;
+			FbxNodeAttribute::EType type = attr->GetAttributeType();
+
+			if (type == FbxNodeAttribute::EType::eMesh)
+				meshCount++;
+		}
+
+		animCount += (uint)fbxScene->GetSrcObjectCount<FbxAnimStack>();
+	}
+
+	chunk.meshCount = 0;
+	chunk.meshs = (FBXMeshChunk*)allocs->alloc(sizeof(FBXMeshChunk) * meshCount);
+	memset(chunk.meshs, 0, sizeof(FBXMeshChunk) * meshCount);
+
+	chunk.animationCount = 0;
+	chunk.animations = (FBXChunk::FBXAnimation*)allocs->alloc(sizeof(FBXChunk::FBXAnimation) * animCount);
+	memset(chunk.animations, 0, sizeof(FBXChunk::FBXAnimation) * animCount);
+
 	HierarchyAllocate(fbxScene, chunk, opt, allocs);
 	TraversalFBXNode(fbxScene->GetRootNode(), chunk, opt, allocs);
+	AnimationToChunk(fbxScene, chunk, allocs);
 	BlendShapeToChunk(fbxScene, chunk, allocs);
 
 	return true;
@@ -233,7 +263,7 @@ void HierarchyAllocate(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionC
 
 	int fbxNodeCount = fbxScene->GetNodeCount(), currentNodeCount = 0;
 	chunk.hierarchyNodes = (FBXHierarchyNode*)allocs->alloc(sizeof(FBXHierarchyNode) * fbxNodeCount);
-	memset(chunk.hierarchyNodes, 0, sizeof(sizeof(FBXHierarchyNode) * fbxNodeCount));
+	memset(chunk.hierarchyNodes, 0, sizeof(FBXHierarchyNode) * fbxNodeCount);
 	struct qNode {
 		int depth;
 		int hierarchyParentIndex;
@@ -316,7 +346,6 @@ uint TraversalFBXNode(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* 
 		case FbxNodeAttribute::EType::eMesh:
 			if (MeshToChunk(node, chunk, opt, allocs))
 				count++;
-			AnimationToChunk(node, chunk, allocs);
 			break;
 		}
 	}
@@ -334,11 +363,6 @@ bool MeshToChunk(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, 
 	FbxMesh* fbxMesh = node->GetMesh();
 
 	chunk.meshCount++;
-	if (chunk.meshs == nullptr)
-		chunk.meshs = (FBXMeshChunk*)allocs->alloc(sizeof(FBXMeshChunk));
-	else
-		chunk.meshs = (FBXMeshChunk*)allocs->realloc(chunk.meshs, sizeof(FBXMeshChunk) * chunk.meshCount);
-
 	FBXMeshChunk& mesh = chunk.meshs[chunk.meshCount - 1];
 	memset(chunk.meshs + (chunk.meshCount - 1), 0, sizeof(FBXMeshChunk));
 	ALLOC_AND_STRCPY(mesh.name, name, allocs->alloc);
@@ -347,12 +371,17 @@ bool MeshToChunk(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, 
 	// controlpoint to vertex
 	FbxVector4* fbxVertices = fbxMesh->GetControlPoints();
 	mesh.geometry.vertices = (Vector3f*)allocs->alloc(sizeof(Vector3f) * mesh.geometry.vertexCount);
+	Vector3f min = Vector3f(FLT_MAX, FLT_MAX, FLT_MAX), max = Vector3f(FLT_MIN, FLT_MIN, FLT_MIN);
 	for (uint i = 0; i < mesh.geometry.vertexCount; i++)
 	{
 		mesh.geometry.vertices[i].x = static_cast<float>(fbxVertices[i].mData[0]);
 		mesh.geometry.vertices[i].y = static_cast<float>(fbxVertices[i].mData[1]);
 		mesh.geometry.vertices[i].z = static_cast<float>(fbxVertices[i].mData[2]);
+
+		min = Min(mesh.geometry.vertices[i], min);
+		max = Max(mesh.geometry.vertices[i], max);
 	}
+	mesh.geometry.bound = Bounds((min + max) / 2.0f, Abs(min - max));
 
 	// non-unifoirm polygon to uniform triangle
 	bool clockwisedivide = false, submeshExist = false;
@@ -762,50 +791,27 @@ bool LinkToChunk(FbxNode* node, FBXChunk& wholeChunk, FBXMeshChunk& meshChunk, c
 }
 
 // https://github.com/lang1991/FBXExporter/blob/master/FBXExporter/FBXExporter.cpp
-bool AnimationToChunk(FbxNode* node, FBXChunk& chunk, const Allocaters* allocs)
+bool AnimationToChunk(FbxScene* scene, FBXChunk& chunk, const Allocaters* allocs)
 {
-	FbxScene* scene = node->GetScene();
-	FbxMesh* mesh = node->GetMesh();
-	FbxGlobalSettings& globalSettings = node->GetScene()->GetGlobalSettings();
+	FbxNode* rootNode = scene->GetRootNode();
+	FbxGlobalSettings& globalSettings = scene->GetGlobalSettings();
 	fbxsdk::FbxTime::EMode timeMode = globalSettings.GetTimeMode();
 
-	uint deformerCount = mesh->GetDeformerCount();
-	FbxSkin* skin = nullptr;
-	
-	for (uint deformIdx = 0; deformIdx < deformerCount && !skin; deformIdx++)
-		skin = reinterpret_cast<FbxSkin*>(mesh->GetDeformer(deformIdx, FbxDeformer::eSkin));
+	int prevAnimCount = chunk.animationCount, 
+		newAnimCount = scene->GetSrcObjectCount<FbxAnimStack>();
+	chunk.animationCount += (uint)newAnimCount;
 
-	if (!skin) return false;
-
-	int prevAnimCount = chunk.animationCount, newAnimCount = scene->GetSrcObjectCount<FbxAnimStack>();
-	chunk.animationCount += newAnimCount;
-	chunk.animations = (FBXChunk::FBXAnimation*)allocs->realloc(chunk.animations, sizeof(FBXChunk::FBXAnimation) * chunk.animationCount);
-
-	uint clusterCnt = skin->GetClusterCount();
-
+	//uint clusterCnt = skin->GetClusterCount();
 	FbxAMatrix geometricTransform =
 		FbxAMatrix(
-			node->GetGeometricTranslation(FbxNode::eSourcePivot),
-			node->GetGeometricRotation(FbxNode::eSourcePivot),
-			node->GetGeometricScaling(FbxNode::eSourcePivot)
+			rootNode->GetGeometricTranslation(FbxNode::eSourcePivot),
+			rootNode->GetGeometricRotation(FbxNode::eSourcePivot),
+			rootNode->GetGeometricScaling(FbxNode::eSourcePivot)
 		);
 
-	int* clusterToHierarchy = (int*)alloca(sizeof(int) * clusterCnt);
-	for (uint cidx = 0; cidx < clusterCnt; cidx++)
-	{
-		FbxCluster* cluster = skin->GetCluster(cidx);
-		const char* boneName = cluster->GetLink()->GetName();
-		bool find = false;
-		for (uint i = 0; i < chunk.hierarchyCount; i++)
-			if (strcmp(chunk.hierarchyNodes[i].name, boneName) == 0)
-			{
-				find = true;
-				clusterToHierarchy[cidx] = i;
-				break;
-			}
-
-		if (!find) clusterToHierarchy[cidx] = -1;
-	}
+	FbxNode** nodes = (FbxNode**)alloca(sizeof(FbxNode*) * chunk.hierarchyCount);
+	for (uint hi = 0; hi < chunk.hierarchyCount; hi++)
+		nodes[hi] = scene->FindNodeByName(chunk.hierarchyNodes[hi].name);
 
 	for (int ai = 0; ai < newAnimCount; ai++)
 	{
@@ -823,23 +829,20 @@ bool AnimationToChunk(FbxNode* node, FBXChunk& chunk, const Allocaters* allocs)
 		anim.frameKeyCount = static_cast<uint>(end.GetFrameCount(timeMode) - start.GetFrameCount(timeMode)) + 1;
 		anim.fpsCount = GetFPS(timeMode);
 		anim.globalAffineTransforms = (Matrix4x4*)allocs->alloc(sizeof(Matrix4x4) * chunk.hierarchyCount * anim.frameKeyCount);
+		memset(anim.globalAffineTransforms, 0, sizeof(Matrix4x4) * chunk.hierarchyCount * anim.frameKeyCount);
 
 		FbxLongLong frameStartIndex = start.GetFrameCount(timeMode);
 		for (FbxLongLong frameIndex = frameStartIndex; frameIndex <= end.GetFrameCount(timeMode); ++frameIndex)
 		{
 			FbxTime currTime;
 			currTime.SetFrame(frameIndex, timeMode);
-			FbxAMatrix currentTransformOffset = node->EvaluateGlobalTransform(currTime) * geometricTransform;
 
-			for (uint cidx = 0; cidx < clusterCnt; cidx++)
+			for (uint hi = 0; hi < chunk.hierarchyCount; hi++)
 			{
-				FbxCluster* cluster = skin->GetCluster(cidx);
-				FbxAMatrix matrix = currentTransformOffset.Inverse() * cluster->GetLink()->EvaluateGlobalTransform(currTime);
-				int hidx = clusterToHierarchy[cidx];
-
+				FbxAMatrix matrix = geometricTransform * nodes[hi]->EvaluateGlobalTransform(currTime);
 				FbxAMatrixToMatrix4x4(
 					matrix,
-					anim.globalAffineTransforms[((frameIndex - frameStartIndex) * chunk.hierarchyCount + hidx)]				
+					anim.globalAffineTransforms[((frameIndex - frameStartIndex) * chunk.hierarchyCount + hi)]
 				);
 			}
 		}

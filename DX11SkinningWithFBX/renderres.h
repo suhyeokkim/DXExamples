@@ -39,6 +39,7 @@ struct RenderResources
 		};
 	}*geometryChunks;
 
+	uint boneSetCapacity;
 	uint boneSetCount;
 	struct BoneSet
 	{

@@ -40,6 +40,7 @@ struct FBXMeshChunk
 	char* name;
 	struct FBXGeometryChunk
 	{
+		Bounds bound;
 		uint vertexCount;
 		Vector3f* vertices;
 		Vector3f* normals;

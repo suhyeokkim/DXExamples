@@ -318,7 +318,7 @@ inline bool ShaderTargetToIndex(wchar_t wc, uint* i)
 	return true;
 }
 
-HRESULT ReserveLoadInputLayout(
+HRESULT ReserveLoadInputLayoutRefIndex(
 	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
 	uint descCount, const DX11CompileDescToShader* dtoss,
 	uint inputLayoutCount, const DX11InputLayoutDesc* inputLayoutDesc

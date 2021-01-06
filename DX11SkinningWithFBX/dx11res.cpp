@@ -10,18 +10,18 @@
 #include "dx11util.h"
 
 
-HRESULT ReserveLoadInputLayout(
+HRESULT ReserveLoadInputLayoutRefIndex(
 	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
 	uint descCount, const DX11CompileDescToShader* dtoss,
 	uint inputLayoutCount, const DX11InputLayoutDesc* inputLayoutDesc
 )
 {
-	REALLOC_RANGE_ZEROMEM(
-		prevInputLayoutCount, res->inputLayoutCount, inputLayoutCount,
-		DX11Resources::DX11InputLayout, res->inputLayouts, allocs->realloc
+	ALLOC_RANGE_ZEROMEM(
+		res->inputLayoutCount, inputLayoutCount,
+		DX11Resources::DX11InputLayout, res->inputLayouts, allocs->alloc
 	);
 
-	for (uint i = prevInputLayoutCount; i < res->inputLayoutCount; i++)
+	for (uint i = 0; i < res->inputLayoutCount; i++)
 	{
 		const DX11InputLayoutDesc& d = inputLayoutDesc[i];
 		const DX11CompileDescToShader& dtof = dtoss[d.shaderCompileDescIndex];
@@ -150,15 +150,14 @@ uint ReserveLoadTexture2D(DX11InternalResourceDescBuffer* rawResBuffer, const DX
 
 HRESULT CreateDX11ResourcesByDesc(DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs, ID3D11Device* device, bool isDebug)
 {
-	uint prevShaderCount[6] = { 0, 0, 0,0 ,0 ,0 };
 	for (uint i = 0; i < 6; i++)
 	{
 		auto& shaderChunks = res->shadersByKind[i];
 		auto& shaderDescs = rawBuffer->shaderCompileDesces[i];
 
-		REALLOC_EXISTVAL_RANGE_ZEROMEM(
-			prevShaderCount[i], shaderChunks.shaderCount, rawBuffer->shaderCompileDesces[i].size(),
-			DX11CompiledShader, shaderChunks.shaders, allocs->realloc
+		ALLOC_RANGE_ZEROMEM(
+			shaderChunks.shaderCount, rawBuffer->shaderCompileDesces[i].size(),
+			DX11CompiledShader, shaderChunks.shaders, allocs->alloc
 		);
 
 		for (uint j = 0; j < shaderChunks.shaderCount; j++)
@@ -225,11 +224,11 @@ HRESULT CreateDX11ResourcesByDesc(DX11Resources* res, DX11InternalResourceDescBu
 		}
 	}
 
-	REALLOC_RANGE_ZEROMEM(
-		prevSamplerCount, res->samplerCount, rawBuffer->samplerDescs.size(),
-		ID3D11SamplerState*, res->samplerStates, allocs->realloc
+	ALLOC_RANGE_ZEROMEM(
+		res->samplerCount, rawBuffer->samplerDescs.size(),
+		ID3D11SamplerState*, res->samplerStates, allocs->alloc
 	);
-	for (uint i = prevSamplerCount; i < res->samplerCount; i++)
+	for (uint i = 0; i < res->samplerCount; i++)
 	{
 		FAILED_ERROR_MESSAGE_ARGS(
 			device->CreateSamplerState(&rawBuffer->samplerDescs[i], &res->samplerStates[i]),
@@ -241,13 +240,13 @@ HRESULT CreateDX11ResourcesByDesc(DX11Resources* res, DX11InternalResourceDescBu
 	size_t prevSize = 0;
 	void* ptr = nullptr;
 
-	REALLOC_RANGE_ZEROMEM(
-		prevTex2DCount, res->texture2DCount, rawBuffer->tex2DDescs.size(),
-		ID3D11Texture2D*, res->texture2Ds, allocs->realloc
+	ALLOC_RANGE_ZEROMEM(
+		res->texture2DCount, rawBuffer->tex2DDescs.size(),
+		ID3D11Texture2D*, res->texture2Ds, allocs->alloc
 	);
-	for (uint i = prevTex2DCount; i < res->texture2DCount; i++)
+	for (uint i = 0; i < res->texture2DCount; i++)
 	{
-		DX11Texture2DDesc& desc = rawBuffer->tex2DDescs[i - prevTex2DCount];
+		DX11Texture2DDesc& desc = rawBuffer->tex2DDescs[i];
 
 		if (desc.loadFromFile)
 		{
@@ -260,7 +259,7 @@ HRESULT CreateDX11ResourcesByDesc(DX11Resources* res, DX11InternalResourceDescBu
 			if (prevSize < size)
 			{
 				prevSize = size;
-				ptr = allocs->realloc(ptr, prevSize);
+				ptr = realloc(ptr, prevSize);
 			}
 			size_t readSize = fread(ptr, 1, size, fp);
 			fclose(fp);
@@ -295,11 +294,11 @@ HRESULT CreateDX11ResourcesByDesc(DX11Resources* res, DX11InternalResourceDescBu
 		}
 	}
 
-	REALLOC_RANGE_ZEROMEM(
-		prevBufferCount, res->bufferCount, rawBuffer->bufferDescs.size(),
-		ID3D11Buffer*, res->buffers, allocs->realloc
+	ALLOC_RANGE_ZEROMEM(
+		res->bufferCount, rawBuffer->bufferDescs.size(),
+		ID3D11Buffer*, res->buffers, allocs->alloc
 	);
-	for (uint i = prevBufferCount; i < res->bufferCount; i++)
+	for (uint i = 0; i < res->bufferCount; i++)
 	{
 		DX11BufferDesc& d = rawBuffer->bufferDescs[i];
 
@@ -309,7 +308,7 @@ HRESULT CreateDX11ResourcesByDesc(DX11Resources* res, DX11InternalResourceDescBu
 			{
 				if (prevSize < d.buffer.ByteWidth)
 				{
-					ptr = allocs->realloc(ptr, d.buffer.ByteWidth);
+					ptr = realloc(ptr, d.buffer.ByteWidth);
 					prevSize = d.buffer.ByteWidth;
 				}
 				d.copyToPtr(ptr);
@@ -322,7 +321,7 @@ HRESULT CreateDX11ResourcesByDesc(DX11Resources* res, DX11InternalResourceDescBu
 				size_t size = GetFileSize(fp);
 				if (prevSize < size)
 				{
-					ptr = allocs->realloc(ptr, size);
+					ptr = realloc(ptr, size);
 					prevSize = size;
 				}
 				fread(ptr, 1, size, fp);
@@ -337,13 +336,13 @@ HRESULT CreateDX11ResourcesByDesc(DX11Resources* res, DX11InternalResourceDescBu
 			i
 		);
 	}		
-	SAFE_DEALLOC(ptr, allocs->dealloc);
+	free(ptr);
 
-	REALLOC_RANGE_ZEROMEM(
-		prevSRVCount, res->srvCount, rawBuffer->srvDescs.size(),
-		ID3D11ShaderResourceView*, res->srvs, allocs->realloc
+	ALLOC_RANGE_ZEROMEM(
+		res->srvCount, rawBuffer->srvDescs.size(),
+		ID3D11ShaderResourceView*, res->srvs, allocs->alloc
 	);
-	for (uint i = prevSRVCount; i < res->srvCount; i++)
+	for (uint i = 0; i < res->srvCount; i++)
 	{
 		ID3D11Resource* dx11res = nullptr;
 
@@ -374,11 +373,11 @@ HRESULT CreateDX11ResourcesByDesc(DX11Resources* res, DX11InternalResourceDescBu
 		);
 	}
 		
-	REALLOC_RANGE_ZEROMEM(
-		prevUAVCount, res->uavCount, rawBuffer->uavDescs.size(),
-		ID3D11UnorderedAccessView*, res->uavs, allocs->realloc
+	ALLOC_RANGE_ZEROMEM(
+		res->uavCount, rawBuffer->uavDescs.size(),
+		ID3D11UnorderedAccessView*, res->uavs, allocs->alloc
 	);
-	for (uint i = prevUAVCount; i < res->uavCount; i++)
+	for (uint i = 0; i < res->uavCount; i++)
 	{
 		FAILED_ERROR_MESSAGE_ARGS(
 			device->CreateUnorderedAccessView(res->buffers[rawBuffer->uavDescs[i].bufferIndex], &rawBuffer->uavDescs[i].view, &res->uavs[i]),
@@ -387,11 +386,11 @@ HRESULT CreateDX11ResourcesByDesc(DX11Resources* res, DX11InternalResourceDescBu
 		);
 	}
 
-	REALLOC_RANGE_ZEROMEM(
-		prevILCount, res->inputLayoutItemCount, rawBuffer->inputLayoutDescs.size(),
-		ID3D11InputLayout*, res->inputLayoutItems, allocs->realloc
+	ALLOC_RANGE_ZEROMEM(
+		res->inputLayoutItemCount, rawBuffer->inputLayoutDescs.size(),
+		ID3D11InputLayout*, res->inputLayoutItems, allocs->alloc
 	);
-	for (uint i = prevILCount; i < res->inputLayoutItemCount; i++)
+	for (uint i = 0; i < res->inputLayoutItemCount; i++)
 	{
 		FAILED_ERROR_MESSAGE_ARGS(
 			device->CreateInputLayout(

@@ -74,19 +74,19 @@ HRESULT LoadDX11Resoureces(RenderResources* res, DX11InternalResourceDescBuffer*
 	);
 	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create dx11 input layout..");
 
-	hr = ReserveLoadInputLayout(
+	hr = ReserveLoadInputLayoutRefIndex(
 		&res->dx11, rawBuffer, allocs,
 		desc->shaderCompileCount, dtosBuffer, desc->inputLayoutCount, desc->inputLayoutDescs
 	);
 	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create dx11 input layout..");
 
-	REALLOC_RANGE_ZEROMEM(
-		prevConstantBufferCount, res->dx11.constantBufferCount, desc->constantBufferCount,
-		uint, res->dx11.constantBufferIndices, allocs->realloc
+	ALLOC_RANGE_ZEROMEM(
+		res->dx11.constantBufferCount, desc->constantBufferCount,
+		uint, res->dx11.constantBufferIndices, allocs->alloc
 	);
 	uint count = ReserveLoadConstantBuffers(rawBuffer, desc->constantBufferCount, desc->constantBufferSizes);
 	for (uint i = 0; i < desc->constantBufferCount; i++)
-		res->dx11.constantBufferIndices[i + prevConstantBufferCount] = count + i;
+		res->dx11.constantBufferIndices[i] = count + i;
 
 	count = ReserveLoadSamplerStates(rawBuffer, desc->samplerCount, desc->samplerDescs);
 
@@ -326,23 +326,39 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 			newGeometryCount++;
 		}
 
-	REALLOC_RANGE_ZEROMEM(
-		startGeometryCount, res->geometryCount, newGeometryCount,
-		RenderResources::GeometryChunk, res->geometryChunks, allocs->realloc
+	ALLOC_RANGE_ZEROMEM(
+		res->geometryCount, newGeometryCount,
+		RenderResources::GeometryChunk, res->geometryChunks, allocs->alloc
 	);
 
 	int vertexLayoutBufferCount = 0;
 	DX11Resources::DX11LayoutChunk* vertexLayoutBuffer =
 		(DX11Resources::DX11LayoutChunk*)alloca(
-			sizeof(DX11Resources::DX11LayoutChunk) * (res->geometryCount - startGeometryCount)
+			sizeof(DX11Resources::DX11LayoutChunk) * res->geometryCount
 		);
 
 	const int descBufferCapacity = 32;
 	D3D11_INPUT_ELEMENT_DESC* descBuffer = (D3D11_INPUT_ELEMENT_DESC*)alloca(sizeof(D3D11_INPUT_ELEMENT_DESC) * descBufferCapacity);
 	memset(descBuffer, 0, sizeof(D3D11_INPUT_ELEMENT_DESC) * descBufferCapacity);
 
+	uint totalAnimationCount = 0, totalBoneSetCount = 0;
+	for (uint ci = 0; ci < chunkCount; ci++)
+	{
+		totalAnimationCount += chunks[ci].animationCount;
+		totalBoneSetCount++;
+	}
+
+	ALLOC_RANGE_ZEROMEM(
+		res->boneSetCapacity, totalBoneSetCount,
+		RenderResources::BoneSet, res->boneSets, allocs->alloc
+	);
+	ALLOC_RANGE_ZEROMEM(
+		res->animCount, totalAnimationCount,
+		RenderResources::Animation, res->anims, allocs->alloc
+	);
+
 	for (
-		uint ci = 0, geometryOffset = startGeometryCount, bufferOffset = 0, uavOffset = 0, srvOffset = 0;
+		uint ci = 0, geometryOffset = 0, bufferOffset = 0, uavOffset = 0, srvOffset = 0, animOffset = 0; 
 		ci < chunkCount;
 		ci++, memset(descBuffer, 0, sizeof(D3D11_INPUT_ELEMENT_DESC) * descBufferCapacity)
 		)
@@ -469,7 +485,6 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 
 					g.vertexDataBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
 				}
-
 				{
 					DX11BufferDesc desc;
 					memset(&desc, 0, sizeof(DX11BufferDesc));
@@ -480,30 +495,6 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 					desc.subres.pSysMem = m.geometry.indices;
 					g.indexBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
 				}
-
-				//{
-				//	DX11BufferDesc desc;
-				//	memset(&desc, 0, sizeof(DX11BufferDesc));
-				//	desc.buffer.Usage = D3D11_USAGE_DEFAULT;
-				//	desc.buffer.ByteWidth = vertexSizes[1] * g.vertexCount;
-				//	desc.buffer.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
-				//	desc.buffer.CPUAccessFlags = 0;
-				//	desc.buffer.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-				//	desc.buffer.StructureByteStride = vertexSizes[1];
-
-				//	g.vertexStreamBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
-				//}
-				//{
-				//	DX11BufferDesc desc;
-				//	memset(&desc, 0, sizeof(DX11BufferDesc));
-				//	desc.buffer.Usage = D3D11_USAGE_DEFAULT;
-				//	desc.buffer.ByteWidth = vertexSizes[1] * g.vertexCount;
-				//	desc.buffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-				//	desc.buffer.CPUAccessFlags = 0;
-
-				//	g.copiedVertexBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
-				//}
-
 				{
 					DX11SRVDesc desc;
 					memset(&desc, 0, sizeof(DX11SRVDesc));
@@ -516,20 +507,6 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 
 					g.vertexDataSRVIndex = ReserveLoadShaderResourceView(rawBuffer, &desc);
 				}
-
-				//{
-				//	DX11UAVDesc desc;
-				//	memset(&desc, 0, sizeof(DX11UAVDesc));
-
-				//	desc.bufferIndex = g.vertexStreamBufferIndex;
-				//	desc.view.Format = DXGI_FORMAT_UNKNOWN;
-				//	desc.view.ViewDimension = D3D11_UAV_DIMENSION::D3D11_UAV_DIMENSION_BUFFER;
-				//	desc.view.Buffer.FirstElement = 0;
-				//	desc.view.Buffer.NumElements = g.vertexCount;
-				//	desc.view.Buffer.Flags = 0;
-
-				//	g.vertexStreamUAVIndex = ReserveLoadUnorderedAccessView(rawBuffer, &desc);
-				//}
 			}
 
 			// geometry create end
@@ -577,20 +554,22 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 
 		if (findBoneSetIndex < 0)
 		{
-			REALLOC_RANGE_ZEROMEM(
-				prevBoneSetCount, res->boneSetCount, 1,
-				RenderResources::BoneSet, res->boneSets, allocs->realloc
-			);
+			//REALLOC_RANGE_ZEROMEM(
+			//	prevBoneSetCount, res->boneSetCount, 1,
+			//	RenderResources::BoneSet, res->boneSets, allocs->realloc
+			//);
 
-			RenderResources::BoneSet& boneSet = res->boneSets[prevBoneSetCount];
+			res->boneSetCount++;
+			RenderResources::BoneSet& boneSet = res->boneSets[res->boneSetCount - 1];
 
-			boneSet.boneCount = c.hierarchyCount;
 			ALLOC_RANGE_ZEROMEM(
-				RenderResources::BoneSet::Bone, boneSet.boneCount, boneSet.bones, allocs->alloc
+				boneSet.boneCount, c.hierarchyCount, 
+				RenderResources::BoneSet::Bone, boneSet.bones, allocs->alloc
 			);
 
 			for (uint i = 0; i < c.hierarchyCount; i++)
-				boneSet.bones[i].inverseGlobalTransformMatrix = c.hierarchyNodes[i].inverseGlobalTransformMatrix;
+				boneSet.bones[i].inverseGlobalTransformMatrix = 
+					c.hierarchyNodes[i].inverseGlobalTransformMatrix;
 
 			DX11BufferDesc bd;
 			memset(&bd, 0, sizeof(DX11BufferDesc));
@@ -606,31 +585,28 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 				for (uint i = 0; i < boneSet.boneCount; i++)
 					matrixBuffer[i] = boneSet.bones[i].inverseGlobalTransformMatrix;
 			};
-			res->boneSets[prevBoneSetCount].bindPoseTransformBufferIndex = ReserveLoadBuffer(rawBuffer, &bd);
+			res->boneSets[res->boneSetCount - 1].bindPoseTransformBufferIndex =		
+				ReserveLoadBuffer(rawBuffer, &bd);
 
 			DX11SRVDesc srvd;
 			memset(&srvd, 0, sizeof(DX11SRVDesc));
 
-			srvd.bufferIndex = res->boneSets[prevBoneSetCount].bindPoseTransformBufferIndex;
+			srvd.bufferIndex = res->boneSets[res->boneSetCount - 1].bindPoseTransformBufferIndex;
 			srvd.view.Format = DXGI_FORMAT_UNKNOWN;
 			srvd.view.ViewDimension = D3D11_SRV_DIMENSION::D3D11_SRV_DIMENSION_BUFFER;
 			srvd.view.Buffer.FirstElement = 0;
 			srvd.view.Buffer.NumElements = c.hierarchyCount;
 
-			res->boneSets[prevBoneSetCount].binePoseTransformSRVIndex = ReserveLoadShaderResourceView(rawBuffer, &srvd);
+			res->boneSets[res->boneSetCount - 1].binePoseTransformSRVIndex = 
+				ReserveLoadShaderResourceView(rawBuffer, &srvd);
 
-			findBoneSetIndex = prevBoneSetCount;
+			findBoneSetIndex = res->boneSetCount - 1;
 		}
 
-		REALLOC_RANGE_ZEROMEM(
-			prevAnimCount, res->animCount, c.animationCount,
-			RenderResources::Animation, res->anims, allocs->realloc
-		);
-
-		for (uint ai = prevAnimCount; ai < res->animCount; ai++)
+		for (uint ai = 0; ai < c.animationCount; ai++)
 		{
-			RenderResources::Animation& anim = res->anims[ai];
-			FBXChunk::FBXAnimation& fbxAnim = c.animations[ai - prevAnimCount];
+			RenderResources::Animation& anim = res->anims[ai + animOffset];
+			FBXChunk::FBXAnimation& fbxAnim = c.animations[ai];
 
 			ALLOC_AND_STRCPY(anim.animName, fbxAnim.animationName, allocs->alloc);
 			anim.fpsCount = fbxAnim.fpsCount;
@@ -660,6 +636,8 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 			srvd.view.Buffer.NumElements = fbxAnim.frameKeyCount * c.hierarchyCount;
 
 			anim.animPoseTransformSRVIndex = ReserveLoadShaderResourceView(rawBuffer, &srvd);
+
+			animOffset++;
 		}
 
 #pragma endregion
@@ -667,21 +645,17 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 	}
 
 	// allocate & copy vertex layout
-	if (vertexLayoutBufferCount > 0)
-	{
-		res->dx11.vertexLayouts =
-			(DX11Resources::DX11LayoutChunk*)allocs->realloc(
-				res->dx11.vertexLayouts,
-				sizeof(DX11Resources::DX11LayoutChunk) *
-				(res->dx11.vertexLayoutCount + vertexLayoutBufferCount)
-			);
-		memcpy(
-			res->dx11.vertexLayouts + res->dx11.vertexLayoutCount,
-			vertexLayoutBuffer,
-			sizeof(DX11Resources::DX11LayoutChunk) * vertexLayoutBufferCount
+	res->dx11.vertexLayoutCount = vertexLayoutBufferCount;
+	res->dx11.vertexLayouts =
+		(DX11Resources::DX11LayoutChunk*)allocs->alloc(
+			sizeof(DX11Resources::DX11LayoutChunk) *
+			(res->dx11.vertexLayoutCount + res->dx11.vertexLayoutCount)
 		);
-		res->dx11.vertexLayoutCount += vertexLayoutBufferCount;
-	}
+	memcpy(
+		res->dx11.vertexLayouts,
+		vertexLayoutBuffer,
+		sizeof(DX11Resources::DX11LayoutChunk) * res->dx11.vertexLayoutCount
+	);
 
 	return S_OK;
 }
@@ -693,9 +667,9 @@ HRESULT ReserveTex2DAndSRVFromFileByDX11(
 {
 	ASSERT(dirs != nullptr);
 
-	REALLOC_RANGE_ZEROMEM(
-		prevShaderTexture2DCount, res->shaderTex2DCount, dirCount,
-		RenderResources::ShaderTexture2D, res->shaderTex2Ds, allocs->realloc
+	ALLOC_RANGE_ZEROMEM(
+		res->shaderTex2DCount, dirCount,
+		RenderResources::ShaderTexture2D, res->shaderTex2Ds, allocs->alloc
 	);
 
 	for (uint i = 0; i < dirCount; i++)
@@ -790,9 +764,9 @@ HRESULT ReserveShaderFromFileByDX11(
 		shaderIndicesByFile[fileIndex][(int)s].push_back(index);
 	}
 
-	REALLOC_RANGE_MEMCPY(
-		prevShaderFileCount, res->shaderFileCount, files.size(),
-		RenderResources::ShaderFile, res->shaderFiles, files.data(), allocs->realloc
+	ALLOC_RANGE_MEMCPY(
+		res->shaderFileCount, files.size(),
+		RenderResources::ShaderFile, res->shaderFiles, files.data(), allocs->alloc
 	);
 
 	for (uint i = 0; i < res->shaderFileCount; i++)
@@ -803,7 +777,7 @@ HRESULT ReserveShaderFromFileByDX11(
 		{
 			std::vector<uint>& v = shaderIndicesByFile[i][j];
 			file.shaderIndices[j].count = (uint)v.size();
-			file.shaderIndices[j].indices = (uint*)allocs->realloc(file.shaderIndices[j].indices, sizeof(uint) * v.size());
+			file.shaderIndices[j].indices = (uint*)allocs->alloc(sizeof(uint) * v.size());
 			memcpy(file.shaderIndices[j].indices, shaderIndicesByFile[i][(int)j].data(), sizeof(uint) * v.size());
 		}
 	}
@@ -816,14 +790,14 @@ HRESULT ReserveSkinningInstances(
 	uint skinningInstanceCount, const SkinningInstanceDesc* skinningInstances
 )
 {
-	REALLOC_RANGE_ZEROMEM(
-		prevSkinnedInstanceCount, res->skinningCount, skinningInstanceCount,
-		RenderResources::SkinningInstance, res->skinningInstances, allocs->realloc
+	ALLOC_RANGE_ZEROMEM(
+		res->skinningCount, skinningInstanceCount,
+		RenderResources::SkinningInstance, res->skinningInstances, allocs->alloc
 	);
 
-	for (uint i = prevSkinnedInstanceCount; i < res->skinningCount; i++)
+	for (uint i = 0; i < res->skinningCount; i++)
 	{
-		auto& d = skinningInstances[i - prevSkinnedInstanceCount];
+		auto& d = skinningInstances[i];
 		auto& item = res->skinningInstances[i];
 		auto& geometry = res->geometryChunks[d.geometryIndex];
 
