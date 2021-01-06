@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <DirectXMath.h>
 #include <dxgi1_6.h>
 #include <d3d11_4.h>
 #include <d3dcompiler.h>
@@ -20,6 +21,15 @@ struct ProfileTime
 		printf("%s : %dms\n", string, GetTickCount() - startTime);
 	}
 };
+
+inline size_t GetFileSize(FILE* fp)
+{
+	size_t size;
+	fseek(fp, 0, SEEK_END);
+	size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	return size;
+}
 
 inline HRESULT CompileShaderFromFile(IN const wchar_t* fileName, IN const char* entryPoint, IN const char* sm, IN bool debug, OUT ID3DBlob** outBlob)
 {

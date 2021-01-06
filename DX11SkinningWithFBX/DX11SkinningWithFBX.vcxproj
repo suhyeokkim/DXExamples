@@ -136,18 +136,22 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="datatypes.cpp" />
+    <ClCompile Include="dx11depend.cpp" />
     <ClCompile Include="dxentry.cpp" />
-    <ClCompile Include="dxres.cpp" />
+    <ClCompile Include="dx11res.cpp" />
     <ClCompile Include="fbximport.cpp" />
+    <ClCompile Include="renderres.cpp" />
     <ClCompile Include="winmain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="datatypes.h" />
     <ClInclude Include="defined.h" />
+    <ClInclude Include="dx11depend.h" />
     <ClInclude Include="dxentry.h" />
-    <ClInclude Include="dxres.h" />
-    <ClInclude Include="dxutil.h" />
+    <ClInclude Include="dx11res.h" />
+    <ClInclude Include="dx11util.h" />
     <ClInclude Include="fbximport.h" />
+    <ClInclude Include="renderres.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Char_Max.png" />

@@ -17,8 +17,7 @@ struct VertexStream
 cbuffer SkinningConfigCB : register(b0)
 {
 	uint vertexCount;
-	uint boneCount;
-	uint frameIndex;
+	uint poseOffset;
 }
 
 StructuredBuffer<VertexData> vertexData : register(t0);
@@ -31,21 +30,20 @@ void lbs(uint3 threadID : SV_DispatchThreadID)
 {
 	for (uint vrtID = threadID[0]; vrtID < vertexCount; vrtID += 1024)
 	{
-		int offset = frameIndex * boneCount;
 		VertexData data = vertexData[vrtID];
-		matrix t = mul(bonePoses[offset + data.index[0]], boneBindPoses[data.index[0]]);
+		matrix t = mul(bonePoses[poseOffset + data.index[0]], boneBindPoses[data.index[0]]);
 		matrix wt = t * data.weight[0];
 		float3 p0 = mul(t, float4(data.position, 1)).xyz;
 
-		t = mul(bonePoses[offset + data.index[1]], boneBindPoses[data.index[1]]);
+		t = mul(bonePoses[poseOffset + data.index[1]], boneBindPoses[data.index[1]]);
 		wt += t * data.weight[1];
 		float3 p1 = mul(t, float4(data.position, 1)).xyz - p0;
 
-		t = mul(bonePoses[offset + data.index[2]], boneBindPoses[data.index[2]]);
+		t = mul(bonePoses[poseOffset + data.index[2]], boneBindPoses[data.index[2]]);
 		wt += t * data.weight[2];
 		float3 p2 = mul(t, float4(data.position, 1)).xyz - p0;
 
-		t = mul(bonePoses[offset + data.index[3]], boneBindPoses[data.index[3]]);
+		t = mul(bonePoses[poseOffset + data.index[3]], boneBindPoses[data.index[3]]);
 		wt += t * data.weight[3];
 		float3 p3 = mul(t, float4(data.position, 1)).xyz - p0;
 

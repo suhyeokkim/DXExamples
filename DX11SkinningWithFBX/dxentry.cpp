@@ -13,8 +13,9 @@ using namespace DirectX;
 
 #include "defined.h"
 #include "dxentry.h"
-#include "dxutil.h"
-#include "dxres.h"
+#include "dx11util.h"
+#include "renderres.h"
+#include "dx11depend.h"
 
 // windonw instances
 HWND g_hWnd;
@@ -45,10 +46,10 @@ XMMATRIX g_View;
 XMMATRIX g_Projection;
 
 Allocaters g_GlobalAllocaters{ malloc, realloc, free };
-DX11Resources g_ExternalResources;
+RenderResources g_ExternalResources;
 uint g_DependancyCount;
 DX11PipelineDependancy* g_Dependancies;
-DX11ContextState g_ContextState;
+RenderContextState g_ContextState;
 
 // TODO:: DX OBJECT LEAK
 
@@ -76,8 +77,7 @@ _declspec(align(16)) struct OnFrameCB
 _declspec(align(16)) struct SkinningConfigCB
 {
 	uint vertexCount;
-	uint boneCount;
-	uint frameIndex;
+	uint poseOffset;
 };
 
 HRESULT DXDeviceInit(UINT width, UINT height, UINT maxFrameRate, bool debug)
@@ -177,12 +177,12 @@ HRESULT DXEntryResize(UINT width, UINT height)
 	OnResizeCB resizeCB{ 
 		g_Projection = DirectX::XMMatrixPerspectiveFovLH(XM_PIDIV4, g_D3D11ViewPort.Width / g_D3D11ViewPort.Height, 0.01f, 100.0f)
 	};
-	UploadConstantBuffer(&g_ExternalResources, g_D3D11ImmediateContext, 1, &resizeCB);
+	UploadDX11ConstantBuffer(&g_ExternalResources.dx11, g_D3D11ImmediateContext, 1, &resizeCB);
 
 	return hr;
 }
 
-HRESULT PipelineDependancySet(DX11Resources* res, uint* dependCount, DX11PipelineDependancy** depends, const Allocaters* allocs);
+HRESULT PipelineDependancySet(RenderResources* res, uint* dependCount, DX11PipelineDependancy** depends, const Allocaters* allocs);
 
 HRESULT DXShaderResourceInit(bool debug)
 {
@@ -216,17 +216,19 @@ HRESULT DXShaderResourceInit(bool debug)
 		} 
 	};
 	uint cbSize[] = { sizeof(ImmutableCB), sizeof(OnResizeCB), sizeof(OnFrameCB), sizeof(SkinningConfigCB) };
+	SkinningInstanceDesc instances[] = { {0, 0}, {1, 0} };
 
-	DX11ResourceDesc resDesc = { 
+	DX11ResourceDesc resDesc = {
 		1, &c, &config,
-		ARRAYSIZE(shaderDescArray), shaderDescArray, 
-		ARRAYSIZE(inputLayoutDescArray), inputLayoutDescArray, 
-		ARRAYSIZE(textureName), textureName, 0, nullptr,
+		ARRAYSIZE(shaderDescArray), shaderDescArray,
+		ARRAYSIZE(inputLayoutDescArray), inputLayoutDescArray,
+		ARRAYSIZE(textureName), textureName,
 		ARRAYSIZE(cbSize), cbSize,
-		ARRAYSIZE(samplerDescs), samplerDescs
+		ARRAYSIZE(samplerDescs), samplerDescs,
+		ARRAYSIZE(instances), instances
 	};
 
-	DX11RawResourceBuffer buffer;
+	DX11InternalResourceDescBuffer buffer;
 	FAILED_ERROR_MESSAGE_RETURN(
 		LoadDX11Resoureces(
 			&g_ExternalResources, &buffer, &resDesc, &g_GlobalAllocaters, g_D3D11Device
@@ -242,11 +244,11 @@ HRESULT DXShaderResourceInit(bool debug)
 
 	// upload constant buffer
 	ImmutableCB immutableCB { Vector4f() };
-	UploadConstantBuffer(&g_ExternalResources, g_D3D11ImmediateContext, 0, &immutableCB);
+	UploadDX11ConstantBuffer(&g_ExternalResources.dx11, g_D3D11ImmediateContext, 0, &immutableCB);
 	OnResizeCB resizeCB { 
 		g_Projection = DirectX::XMMatrixPerspectiveFovLH(XM_PIDIV4, g_D3D11ViewPort.Width / g_D3D11ViewPort.Height, 0.01f, 100000.0f)
 	};
-	UploadConstantBuffer(&g_ExternalResources, g_D3D11ImmediateContext, 1, &resizeCB);
+	UploadDX11ConstantBuffer(&g_ExternalResources.dx11, g_D3D11ImmediateContext, 1, &resizeCB);
 
 	return S_OK;
 }
@@ -295,7 +297,7 @@ void DXEntryClean()
 	ReleaseContext(&g_ContextState, &g_GlobalAllocaters);
 
 	if (g_Dependancies)
-		ReleaseDependancy(g_DependancyCount, g_Dependancies, &g_GlobalAllocaters);
+		ReleaseDX11Dependancy(g_DependancyCount, g_Dependancies, &g_GlobalAllocaters);
 }
 
 Vector4f 
@@ -303,7 +305,7 @@ Vector4f
 	g_ObjectPos = Vector4f(0.0f, 0.f, 0.0f, 0.0f);
 
 void ReadKey();
-void UpdateConstantBuffer();
+void UpdateConstantBuffer(void* ptr);
 void Render();
 void RenderDependancy();
 
@@ -317,8 +319,8 @@ void DXEntryFrameUpdate()
 	auto start = std::chrono::high_resolution_clock::now();
 	{
 		ReadKey();
-		UpdateConstantBuffer();
-		/*/
+		//UpdateConstantBuffer();
+		//*/
 		Render();
 		/*/
 		RenderDependancy();
@@ -330,7 +332,7 @@ void DXEntryFrameUpdate()
 	g_AvgFrameTime = g_AvgFrameTime * (g_FrameCount - 1) / g_FrameCount + tempTime / g_FrameCount;
 }
 
-void UpdateConstantBuffer()
+void UpdateConstantBuffer(void* ptr)
 {
 	DirectX::FXMVECTOR
 		scale = XMVectorSet(0.2f, 0.2f, 0.2f, 0.2f),
@@ -351,16 +353,27 @@ void UpdateConstantBuffer()
 		at = XMLoadFloat4((XMFLOAT4*)&g_ObjectPos),
 		up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	XMMATRIX viewMatrix = DirectX::XMMatrixLookAtLH(eye, at, up);
-	OnFrameCB cb{
-		g_World * viewMatrix * g_Projection,
-		viewMatrix,
-		g_World,
-		(g_ObjectPos - g_CurrentPos).normalized(),
-		Vector4f(1, 0, 0, 0),
-		Vector4f::One(),
-		Vector4f(1, 1, 1, 0).normalized()
-	};
-	UploadConstantBuffer(&g_ExternalResources, g_D3D11ImmediateContext, 2, &cb);
+
+	OnFrameCB* cbPtr = (OnFrameCB*)ptr;
+
+	cbPtr->transfromMatrix = g_World * viewMatrix * g_Projection;
+	cbPtr->viewMatrix = viewMatrix;
+	cbPtr->worldMatrix = g_World;
+	cbPtr->view = (g_ObjectPos - g_CurrentPos).normalized();
+	cbPtr->baseColor = Vector4f(1, 0, 0, 0);
+	cbPtr->tintColor = Vector4f::One();
+	cbPtr->lightDir = Vector4f(1, 1, 1, 0).normalized();
+
+	//OnFrameCB cb{
+	//g_World * viewMatrix * g_Projection,
+	//viewMatrix,
+	//g_World,
+	//(g_ObjectPos - g_CurrentPos).normalized(),
+	//Vector4f(1, 0, 0, 0),
+	//Vector4f::One(),
+	//Vector4f(1, 1, 1, 0).normalized()
+	//};
+	//	UploadDX11ConstantBuffer(&g_ExternalResources.dx11, g_D3D11ImmediateContext, 2, &cb);
 }
 
 void ReadKey()
@@ -403,7 +416,7 @@ void RenderDependancy()
 	g_D3D11ImmediateContext->RSSetViewports(1, &g_D3D11ViewPort);
 	g_D3D11ImmediateContext->OMSetRenderTargets(1, &g_D3D11RenderTargetView, g_D3D11DepthStencialView);
 	
-	ExecuteExplicitly(g_D3D11ImmediateContext, &g_ContextState, &g_ExternalResources, g_DependancyCount, g_Dependancies);
+	ExecuteExplicitlyDX11(g_D3D11ImmediateContext, &g_ContextState, &g_ExternalResources, g_DependancyCount, g_Dependancies);
 
 	g_DXGISwapChain->Present(0, 0);
 }
@@ -411,6 +424,13 @@ void RenderDependancy()
 void Render()
 {
 	std::lock_guard<std::mutex> lock(g_ContextMutex);
+
+	const RenderResources* res = &g_ExternalResources;
+	const DX11Resources* dx11Res = &res->dx11;
+
+	OnFrameCB cb;
+	UpdateConstantBuffer(&cb);
+	UploadDX11ConstantBuffer(&g_ExternalResources.dx11, g_D3D11ImmediateContext, 2, &cb);
 
 	g_D3D11ImmediateContext->ClearDepthStencilView(g_D3D11DepthStencialView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	g_D3D11ImmediateContext->ClearDepthStencilView(g_D3D11DepthStencialView, D3D11_CLEAR_STENCIL, 0.0f, 0);
@@ -420,34 +440,34 @@ void Render()
 	g_D3D11ImmediateContext->RSSetViewports(1, &g_D3D11ViewPort);
 	g_D3D11ImmediateContext->OMSetRenderTargets(1, &g_D3D11RenderTargetView, g_D3D11DepthStencialView);
 
-	auto immutableCB = g_ExternalResources.buffers[g_ExternalResources.constantBufferIndices[0]];
-	auto resizeCB = g_ExternalResources.buffers[g_ExternalResources.constantBufferIndices[1]];
-	auto frameCB = g_ExternalResources.buffers[g_ExternalResources.constantBufferIndices[2]];
-	auto skinningConfigCB = g_ExternalResources.buffers[g_ExternalResources.constantBufferIndices[3]];
-	auto sampler = g_ExternalResources.samplerStates[0];
+	auto immutableCB = dx11Res->buffers[dx11Res->constantBufferIndices[0]];
+	auto resizeCB = dx11Res->buffers[dx11Res->constantBufferIndices[1]];
+	auto frameCB = dx11Res->buffers[dx11Res->constantBufferIndices[2]];
+	auto skinningConfigCB = dx11Res->buffers[dx11Res->constantBufferIndices[3]];
+	auto sampler = dx11Res->samplerStates[0];
 
 	auto objectShaderFile = g_ExternalResources.shaderFiles[0];
-	auto vertexShader = g_ExternalResources.shaders.vss[objectShaderFile.vsIndices[0]];
-	auto pixelShader = g_ExternalResources.shaders.pss[objectShaderFile.psIndices[0]];
+	auto vertexShader = dx11Res->shaders.vss[objectShaderFile.vsIndices[0]];
+	auto pixelShader = dx11Res->shaders.pss[objectShaderFile.psIndices[0]];
 
 	auto anim = g_ExternalResources.anims[0];
 	auto boneSet = g_ExternalResources.boneSets[0];
-	auto boneBindPoseSRV = g_ExternalResources.srvs[boneSet.binePoseTransformSRVIndex];
-	auto bonePoseSRV = g_ExternalResources.srvs[anim.animPoseTransformSRVIndex];
+	auto boneBindPoseSRV = dx11Res->srvs[boneSet.binePoseTransformSRVIndex];
+	auto bonePoseSRV = dx11Res->srvs[anim.animPoseTransformSRVIndex];
 
 
-	for (int i = 0; i < g_ExternalResources.geometryCount; i++)
+	for (uint i = 0; i < g_ExternalResources.skinningCount; i++)
 	{
-		auto geometry = g_ExternalResources.geometryChunks[i];
-		auto lbsCompute = g_ExternalResources.shaders.css[0];
-		auto skinningVertexData = g_ExternalResources.srvs[geometry.vertexDataSRVIndex];
-		auto skinningUAV = g_ExternalResources.uavs[i];
+		auto skinningInstance = g_ExternalResources.skinningInstances[i];
+		auto geometry = g_ExternalResources.geometryChunks[skinningInstance.geometryIndex];
+		auto lbsCompute = dx11Res->shaders.css[0];
+		auto skinningVertexData = dx11Res->srvs[geometry.vertexDataSRVIndex];
+		auto skinningUAV = dx11Res->uavs[skinningInstance.vertexStreamUAVIndex];
 		UINT offsets[2] = { 0, 0 };
 
 		SkinningConfigCB cb;
-		cb.boneCount = boneSet.boneCount;
-		cb.frameIndex = ((GetTickCount() - g_StartTick) / 33) % anim.frameKeyCount;
 		cb.vertexCount = geometry.vertexCount;
+		cb.poseOffset = boneSet.boneCount * (((GetTickCount() - g_StartTick) / anim.fpsCount) % anim.frameKeyCount);
 
 		g_D3D11ImmediateContext->UpdateSubresource(skinningConfigCB, 0, nullptr, &cb, 0, 0);
 
@@ -461,18 +481,18 @@ void Render()
 		g_D3D11ImmediateContext->Dispatch(geometry.vertexCount, 1, 1);
 
 		g_D3D11ImmediateContext->CopyResource(
-			g_ExternalResources.buffers[geometry.vertexBufferIndex],
-			g_ExternalResources.buffers[geometry.vertexStreamBufferIndex]
+			dx11Res->buffers[skinningInstance.vertexBufferIndex],
+			dx11Res->buffers[skinningInstance.vertexStreamBufferIndex]
 			);
 
-		auto geometryLayout = g_ExternalResources.vertexLayouts[geometry.vertexLayoutIndex];
-		auto inputLayout = g_ExternalResources.inputLayoutItems[g_ExternalResources.inputLayouts[0].inputLayoutIndex];
-		auto texSRV = g_ExternalResources.srvs[g_ExternalResources.texture2Ds[i].srvIndex];
+		auto geometryLayout = dx11Res->vertexLayouts[geometry.vertexLayoutIndex];
+		auto inputLayout = dx11Res->inputLayoutItems[dx11Res->inputLayouts[0].inputLayoutIndex];
+		auto texSRV = dx11Res->srvs[g_ExternalResources.shaderTex2Ds[i].srvIndex];
 
 		g_D3D11ImmediateContext->IASetInputLayout(inputLayout);
 		uint offset = 0;
-		g_D3D11ImmediateContext->IASetVertexBuffers(0, 1, &g_ExternalResources.buffers[geometry.vertexBufferIndex], &geometryLayout.vertexSize, &offset);
-		g_D3D11ImmediateContext->IASetIndexBuffer(g_ExternalResources.buffers[geometry.indexBufferIndex], DXGI_FORMAT_R32_UINT, 0);
+		g_D3D11ImmediateContext->IASetVertexBuffers(0, 1, &dx11Res->buffers[skinningInstance.vertexBufferIndex], &geometryLayout.vertexSize, &offset);
+		g_D3D11ImmediateContext->IASetIndexBuffer(dx11Res->buffers[geometry.indexBufferIndex], DXGI_FORMAT_R32_UINT, 0);
 		g_D3D11ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		g_D3D11ImmediateContext->VSSetShader(vertexShader, nullptr, 0);
@@ -491,23 +511,39 @@ void Render()
 	g_DXGISwapChain->Present(0, 0);
 }
 
-HRESULT PipelineDependancySet(DX11Resources* res, uint* dependCount, DX11PipelineDependancy** depends, const Allocaters* allocs)
+HRESULT PipelineDependancySet(RenderResources* res, uint* dependCount, DX11PipelineDependancy** depends, const Allocaters* allocs)
 {
-	const DX11Resources::DX11BoneSet& boneSet = res->boneSets[0];
+	const RenderResources::BoneSet& boneSet = res->boneSets[0];
+	uint offset = 0;
 
-	*dependCount = 8;
+	*dependCount = res->skinningCount * 4 + 1;
 	*depends = (DX11PipelineDependancy*)allocs->alloc(sizeof(DX11PipelineDependancy) * g_DependancyCount);
 	memset(*depends, 0, sizeof(DX11PipelineDependancy) * g_DependancyCount);
 
-	for (int i = 0; i < 2; i++)
 	{
-		const DX11Resources::DX11GeometryChunk& geomChunk = res->geometryChunks[i];
+		(*depends)[offset].pipelineKind = PIPELINE_KIND::COPY;
+		DX11CopyDependancy& cpy = (*depends)[offset].copy;
+		cpy.kind = CopyKind::UPDATE_SUBRESOURCE;
+		cpy.resKind = ResourceKind::Buffer;
+		cpy.resIndex = res->dx11.constantBufferIndices[2];
+		cpy.dstSubres = 0;
+		cpy.dataBufferSize = sizeof(OnFrameCB);
+		cpy.copyToBufferFunc = UpdateConstantBuffer;
+		cpy.srcRowPitch = 0;
+		cpy.srcDepthPitch = 0;
+		offset++;
+	}
+
+	for (uint i = 0; i < res->skinningCount; i++)
+	{
+		const RenderResources::SkinningInstance& skinningInstance = res->skinningInstances[i];
+		const RenderResources::GeometryChunk& geomChunk = res->geometryChunks[skinningInstance.geometryIndex];
 
 		{
-			(*depends)[4 * i + 0].pipelineKind = PIPELINE_KIND::COPY;
-			DX11CopyDependancy& cpy = ((*depends))[4 * i + 0].copy;
+			(*depends)[4 * i + 0 + offset].pipelineKind = PIPELINE_KIND::COPY;
+			DX11CopyDependancy& cpy = ((*depends))[4 * i + 0 + offset].copy;
 			cpy.kind = CopyKind::UPDATE_SUBRESOURCE;
-			cpy.dstBufferIndex = res->constantBufferIndices[3];
+			cpy.dstBufferIndex = res->dx11.constantBufferIndices[3];
 			cpy.dstSubres = 0;
 			cpy.getBoxFunc = 
 				[](D3D11_BOX* box) -> const D3D11_BOX* 
@@ -519,16 +555,15 @@ HRESULT PipelineDependancySet(DX11Resources* res, uint* dependCount, DX11Pipelin
 				[=](void* ptr) -> void 
 				{
 					SkinningConfigCB* cb = reinterpret_cast<SkinningConfigCB*>(ptr);
-					cb->boneCount = boneSet.boneCount;
-					cb->frameIndex = ((GetTickCount() - g_StartTick) / 33) % res->anims[0].frameKeyCount;
 					cb->vertexCount = geomChunk.vertexCount;
+					cb->poseOffset = boneSet.boneCount * (((GetTickCount() - g_StartTick) / 33) % res->anims[0].frameKeyCount);
 				};
 			cpy.srcRowPitch = 0;
 			cpy.srcDepthPitch = 0;
 		}
 		{
-			(*depends)[4 * i + 1].pipelineKind = PIPELINE_KIND::COMPUTE;
-			DX11ComputePipelineDependancy& compute = ((*depends))[4 * i + 1].compute;
+			(*depends)[4 * i + 1 + offset].pipelineKind = PIPELINE_KIND::COMPUTE;
+			DX11ComputePipelineDependancy& compute = ((*depends))[4 * i + 1 + offset].compute;
 			DX11ShaderResourceDependancy& srd = compute.resources;
 
 			srd.shaderFileIndex = 1;
@@ -559,7 +594,7 @@ HRESULT PipelineDependancySet(DX11Resources* res, uint* dependCount, DX11Pipelin
 				);
 			srd.uavs[0].indexCount = 1;
 			srd.uavs[0].indices = (uint*)allocs->alloc(sizeof(uint) * 1);
-			srd.uavs[0].indices[0] = geomChunk.vertexStreamUAVIndex;
+			srd.uavs[0].indices[0] = skinningInstance.vertexStreamUAVIndex;
 			srd.uavs[0].slotOrRegister = 0;
 
 			srd.constantBufferCount = 1;
@@ -579,19 +614,21 @@ HRESULT PipelineDependancySet(DX11Resources* res, uint* dependCount, DX11Pipelin
 			compute.argsAsDispatch.dispatch.threadGroupCountZ = 1;
 		}
 		{
-			(*depends)[4 * i + 2].pipelineKind = PIPELINE_KIND::COPY;
-			DX11CopyDependancy& cpy = ((*depends))[4 * i + 2].copy;
+			(*depends)[4 * i + 2 + offset].pipelineKind = PIPELINE_KIND::COPY;
+			DX11CopyDependancy& cpy = ((*depends))[4 * i + 2 + offset].copy;
 			cpy.kind = CopyKind::COPY_RESOURCE;
-			cpy.srcBufferIndex = geomChunk.vertexStreamBufferIndex;
-			cpy.dstBufferIndex = geomChunk.vertexBufferIndex;
+			cpy.srcBufferIndex = skinningInstance.vertexStreamBufferIndex;
+			cpy.dstBufferIndex = skinningInstance.vertexBufferIndex;
 		}
 		{
-			(*depends)[4 * i + 3].pipelineKind = PIPELINE_KIND::DRAW;
-			DX11DrawPipelineDependancy& draw = (*depends)[4 * i + 3].draw;
+			(*depends)[4 * i + 3 + offset].pipelineKind = PIPELINE_KIND::DRAW;
+			DX11DrawPipelineDependancy& draw = (*depends)[4 * i + 3 + offset].draw;
 			new (&draw) DX11DrawPipelineDependancy();
 
 			draw.input.inputLayoutIndex = 0;
-			draw.input.geometryIndex = i;
+			draw.input.vertexBufferIndex = geomChunk.isSkinned? skinningInstance.vertexBufferIndex: geomChunk.vertexBufferIndex;
+			draw.input.vertexSize = geomChunk.isSkinned ? geomChunk.streamedVertexSize : res->dx11.vertexLayouts[geomChunk.vertexLayoutIndex].vertexSize;
+			draw.input.geometryIndex = draw.input.geometryIndex;
 			draw.input.vertexBufferOffset = 0;
 			draw.input.topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			draw.vs.shaderFileIndex = 0;
@@ -635,7 +672,7 @@ HRESULT PipelineDependancySet(DX11Resources* res, uint* dependCount, DX11Pipelin
 			draw.ps.srvs[0].slotOrRegister = 0;
 			draw.ps.srvs[0].indexCount = 1;
 			draw.ps.srvs[0].indices = (uint*)allocs->alloc(sizeof(uint));
-			draw.ps.srvs[0].indices[0] = res->texture2Ds[i].srvIndex;
+			draw.ps.srvs[0].indices[0] = res->shaderTex2Ds[i].srvIndex;
 
 			draw.ps.samplerCount = 1;
 			draw.ps.samplers =
@@ -648,8 +685,7 @@ HRESULT PipelineDependancySet(DX11Resources* res, uint* dependCount, DX11Pipelin
 			draw.ps.samplers[0].indices[0] = 0;
 
 			draw.drawType = DX11DrawPipelineDependancy::DrawType::DRAW_INDEXED;
-			draw.argsAsDraw.drawIndexedArgs.indexCount =
-				g_ExternalResources.geometryChunks[draw.input.geometryIndex].indexCount;
+			draw.argsAsDraw.drawIndexedArgs.indexCount = geomChunk.indexCount;
 			draw.argsAsDraw.drawIndexedArgs.startIndexLocation = 0;
 			draw.argsAsDraw.drawIndexedArgs.baseVertexLocation = 0;
 		}

@@ -673,7 +673,7 @@ bool LinkToChunk(FbxNode* node, FBXChunk& wholeChunk, FBXMeshChunk& meshChunk, c
 			int index; float weight;
 		};
 		std::vector<Bone>* countPerVertices = (std::vector<Bone>*)alloca(meshChunk.geometry.vertexCount * sizeof(std::vector<Bone>));
-		for (int cvvi = 0; cvvi < meshChunk.geometry.vertexCount; cvvi++)
+		for (uint cvvi = 0; cvvi < meshChunk.geometry.vertexCount; cvvi++)
 			new (countPerVertices + cvvi) std::vector<Bone>();
 
 		int clusterCount = skin->GetClusterCount();
@@ -691,7 +691,7 @@ bool LinkToChunk(FbxNode* node, FBXChunk& wholeChunk, FBXMeshChunk& meshChunk, c
 			double* boneWeights = cluster->GetControlPointWeights();
 
 			int hierarchyIndex = -1;
-			for (int i = 0; i < wholeChunk.hierarchyCount; i++)
+			for (uint i = 0; i < wholeChunk.hierarchyCount; i++)
 				if (strcmp(wholeChunk.hierarchyNodes[i].name, cluster->GetLink()->GetName()) == 0)
 				{
 					hierarchyIndex = i;
@@ -720,7 +720,7 @@ bool LinkToChunk(FbxNode* node, FBXChunk& wholeChunk, FBXMeshChunk& meshChunk, c
 		meshChunk.geometry.boneWeights = (Vector4f*)allocs->alloc(sizeof(Vector4f) * meshChunk.geometry.vertexCount);
 		memset(meshChunk.geometry.boneWeights, 0, sizeof(Vector4f) * meshChunk.geometry.vertexCount);
 
-		for (int vi = 0; vi < meshChunk.geometry.vertexCount; vi++)
+		for (uint vi = 0; vi < meshChunk.geometry.vertexCount; vi++)
 		{
 			std::sort(
 				countPerVertices[vi].begin(),
@@ -796,7 +796,7 @@ bool AnimationToChunk(FbxNode* node, FBXChunk& chunk, const Allocaters* allocs)
 		FbxCluster* cluster = skin->GetCluster(cidx);
 		const char* boneName = cluster->GetLink()->GetName();
 		bool find = false;
-		for (int i = 0; i < chunk.hierarchyCount; i++)
+		for (uint i = 0; i < chunk.hierarchyCount; i++)
 			if (strcmp(chunk.hierarchyNodes[i].name, boneName) == 0)
 			{
 				find = true;
@@ -820,7 +820,7 @@ bool AnimationToChunk(FbxNode* node, FBXChunk& chunk, const Allocaters* allocs)
 		const char* animationName = animStackName.Buffer();
 		ALLOC_AND_STRCPY(anim.animationName, animationName, allocs->alloc);
 
-		anim.frameKeyCount = end.GetFrameCount(timeMode) - start.GetFrameCount(timeMode) + 1;
+		anim.frameKeyCount = static_cast<uint>(end.GetFrameCount(timeMode) - start.GetFrameCount(timeMode)) + 1;
 		anim.fpsCount = GetFPS(timeMode);
 		anim.globalAffineTransforms = (Matrix4x4*)allocs->alloc(sizeof(Matrix4x4) * chunk.hierarchyCount * anim.frameKeyCount);
 

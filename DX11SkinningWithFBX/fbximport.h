@@ -139,7 +139,7 @@ struct FBXChunk
 		SAFE_DEALLOC(hierarchyNodes, allocs->dealloc);
 		if (animations)
 		{
-			for (int i = 0; i < animationCount; i++)
+			for (uint i = 0; i < animationCount; i++)
 				SAFE_DEALLOC(animations[i].globalAffineTransforms, allocs->dealloc);
 
 			allocs->dealloc(animations);
