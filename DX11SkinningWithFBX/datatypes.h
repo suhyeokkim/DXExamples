@@ -278,6 +278,7 @@ std::ostream& operator<<(std::ostream &o, Vector2<Type>& v)
 
 typedef Vector2<float>				Vector2f;
 typedef Vector2<int>				Vector2i;
+typedef Vector2<lint>				Vector2li;
 typedef Vector2<unsigned int>		Vector2u;
 
 inline Vector2i Round(const Vector2f& vf)
@@ -1397,4 +1398,25 @@ inline void TRSToDQ(const TRS& trs, DQ& dq)
 inline void DQToTRS(const DQ& dq, TRS& trs)
 {
 	// TODO:: dq to trs
+}
+
+#include <immintrin.h>
+
+typedef ulint Morton;
+
+inline Morton XYToMorton(const Vector2i& i)
+{
+	return _pdep_u32(i.x, 0x55555555) | _pdep_u32(i.y, 0xaaaaaaaa);
+}
+
+inline void MortonToXY(const Morton m, Vector2li& i)
+{
+	i.x = _pext_u64(m, 0x5555555555555555);
+	i.y = _pext_u64(m, 0xaaaaaaaaaaaaaaaa);
+}
+
+inline void MortonToXY(const Morton m, Vector2i& i)
+{
+	i.x = static_cast<int>(_pext_u64(m, 0x5555555555555555));
+	i.y = static_cast<int>(_pext_u64(m, 0xaaaaaaaaaaaaaaaa));
 }

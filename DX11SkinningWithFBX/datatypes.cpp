@@ -152,5 +152,3 @@ void EulerAngleToMatrix(const Vector3f& eulerAngle, const EulerAngleOrder order,
 	matrix.dataf[14] = 0;
 	matrix.dataf[15] = 1;
 }
-
-#pragma endregion

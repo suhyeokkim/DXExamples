@@ -447,39 +447,39 @@
 
 #define ALLOC_RANGE_MEMCPY(count_val, new_count, type, dst, src, alloc) \
 { \
-	count_val = new_count; \
+	count_val = static_cast<decltype(count_val)>(new_count); \
 	dst = (type*)alloc(sizeof(type) * count_val); \
 	memcpy(dst, src, sizeof(type) * count_val); \
 }
 
 #define ALLOC_RANGE_ZEROMEM(count_val, new_count, type, dst, alloc) \
 { \
-	count_val = new_count; \
+	count_val = static_cast<decltype(count_val)>(new_count); \
 	dst = (type*)alloc(sizeof(type) * count_val); \
 	memset(dst, 0, sizeof(type) * count_val); \
 }
 
 #define REALLOC_RANGE_ZEROMEM(start, origin_count, new_count, type, ptr, reallocer) \
-	uint start = (uint)origin_count; \
-	origin_count += (uint)new_count; \
+	uint start = static_cast<uint>(origin_count); \
+	origin_count += static_cast<decltype(origin_count)>(new_count); \
 	ptr = (type*)reallocer(ptr, sizeof(type) * origin_count); \
 	memset(ptr + start, 0, sizeof(type) * new_count); 
 
 #define REALLOC_EXISTVAL_RANGE_ZEROMEM(start, origin_count, new_count, type, ptr, reallocer) \
-	start = (uint)origin_count; \
-	origin_count += (uint)new_count; \
+	start = static_cast<decltype(start)>(origin_count); \
+	origin_count += static_cast<decltype(origin_count)>(new_count); \
 	ptr = (type*)reallocer(ptr, sizeof(type) * origin_count); \
 	memset(ptr + start, 0, sizeof(type) * new_count); 
 
 #define REALLOC_RANGE_MEMCPY(start, origin_count, new_count, type, dest, src, reallocer) \
-	uint start = (uint)origin_count; \
-	origin_count += (uint)new_count; \
+	uint start = static_cast<uint>(origin_count); \
+	origin_count += static_cast<decltype(origin_count)>(new_count); \
 	dest = (type*)reallocer(dest, sizeof(type) * origin_count); \
 	memcpy(dest, src, sizeof(type) * new_count); 
 
 #define REALLOC_EXISTVAL_RANGE_MEMCPY(start, origin_count, new_count, type, dest, src, reallocer) \
-	start = (uint)origin_count; \
-	origin_count += (uint)new_count; \
+	start = static_cast<decltype(start)>(origin_count); \
+	origin_count += static_cast<decltype(origin_count)>(new_count); \
 	dest = (type*)reallocer(dest, sizeof(type) * origin_count); \
 	memcpy(dest, src, sizeof(type) * new_count); 
 
@@ -516,15 +516,18 @@ struct PersistantAllocaters : Allocaters
 
 	void* Allocate(size_t s)
 	{
-		if (arenaVector[avaiableIndex].capacity < arenaVector[avaiableIndex].size + s)
+		Arena& a = arenaVector[avaiableIndex];
+		if (a.capacity < a.size + s)
 		{
 			AddArena(s);
 			avaiableIndex++;
-		}			
+		}
 
-		arenaVector[avaiableIndex].size += s;
-		return arenaVector[avaiableIndex].ptr + arenaVector[avaiableIndex].size - s;
+		a.size += s;
+		return a.ptr + a.size - s;
 	}
+	void Deallocate(void* ptr) { }
+	void* Reallocate(void* ptr, size_t resized) { return nullptr; }
 
 	void AddArena(size_t capacity = 0)
 	{
@@ -538,16 +541,16 @@ struct PersistantAllocaters : Allocaters
 		AddArena();
 
 		Allocaters::alloc = std::bind(&PersistantAllocaters::Allocate, this, std::placeholders::_1);
-		Allocaters::dealloc = nullptr;
-		Allocaters::realloc = nullptr;
+		Allocaters::dealloc = std::bind(&PersistantAllocaters::Deallocate, this, std::placeholders::_1);
+		Allocaters::realloc = std::bind(&PersistantAllocaters::Reallocate, this, std::placeholders::_1, std::placeholders::_2);
 	}
 	PersistantAllocaters(size_t arenaSize) : arenaSize(arenaSize), avaiableIndex(0), arenaVector()
 	{
 		AddArena();
 
 		Allocaters::alloc = std::bind(&PersistantAllocaters::Allocate, this, std::placeholders::_1);
-		Allocaters::dealloc = nullptr;
-		Allocaters::realloc = nullptr;
+		Allocaters::dealloc = std::bind(&PersistantAllocaters::Deallocate, this, std::placeholders::_1);
+		Allocaters::realloc = std::bind(&PersistantAllocaters::Reallocate, this, std::placeholders::_1, std::placeholders::_2);
 	}
 	~PersistantAllocaters()
 	{
@@ -660,9 +663,24 @@ struct OSAllocater : Allocaters
 };
 struct GeneralAllocater
 {
-	PersistantAllocaters persistant;
+	/*PersistantAllocaters*/OSAllocater persistant;
 	TempararyAllocaters temparary;
 	OSAllocater system;
 
 	GeneralAllocater() : persistant(), temparary(), system() { }
+};
+
+struct ProfileTime
+{
+	const char* string;
+	DWORD startTime;
+
+	ProfileTime(const char* string) : string(string)
+	{
+		startTime = GetTickCount();
+	}
+	~ProfileTime()
+	{
+		printf("%s : %dms\n", string, GetTickCount() - startTime);
+	}
 };

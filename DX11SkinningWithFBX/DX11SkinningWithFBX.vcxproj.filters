@@ -37,6 +37,9 @@
       <Filter>Resoureces</Filter>
     </None>
     <None Include="packages.config" />
+    <None Include="char_max_triangulated.fbx">
+      <Filter>Resoureces</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="object.hlsl">

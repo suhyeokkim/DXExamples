@@ -57,7 +57,7 @@ uint ReserveLoadConstantBuffers(DX11InternalResourceDescBuffer* rawResBuffer, ui
 
 	return (uint)rawResBuffer->bufferDescs.size() - constantBufferCount;
 }
-void ReserveLoadShaders(DX11InternalResourceDescBuffer* rawResBuffer, uint additioanlCount, const DX11ShaderCompileDesc* descs, OUT ShaderKind* kinds, OUT int* indices)
+void ReserveLoadShaders(DX11InternalResourceDescBuffer* rawResBuffer, uint additioanlCount, const ShaderCompileDesc* descs, OUT ShaderKind* kinds, OUT int* indices)
 {
 	for (uint i = 0; i < additioanlCount; i++)
 	{
@@ -119,7 +119,7 @@ uint ReserveLoadSamplerState(DX11InternalResourceDescBuffer* rawResBuffer, const
 	rawResBuffer->samplerDescs.push_back(*desc);
 	return (uint)rawResBuffer->samplerDescs.size() - 1;
 }
-uint ReserveLoadShader(DX11InternalResourceDescBuffer* rawResBuffer, const DX11ShaderCompileDesc* desc, OUT ShaderKind* s)
+uint ReserveLoadShader(DX11InternalResourceDescBuffer* rawResBuffer, const ShaderCompileDesc* desc, OUT ShaderKind* s)
 {
 	int index = ShaderTargetToIndex(desc->target[0]);
 	FALSE_ERROR_MESSAGE_RETURN_CODE(index >= 0, L"fail to identify shader by target..", UINT_MAX);

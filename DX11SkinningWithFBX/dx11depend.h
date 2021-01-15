@@ -6,17 +6,17 @@
 #include <DirectXMath.h>
 #include "renderres.h"
 
-enum class PIPELINE_KIND : uint
+enum class PipelineKind : uint
 {
-	DRAW,
-	COMPUTE,
-	COPY,
+	Draw,
+	Compute,
+	Copy,
 };
 
 enum class CopyKind : uint
 {
-	COPY_RESOURCE,
-	UPDATE_SUBRESOURCE,
+	CopyResource,
+	UpdateSubResource,
 };
 enum class ResourceKind : uint
 {
@@ -27,27 +27,75 @@ enum class ResourceKind : uint
 struct DX11CopyDependancy
 {
 	CopyKind kind;
-	union
+	union CopyArgs
 	{
-		struct
+		struct CopyResourceArgs
 		{
 			uint srcBufferIndex;
 			uint dstBufferIndex;
-		};
-		struct
+		} copyRes;
+		struct UpdateSubResourceArgs
 		{
 			ResourceKind resKind;
 			uint resIndex;
 			uint dstSubres;
 			std::function<const D3D11_BOX*(D3D11_BOX*)> getBoxFunc;
-			uint dataBufferSize;
-			std::function<void(void*)> copyToBufferFunc;
 			uint srcRowPitch;
 			uint srcDepthPitch;
-		};
-	};
 
-	~DX11CopyDependancy() {}
+			uint dataBufferSize;
+			void* param;
+			std::function<void(void*, void*)> copyToBufferFunc;
+
+			UpdateSubResourceArgs() : getBoxFunc(), copyToBufferFunc() {}
+		} updateSubRes;
+		CopyArgs() {}
+		~CopyArgs() {}
+	} args;
+
+	DX11CopyDependancy() 
+	{
+		new (&args.updateSubRes) DX11CopyDependancy::CopyArgs::UpdateSubResourceArgs();
+	}
+	DX11CopyDependancy(CopyKind kind) : kind(kind)
+	{
+		switch (kind)
+		{
+		case CopyKind::CopyResource:
+			new (&args.copyRes) DX11CopyDependancy::CopyArgs::CopyResourceArgs();
+			break;
+		case CopyKind::UpdateSubResource:
+			new (&args.updateSubRes) DX11CopyDependancy::CopyArgs::UpdateSubResourceArgs();
+			break;
+		}
+	}
+	DX11CopyDependancy(const DX11CopyDependancy& d) : kind(d.kind) 
+	{
+		switch (kind)
+		{
+		case CopyKind::CopyResource:
+			new (&args.copyRes) DX11CopyDependancy::CopyArgs::CopyResourceArgs(d.args.copyRes);
+			break;
+		case CopyKind::UpdateSubResource:
+			new (&args.updateSubRes) DX11CopyDependancy::CopyArgs::UpdateSubResourceArgs(d.args.updateSubRes);
+			break;
+		}
+	}
+	DX11CopyDependancy& operator=(const DX11CopyDependancy& d)
+	{
+		kind = d.kind;
+		switch (kind)
+		{
+		case CopyKind::CopyResource:
+			new (&args.copyRes) DX11CopyDependancy::CopyArgs::CopyResourceArgs(d.args.copyRes);
+			break;
+		case CopyKind::UpdateSubResource:
+			new (&args.updateSubRes) DX11CopyDependancy::CopyArgs::UpdateSubResourceArgs(d.args.updateSubRes);
+			break;
+		}
+		return *this;
+	}
+	~DX11CopyDependancy() { }
 };
 struct DX11InputLayoutDependancy
 {
@@ -97,9 +145,9 @@ struct DX11ComputePipelineDependancy
 	DX11ShaderResourceDependancy resources;
 	enum class DispatchType : uint
 	{
-		NONE,
-		DISPATCH,
-		DISPATCH_INDIRECT,
+		None,
+		Dispatch,
+		DispatchIndirect,
 	} dispatchType;
 	union ArgsAsDispatchType
 	{
@@ -115,7 +163,7 @@ struct DX11ComputePipelineDependancy
 			uint alignedByteOffset;
 		} dispatchIndirect;
 	} argsAsDispatch;
-	DX11ComputePipelineDependancy() : dispatchType(DispatchType::NONE), resources() { }
+	DX11ComputePipelineDependancy() : dispatchType(DispatchType::None), resources() { }
 };
 struct DX11DrawPipelineDependancy
 {
@@ -134,9 +182,9 @@ struct DX11DrawPipelineDependancy
 	};
 	enum class DrawType : uint
 	{
-		NONE,
-		DRAW,
-		DRAW_INDEXED
+		None,
+		Draw,
+		DrawIndexed
 	} drawType;
 	union ArgsAsDrawType {
 		struct DrawArgs
@@ -151,7 +199,7 @@ struct DX11DrawPipelineDependancy
 			sint baseVertexLocation;
 		} drawIndexedArgs;
 	} argsAsDraw;
-	DX11DrawPipelineDependancy() : drawType(DrawType::NONE)
+	DX11DrawPipelineDependancy() : drawType(DrawType::None)
 	{
 		new (dependants + 0) DX11ShaderResourceDependancy();
 		new (dependants + 1) DX11ShaderResourceDependancy();
@@ -162,7 +210,7 @@ struct DX11DrawPipelineDependancy
 };
 struct DX11PipelineDependancy
 {
-	PIPELINE_KIND pipelineKind;
+	PipelineKind pipelineKind;
 	union
 	{
 		DX11DrawPipelineDependancy draw;
@@ -170,8 +218,50 @@ struct DX11PipelineDependancy
 		DX11CopyDependancy copy;
 	};
 
+	DX11PipelineDependancy() 
+	{
+		new (&copy) DX11CopyDependancy();
+	}
+	DX11PipelineDependancy(CopyKind ck) : pipelineKind(PipelineKind::Copy)
+	{
+		new (&copy) DX11CopyDependancy(ck);
+	}
+	DX11PipelineDependancy(const DX11PipelineDependancy& d)
+		: pipelineKind(d.pipelineKind)
+	{
+		switch (pipelineKind)
+		{
+		case PipelineKind::Draw:
+			draw = d.draw;
+			break;
+		case PipelineKind::Compute:
+			compute = d.compute;
+			break;
+		case PipelineKind::Copy:
+			copy = d.copy;
+			break;
+		}
+	}
+	DX11PipelineDependancy(DX11PipelineDependancy&& d)
+		: pipelineKind(d.pipelineKind)
+	{
+		switch (pipelineKind)
+		{
+		case PipelineKind::Draw:
+			draw = std::move(d.draw);
+			break;
+		case PipelineKind::Compute:
+			compute = std::move(d.compute);
+			break;
+		case PipelineKind::Copy:
+			copy = std::move(d.copy);
+			break;
+		}
+	}
 	~DX11PipelineDependancy() {}
 };
+
+void PrintPipelineDependancy(const char* prefix, const DX11PipelineDependancy& d);
 
 struct RenderContextState;
 

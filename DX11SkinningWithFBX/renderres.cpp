@@ -1,6 +1,762 @@
-#include "renderres.h"
 #include <array>
+#include <map>
 
+#include "dx11depend.h"
+#include "renderres.h"
+#include "fbximport.h"
+
+struct FBXAdjChunk
+{
+	FBXChunk chunk;
+	FBXChunkConfig config;
+	uint startGeometryCount;
+	uint startAnimationCount;
+
+	FBXAdjChunk(FBXChunk chunk, FBXChunkConfig config, uint startGeometryCount, uint startAnimationCount) :
+		chunk(chunk), config(config), 
+		startGeometryCount(startGeometryCount), startAnimationCount(startAnimationCount)
+	{}
+};
+using PathFBXAdjChunkPair = std::pair<const wchar_t*, FBXAdjChunk>;
+
+inline void GetDX11Sampler(ShaderParamSampler s, D3D11_SAMPLER_DESC& sd)
+{
+	sd = {
+			s.isLinear? D3D11_FILTER_MIN_MAG_MIP_LINEAR: D3D11_FILTER_MIN_MAG_MIP_POINT,
+			D3D11_TEXTURE_ADDRESS_CLAMP,
+			D3D11_TEXTURE_ADDRESS_CLAMP,
+			D3D11_TEXTURE_ADDRESS_CLAMP,
+			0,
+			0,
+			D3D11_COMPARISON_NEVER,
+			{ 0, 0, 0, 0 },
+			0,
+			0
+	};
+}
+
+struct InstanceToDependancy
+{
+	int fbxGeometryChunkIndex;
+	int meshIndex;
+	int resGeometryIndex;
+	int fbxAnimChunkIndex;
+	int animIndex;
+	int resAnimationIndex;
+	int resInputLayoutIndex;
+	int skinInstanceIndex;
+
+	// shader iteration
+	int shaderCompileIndices[6];
+	// link between dependancy and resource
+	struct SRVParamIndices
+	{
+		enum class SRVArrayKind : uint
+		{
+			Texture2D,
+			ExistSRV,
+		} kind;
+		uint instanceParamIndex;
+		uint refArrayIndex;
+
+		SRVParamIndices(SRVArrayKind kind, uint instanceParamIndex, uint refArrayIndex) :
+			kind(kind), instanceParamIndex(instanceParamIndex), refArrayIndex(refArrayIndex)
+		{}
+	};
+	std::vector<SRVParamIndices> srvCurrentIndexVector[6];
+	std::vector<std::pair<uint, uint>> samplerCurrentIndexVector[6];
+	struct CBParamIndices
+	{
+		uint instanceIndex;
+		uint instanceParamIndex;
+		uint cbIndex;
+
+		CBParamIndices(uint instanceIndex, uint instanceParamIndex, uint cbIndex)
+			: instanceIndex(instanceIndex), instanceParamIndex(instanceParamIndex), cbIndex(cbIndex)
+		{}
+	};
+	std::vector<CBParamIndices> cbCurrentIndexVector[6];
+	std::vector<std::pair<uint, uint>> uavCurrentIndexVector[6];
+
+	InstanceToDependancy()
+	{
+		fbxGeometryChunkIndex = -1;
+		meshIndex = -1;
+		resGeometryIndex = -1;
+		fbxAnimChunkIndex = -1;
+		animIndex = -1;
+		resAnimationIndex = -1;
+		resInputLayoutIndex = -1;
+		skinInstanceIndex = -1;
+
+		for (int i = 0; i < 6; i++)
+		{
+			shaderCompileIndices[i] = -1;
+			new (srvCurrentIndexVector + i) std::vector<SRVParamIndices>();
+			new (samplerCurrentIndexVector + i) std::vector<std::pair<uint, uint>>();
+			new (cbCurrentIndexVector + i) std::vector<CBParamIndices>();
+			new (uavCurrentIndexVector + i) std::vector<std::pair<uint, uint>>();
+		}
+	}
+};
+
+void SetShaderResourceDependancy(
+	const RenderResources* res, const Allocaters* allocs, 
+	int shaderDescIndex, const DX11CompileDescToShader* cdToShader, const InstanceToDependancy& itod,
+	int shaderIndex, ShaderInstance& shaderInstance, DX11ShaderResourceDependancy& srd
+)
+{
+	srd.shaderFileIndex = cdToShader[shaderDescIndex].shaderFileIndex;
+	srd.shaderIndex = cdToShader[shaderDescIndex].shaderIndexInFile;
+
+	// constant buffer
+	{
+		const std::vector<InstanceToDependancy::CBParamIndices>& cbVector =
+			itod.cbCurrentIndexVector[shaderIndex];
+		srd.constantBufferCount = cbVector.size();
+		srd.constantBuffers =
+			(DX11ShaderResourceDependancy::DX11ConstantBufferRef*)
+			allocs->alloc(
+				sizeof(DX11ShaderResourceDependancy::DX11ConstantBufferRef) * srd.constantBufferCount
+			);
+		for (int i = 0; i < cbVector.size(); i++)
+		{
+			ShaderParams& p = shaderInstance.params[cbVector[i].instanceParamIndex];
+			srd.constantBuffers[i].indexCount = 1;
+			srd.constantBuffers[i].slotOrRegister = p.slotIndex;
+			srd.constantBuffers[i].indices =
+				(uint*)allocs->alloc(sizeof(uint) * srd.constantBuffers[i].indexCount);
+			srd.constantBuffers[i].indices[0] = cbVector[i].cbIndex;
+		}
+	}
+
+	// sampelr state
+	{
+		const std::vector<std::pair<uint, uint>>& samplerVector = itod.samplerCurrentIndexVector[shaderIndex];
+		srd.samplerCount = samplerVector.size();
+		srd.samplers =
+			(DX11ShaderResourceDependancy::DX11SamplerRef*)
+			allocs->alloc(
+				sizeof(DX11ShaderResourceDependancy::DX11SamplerRef) * srd.samplerCount
+			);
+		for (int i = 0; i < samplerVector.size(); i++)
+		{
+			ShaderParams& p = shaderInstance.params[samplerVector[i].first];
+			srd.samplers[i].indexCount = 1;
+			srd.samplers[i].slotOrRegister = p.slotIndex;
+			srd.samplers[i].indices =
+				(uint*)allocs->alloc(sizeof(uint) * srd.samplers[i].indexCount);
+			srd.samplers[i].indices[0] = samplerVector[i].second;
+		}
+	}
+
+	// uav
+	{
+		const std::vector<std::pair<uint, uint>>& uavVector = itod.uavCurrentIndexVector[shaderIndex];
+		srd.uavCount = uavVector.size();
+		srd.uavs =
+			(DX11ShaderResourceDependancy::DX11UAVRef*)
+			allocs->alloc(
+				sizeof(DX11ShaderResourceDependancy::DX11UAVRef) * srd.uavCount
+			);
+		for (int i = 0; i < uavVector.size(); i++)
+		{
+			ShaderParams& p = shaderInstance.params[uavVector[i].first];
+			srd.uavs[i].indexCount = 1;
+			srd.uavs[i].slotOrRegister = p.slotIndex;
+			srd.uavs[i].indices =
+				(uint*)allocs->alloc(sizeof(uint) * srd.uavs[i].indexCount);
+			srd.uavs[i].indices[0] = uavVector[i].second;
+		}
+	}
+
+	// SRV : various types
+	{
+		const std::vector<InstanceToDependancy::SRVParamIndices>& srvVector =
+			itod.srvCurrentIndexVector[shaderIndex];
+		srd.srvCount = srvVector.size();
+		srd.srvs =
+			(DX11ShaderResourceDependancy::DX11SRVRef*)
+			allocs->alloc(
+				sizeof(DX11ShaderResourceDependancy::DX11SRVRef) * srd.srvCount
+			);
+		for (int i = 0; i < srvVector.size(); i++)
+		{
+			const InstanceToDependancy::SRVParamIndices& srvIndex = srvVector[i];
+			ShaderParams& p = shaderInstance.params[srvIndex.instanceParamIndex];
+			srd.srvs[i].indexCount = 1;
+			srd.srvs[i].slotOrRegister = p.slotIndex;
+			srd.srvs[i].indices =
+				(uint*)allocs->alloc(sizeof(uint) * srd.srvs[i].indexCount);
+
+			switch (srvIndex.kind)
+			{
+			case InstanceToDependancy::SRVParamIndices::SRVArrayKind::Texture2D:
+				srd.srvs[i].indices[0] = res->shaderTex2Ds[srvIndex.refArrayIndex].srvIndex;
+				break;
+			case InstanceToDependancy::SRVParamIndices::SRVArrayKind::ExistSRV:
+				srd.srvs[i].indices[0] = srvIndex.refArrayIndex;
+				break;
+			}
+		}
+	}
+}
+
+HRESULT LoadResourceAndDependancyFromInstance(
+	IN ID3D11Device* device, IN const Allocaters* allocs, IN uint instanceCount, IN RenderInstance* instances,
+	OUT RenderResources* res, OUT DX11InternalResourceDescBuffer* rawBuffer, OUT uint* dependancyCount, OUT DX11PipelineDependancy** dependacnies
+)
+{
+	std::vector<std::pair<const wchar_t*, FBXAdjChunk>> fbxPathChunkVector;
+	std::vector<const wchar_t*> texturePathVector;
+	std::vector<ShaderParamSampler> samplerStateVector;
+	std::vector<std::pair<uint, ShaderParamCB>> constantBufferVector;
+	std::vector<ShaderCompileDesc> shaderCompileVector;
+	std::vector<SkinningInstanceDesc> skinningInstanceDescVector;
+	std::vector<std::pair<uint, uint>> vertexShaderAndGeometryVector;
+
+	std::vector<DX11PipelineDependancy> dx11DependVector;
+
+	std::vector<InstanceToDependancy> itodVector;
+
+	std::vector<FBXChunkConfig::FBXMeshConfig> fbxMeshConfigVector;
+
+	for (uint instanceIndex = 0; instanceIndex < instanceCount; instanceIndex++)
+	{
+		InstanceToDependancy itod = InstanceToDependancy();
+		RenderInstance& instance = instances[instanceIndex];
+		uint accumGeometryCount = 0, accumAnimationCount = 0, resInputLayoutIndex = 0;
+		FBXMeshChunk* m = nullptr;
+		FBXChunk::FBXAnimation* animPtr = nullptr;
+
+		// instance :: geometry
+		{
+			auto it = std::find_if(
+				fbxPathChunkVector.begin(), 
+				fbxPathChunkVector.end(), 
+				[=](std::pair<const wchar_t*, FBXAdjChunk> val) -> bool
+				{
+					return wcscmp(val.first, instance.geometry.filePath) == 0;
+				}
+			);
+
+			if (it == fbxPathChunkVector.end())
+			{
+				FBXChunk c;
+				memset(&c, 0, sizeof(c));
+				FBXLoadOptionChunk opt;
+				memset(&opt, 0, sizeof(opt));
+				FBXChunkConfig config;
+				memset(&config, 0, sizeof(config));
+
+				FALSE_ERROR_MESSAGE_CONTINUE_ARGS(
+					ImportFBX(instance.geometry.filePath, c, &opt, allocs),
+					L"fail to import FBX(%s) for geometry..",
+					instance.geometry.filePath
+				);
+
+				size_t prevIndex = fbxMeshConfigVector.size();
+				for (uint i = 0; i < c.meshCount; i++)
+					fbxMeshConfigVector.push_back(FBXChunkConfig::FBXMeshConfig());
+				config.meshConfigs = fbxMeshConfigVector.data() + prevIndex;
+
+				fbxPathChunkVector.push_back(
+					PathFBXAdjChunkPair(
+						instance.geometry.filePath,
+						FBXAdjChunk(std::move(c), config, accumGeometryCount, accumAnimationCount)
+					)
+				);
+
+				it = std::prev(fbxPathChunkVector.end());
+
+				accumGeometryCount += c.meshCount;
+				accumAnimationCount += c.animationCount;
+			}
+
+			itod.fbxGeometryChunkIndex = std::distance(fbxPathChunkVector.begin(), it);
+
+			for (uint j = 0; j < it->second.chunk.meshCount; j++)
+			{
+				FBXMeshChunk& mesh = it->second.chunk.meshs[j];
+				if (strcmp(mesh.name, instance.geometry.meshName) == 0)
+				{
+					m = &mesh;
+					itod.meshIndex = j;
+					break;
+				}
+			}
+
+			FALSE_ERROR_MESSAGE_CONTINUE_ARGS(
+				itod.meshIndex >= 0,
+				L"cannot find mesh(%s) from FBX(%s)..", instance.geometry.meshName, instance.geometry.filePath
+			);
+			it->second.config.meshConfigs[itod.meshIndex].isSkinned |= instance.isSkinDeform;
+			itod.resGeometryIndex = it->second.startGeometryCount + itod.meshIndex;
+
+			if (instance.isSkinDeform)
+			{
+				it = std::find_if(
+					fbxPathChunkVector.begin(),
+					fbxPathChunkVector.end(),
+					[=](std::pair<const wchar_t*, FBXAdjChunk> val) -> bool
+					{
+						return wcscmp(val.first, instance.anim.filePath) == 0;
+					}
+				);
+
+				if (it == fbxPathChunkVector.end())
+				{
+					FBXChunk c;
+					memset(&c, 0, sizeof(c));
+					FBXLoadOptionChunk opt;
+					memset(&opt, 0, sizeof(opt));
+					FBXChunkConfig config;
+					memset(&config, 0, sizeof(config));
+
+					FALSE_ERROR_MESSAGE_CONTINUE_ARGS(
+						ImportFBX(instance.anim.filePath, c, &opt, allocs),
+						L"fail to import FBX(%s) for animation..",
+						instance.anim.filePath
+					);
+
+					fbxPathChunkVector.push_back(
+						PathFBXAdjChunkPair(
+							instance.geometry.filePath,
+							FBXAdjChunk(std::move(c), config, accumGeometryCount, accumAnimationCount)
+						)
+					);
+
+					it = std::prev(fbxPathChunkVector.end());
+
+					accumGeometryCount += c.meshCount;
+					accumAnimationCount += c.animationCount;
+				}
+
+				itod.fbxAnimChunkIndex = std::distance(fbxPathChunkVector.begin(), it);
+
+				// animation find in FBXChunk
+				for (uint j = 0; j < it->second.chunk.animationCount; j++)
+				{
+					FBXChunk::FBXAnimation& anim = it->second.chunk.animations[j];
+					if (strcmp(anim.animationName, instance.anim.animationName) == 0)
+					{
+						animPtr = &anim;
+						itod.animIndex = j;
+						break;
+					}
+				}
+
+				FALSE_ERROR_MESSAGE_CONTINUE_ARGS(
+					itod.animIndex >= 0,
+					L"cannot find aniamtion(%s) from FBX(%s)..", 
+					instance.anim.animationName, instance.anim.filePath
+				);
+				itod.resAnimationIndex = it->second.startAnimationCount + itod.animIndex;
+				itod.skinInstanceIndex = skinningInstanceDescVector.size();
+
+				SkinningInstanceDesc sid;
+				sid.animationIndex = itod.resAnimationIndex;
+				sid.geometryIndex = itod.resGeometryIndex;
+				skinningInstanceDescVector.push_back(sid);
+			}
+		}
+
+		int shaderCount = instance.isSkinDeform ? 6 : 5;
+		for (int shaderIndex = 0; shaderIndex < shaderCount; shaderIndex++)
+		{
+			if (shaderIndex < 5 && !(instance.shaderFlag & (0x01 << shaderIndex))) continue;
+
+			ShaderInstance& shaderInstance = shaderIndex < 5? instance.si[shaderIndex]: instance.skinCSParam;
+
+			// shader
+			{
+				auto it = std::find_if(
+					shaderCompileVector.begin(), shaderCompileVector.end(),
+					[=](const ShaderCompileDesc& d) -> bool 
+					{
+						return shaderInstance.sd == d;
+					}
+				);
+
+				if (it == shaderCompileVector.end())
+				{
+					shaderCompileVector.push_back(shaderInstance.sd);
+					it = std::prev(shaderCompileVector.end());
+				}
+
+				itod.shaderCompileIndices[shaderIndex] = std::distance(shaderCompileVector.begin(), it);
+			}
+
+			// param 
+			for (uint paramIndex = 0; paramIndex < shaderInstance.paramCount; paramIndex++)
+			{
+				switch (shaderInstance.params[paramIndex].kind)
+				{
+				case ShaderParamKind::Texture2DSRV:
+				{
+					auto it = std::find_if(
+						texturePathVector.begin(),
+						texturePathVector.end(),
+						[=](const std::wstring& ws) -> bool {
+							return ws.compare(shaderInstance.params[paramIndex].tex2DSRV.filePath) == 0;
+						});
+
+					if (it == texturePathVector.end())
+					{
+						texturePathVector.push_back(
+							shaderInstance.params[paramIndex].tex2DSRV.filePath
+						);
+						it = std::prev(texturePathVector.end());
+					}
+
+					itod.srvCurrentIndexVector[shaderIndex].push_back(
+						InstanceToDependancy::SRVParamIndices(
+							InstanceToDependancy::SRVParamIndices::SRVArrayKind::Texture2D,
+							paramIndex, std::distance(texturePathVector.begin(), it)
+						)
+					);
+				}
+				break;
+				case ShaderParamKind::SamplerState:
+				{
+					auto it = std::find_if(
+						samplerStateVector.begin(),
+						samplerStateVector.end(),
+						[=](const ShaderParamSampler& sampler) -> bool {
+							return sampler == shaderInstance.params[paramIndex].sampler;
+						});
+
+					if (it == samplerStateVector.end())
+					{
+						samplerStateVector.push_back(shaderInstance.params[paramIndex].sampler);
+						it = std::prev(samplerStateVector.end());
+					}
+
+					itod.samplerCurrentIndexVector[shaderIndex].push_back(
+						std::pair<uint, uint>(
+							paramIndex, std::distance(samplerStateVector.begin(), it)
+						)
+					);
+				}
+				break;
+				case ShaderParamKind::ConstantBuffer:
+				{
+					auto it = std::find_if(
+						constantBufferVector.begin(),
+						constantBufferVector.end(),
+						[=](const std::pair<uint, ShaderParamCB>& cb) -> bool {
+							return cb.second == shaderInstance.params[paramIndex].cb;
+						});
+
+					if (it == constantBufferVector.end())
+					{
+						constantBufferVector.push_back(
+							std::pair<uint, ShaderParamCB>(
+								instanceIndex,
+								shaderInstance.params[paramIndex].cb
+								)
+						);
+						it = std::prev(constantBufferVector.end());
+					}
+
+					itod.cbCurrentIndexVector[shaderIndex].push_back(
+						InstanceToDependancy::CBParamIndices(
+							instanceIndex, paramIndex, std::distance(constantBufferVector.begin(), it)
+						)
+					);
+				}
+				break;
+				}
+			}
+		}
+
+		FALSE_ERROR_MESSAGE_CONTINUE_ARGS(
+			itod.shaderCompileIndices[0] >= 0,
+			L"fail to find vertex shader desc.."
+		);
+		itod.resInputLayoutIndex = vertexShaderAndGeometryVector.size();
+		vertexShaderAndGeometryVector.push_back(
+			std::pair<uint, uint> (itod.shaderCompileIndices[0], itod.resGeometryIndex)
+		);
+
+		itodVector.push_back(itod);
+	}
+
+#pragma region load resource from instance
+
+	// fbx to geometry
+	{
+		FBXChunk* chunks = (FBXChunk*)alloca(sizeof(FBXChunk) * fbxPathChunkVector.size());
+		FBXChunkConfig* chunkConfigs = (FBXChunkConfig*)alloca(sizeof(FBXChunkConfig) * fbxPathChunkVector.size());
+		for (auto ci = fbxPathChunkVector.begin(); ci != fbxPathChunkVector.end(); ci++)
+		{
+			uint i = std::distance(ci, fbxPathChunkVector.begin());
+
+			chunks[i] = ci->second.chunk;
+			chunkConfigs[i] = ci->second.config;
+		}
+		FAILED_ERROR_MESSAGE_RETURN_ARGS(
+			LoadMeshAndAnimsFromFBXByDX11(res, rawBuffer, allocs, fbxPathChunkVector.size(), chunks, chunkConfigs),
+			L"fail to LoadMeshAndAnimsFromFBXByDX11.."
+		);
+	}
+
+	// texture load
+	FAILED_ERROR_MESSAGE_RETURN_ARGS(
+		ReserveTex2DAndSRVFromFileByDX11(
+			res, rawBuffer, allocs,
+			texturePathVector.size(), texturePathVector.data()
+		),
+		L"fail to LoadMeshAndAnimsFromFBXByDX11.."
+	);
+
+	// shader compile
+	DX11CompileDescToShader* cdToShader =
+		(DX11CompileDescToShader*)alloca(sizeof(DX11CompileDescToShader) * shaderCompileVector.size());
+	FAILED_ERROR_MESSAGE_RETURN(
+		ReserveShaderFromFileByDX11(
+			res, rawBuffer, allocs,
+			shaderCompileVector.size(), shaderCompileVector.data(), cdToShader
+		),
+		L"fail to compile shaders.."
+	);
+
+	// input layouts
+	{
+		DX11InputLayoutDesc* inputLayoutDescs = (DX11InputLayoutDesc*)alloca(
+			sizeof(DX11InputLayoutDesc) * vertexShaderAndGeometryVector.size()
+		);
+		for (uint i = 0; i < vertexShaderAndGeometryVector.size(); i++)
+		{
+			inputLayoutDescs[i].shaderCompileDescIndex = vertexShaderAndGeometryVector[i].first;
+			inputLayoutDescs[i].layoutChunkIndex = res->geometryChunks[vertexShaderAndGeometryVector[i].second].vertexLayoutIndex;
+		}
+		FAILED_ERROR_MESSAGE_RETURN(
+			ReserveLoadInputLayoutRefIndex(
+				&res->dx11, rawBuffer, allocs,
+				shaderCompileVector.size(), cdToShader,
+				vertexShaderAndGeometryVector.size(), inputLayoutDescs
+			),
+			L"fail to create dx11 input layout.."
+		);
+	}
+
+	// skinning instance load
+	FAILED_ERROR_MESSAGE_RETURN(
+		ReserveSkinningInstances(
+			res, rawBuffer, allocs, skinningInstanceDescVector.size(), skinningInstanceDescVector.data()
+		),
+		L"fail to create dx11 input layout.."
+	);
+
+	// constant buffer
+	{
+		ALLOC_RANGE_ZEROMEM(
+			res->dx11.constantBufferCount, constantBufferVector.size(),
+			uint, res->dx11.constantBufferIndices, allocs->alloc
+		);
+		uint* cbSizes = (uint*)alloca(sizeof(uint) * constantBufferVector.size());
+		for (uint i = 0; i < constantBufferVector.size(); i++)
+			cbSizes[i] = constantBufferVector[i].second.size;
+		uint count = ReserveLoadConstantBuffers(rawBuffer, constantBufferVector.size(), cbSizes);
+		for (uint i = 0; i < res->dx11.constantBufferCount; i++)
+			res->dx11.constantBufferIndices[i] = count + i;
+	}
+
+	// sampler states
+	{
+		D3D11_SAMPLER_DESC* sds = (D3D11_SAMPLER_DESC*)alloca(
+			sizeof(D3D11_SAMPLER_DESC) * samplerStateVector.size()
+		);
+		for (uint i = 0; i < samplerStateVector.size(); i++)
+		{
+			D3D11_SAMPLER_DESC d;
+			GetDX11Sampler(samplerStateVector[i], d);
+			sds[i] = d;
+		}
+		ReserveLoadSamplerStates(rawBuffer, samplerStateVector.size(), sds);
+	}
+
+	FAILED_ERROR_MESSAGE_RETURN(
+		CreateDX11ResourcesByDesc(&res->dx11, rawBuffer, allocs, device, true),
+		L"fail to create dx11 samplers.."
+	);
+#pragma endregion
+
+#pragma region link instance to dependancy
+
+	for (uint instanceIndex = 0; instanceIndex < instanceCount; instanceIndex++)
+	{
+		// variables
+		InstanceToDependancy& itod = itodVector[instanceIndex];
+		RenderInstance& instance = instances[instanceIndex];
+		RenderResources::GeometryChunk& geometryChunk = res->geometryChunks[itod.resGeometryIndex];
+		DX11Resources::DX11LayoutChunk& layoutChunk = res->dx11.vertexLayouts[geometryChunk.vertexLayoutIndex];
+
+		for (uint shaderIndex = 0; shaderIndex < 6; shaderIndex++)
+		for (uint cbIndex = 0; cbIndex < itod.cbCurrentIndexVector[shaderIndex].size(); cbIndex++)
+		{
+			// TODO:: prune duplicate update
+			const uint dstSubres = 0, srcRowPitch = 0, srcDepthPitch = 0;
+			InstanceToDependancy::CBParamIndices& indices = itod.cbCurrentIndexVector[shaderIndex][cbIndex];
+			ShaderParamCB& cb = constantBufferVector[indices.cbIndex].second;
+
+			DX11PipelineDependancy cbDepend = DX11PipelineDependancy(CopyKind::UpdateSubResource);
+
+			cbDepend.copy.args.updateSubRes.resKind = ResourceKind::Buffer;
+			cbDepend.copy.args.updateSubRes.resIndex = res->dx11.constantBufferIndices[indices.cbIndex];
+			cbDepend.copy.args.updateSubRes.dstSubres = dstSubres;
+			cbDepend.copy.args.updateSubRes.getBoxFunc;
+			cbDepend.copy.args.updateSubRes.srcRowPitch = srcRowPitch;
+			cbDepend.copy.args.updateSubRes.srcDepthPitch = srcDepthPitch;
+
+			cbDepend.copy.args.updateSubRes.dataBufferSize = cb.size;
+			switch (cb.existParam)
+			{
+			case ShaderParamCB::ExistParam::None:
+				cbDepend.copy.args.updateSubRes.param = cb.param;
+				break;
+			case ShaderParamCB::ExistParam::SkinningInstanceIndex:
+				cbDepend.copy.args.updateSubRes.param =
+					IntToPtr(itodVector[instanceIndex].skinInstanceIndex);
+				break;
+			}
+
+			cbDepend.copy.args.updateSubRes.copyToBufferFunc = cb.setFunc;
+			dx11DependVector.push_back(cbDepend);
+		}
+
+		// only zero values
+		const sint baseVertexLocation = 0;
+		const uint vertexBufferOffset = 0, startIndexLocation = 0;
+
+		if (instance.isSkinDeform)
+		{
+			RenderResources::SkinningInstance& skin = res->skinningInstances[itod.skinInstanceIndex];
+
+			DX11PipelineDependancy computeDepend;
+			computeDepend.pipelineKind = PipelineKind::Compute;
+			DX11ComputePipelineDependancy& compute = computeDepend.compute;
+			compute.dispatchType = DX11ComputePipelineDependancy::DispatchType::Dispatch;
+			compute.argsAsDispatch.dispatch.threadGroupCountX = geometryChunk.vertexCount;
+			compute.argsAsDispatch.dispatch.threadGroupCountY = 1;
+			compute.argsAsDispatch.dispatch.threadGroupCountZ = 1;
+
+			for (uint i = 0; i < instance.skinCSParam.paramCount; i++)
+			{
+				ShaderParams& p = instance.skinCSParam.params[i];
+
+				switch (p.kind)
+				{
+				case ShaderParamKind::ExistBufferSRV:
+					switch (p.existSRV.kind)
+					{
+					case ExistSRVKind::GeometryVertexBufferForSkin:
+						itod.srvCurrentIndexVector[5].push_back(
+							InstanceToDependancy::SRVParamIndices(
+								InstanceToDependancy::SRVParamIndices::SRVArrayKind::ExistSRV,
+								i, res->geometryChunks[skin.geometryIndex].vertexDataSRVIndex
+							)
+						);
+						break;
+					case ExistSRVKind::BindPoseBufferForSkin:
+						itod.srvCurrentIndexVector[5].push_back(
+							InstanceToDependancy::SRVParamIndices(
+								InstanceToDependancy::SRVParamIndices::SRVArrayKind::ExistSRV,
+								i, res->boneSets[
+									res->anims[skin.animationIndex].boneSetIndex
+								].binePoseTransformSRVIndex
+							)
+						);
+						break;
+					case ExistSRVKind::AnimationBufferForSkin:
+						itod.srvCurrentIndexVector[5].push_back(
+							InstanceToDependancy::SRVParamIndices(
+								InstanceToDependancy::SRVParamIndices::SRVArrayKind::ExistSRV,
+								i, res->anims[skin.animationIndex].animPoseTransformSRVIndex
+							)
+						);
+						break;
+					}
+					break;
+				case ShaderParamKind::ExistBufferUAV:
+					switch (p.existUAV.kind)
+					{
+					case ExistUAVKind::DeformedVertexBufferForSkin:
+						itod.uavCurrentIndexVector[5].push_back(std::pair<uint, uint>(i, skin.vertexStreamUAVIndex));
+						break;
+					}
+					break;
+				}
+			}
+
+			SetShaderResourceDependancy(
+				res, allocs, itod.shaderCompileIndices[5], cdToShader, itod, 5, 
+				instance.skinCSParam, compute.resources
+			);
+
+			dx11DependVector.push_back(computeDepend);
+
+			DX11PipelineDependancy vtxCopy;
+			vtxCopy.pipelineKind = PipelineKind::Copy;
+			DX11CopyDependancy& copy = vtxCopy.copy;
+			copy.kind = CopyKind::CopyResource;
+			copy.args.copyRes.srcBufferIndex = skin.vertexStreamBufferIndex;
+			copy.args.copyRes.dstBufferIndex = skin.vertexBufferIndex;
+
+			dx11DependVector.push_back(vtxCopy);
+		}
+
+		{
+			DX11PipelineDependancy draw;
+			draw.pipelineKind = PipelineKind::Draw;
+
+			for (uint shaderIndex = 0; shaderIndex < 5; shaderIndex++)
+			{
+				new (draw.draw.dependants + shaderIndex) DX11ShaderResourceDependancy();
+
+				if (instance.shaderFlag & (0x01 << shaderIndex))
+				{
+					SetShaderResourceDependancy(
+						res, allocs,
+						itod.shaderCompileIndices[shaderIndex], cdToShader, itod, shaderIndex,
+						instance.si[shaderIndex], draw.draw.dependants[shaderIndex]
+					);
+				}
+			}
+
+			draw.draw.input.geometryIndex = itod.resGeometryIndex;
+			draw.draw.input.inputLayoutIndex = itod.resInputLayoutIndex;
+			draw.draw.input.topology = D3D_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			draw.draw.input.vertexBufferOffset = vertexBufferOffset;
+			draw.draw.input.vertexSize = layoutChunk.vertexSize;
+			if (instance.isSkinDeform && itod.skinInstanceIndex >= 0)
+			{
+				RenderResources::SkinningInstance& skinInstance =
+					res->skinningInstances[itod.skinInstanceIndex];
+				draw.draw.input.vertexBufferIndex = skinInstance.vertexBufferIndex;
+			}
+			else
+				draw.draw.input.vertexBufferIndex = geometryChunk.vertexBufferIndex;
+
+			draw.draw.drawType = DX11DrawPipelineDependancy::DrawType::DrawIndexed;
+			draw.draw.argsAsDraw.drawIndexedArgs.indexCount = geometryChunk.indexCount;
+			draw.draw.argsAsDraw.drawIndexedArgs.baseVertexLocation = baseVertexLocation;
+			draw.draw.argsAsDraw.drawIndexedArgs.startIndexLocation = startIndexLocation;
+
+			dx11DependVector.push_back(draw);
+		}
+	}
+
+	*dependancyCount = static_cast<size_t>(dx11DependVector.size());
+	*dependacnies = (DX11PipelineDependancy*)allocs->alloc(sizeof(DX11PipelineDependancy) * dx11DependVector.size());
+	for (size_t i = 0; i < dx11DependVector.size(); i++)
+		new ((*dependacnies) + i) DX11PipelineDependancy(std::move(dx11DependVector[i]));
+
+#pragma endregion
+
+	return S_OK;
+}
 
 HRESULT ReleaseResources(RenderResources* res, const Allocaters* allocs)
 {
@@ -282,7 +1038,7 @@ void SetDX11InputDescWithChunk(bool includeBone, int* descCounts, int* vertexSiz
 	}
 
 	vertexSize[0] = realAlignment + vertexDataSize;
-	vertexSize[1] = realAlignment;
+	vertexSize[1] = realAlignment; 
 }
 
 int FindEqualDescIndex(uint descCount, D3D11_INPUT_ELEMENT_DESC* descBuffer, uint vertexLayoutBufferCount, DX11Resources::DX11LayoutChunk* vertexLayoutBuffer, DX11Resources* res)
@@ -371,6 +1127,7 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 			FBXChunkConfig::FBXMeshConfig& mc = configs[ci].meshConfigs[mi];
 			FBXMeshChunk& m = c.meshs[mi];
 			RenderResources::GeometryChunk& g = res->geometryChunks[geometryOffset];
+			g.bound = m.geometry.bound;
 
 			// vertexlayout record start 
 
@@ -407,38 +1164,39 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 
 			auto vertexCopy = [=](void* vptr) -> void
 			{
+				const FBXMeshChunk::FBXGeometryChunk& g = m.geometry;
 				byte* ptr = static_cast<byte*>(vptr);
 				for (uint i = 0; i < g.vertexCount; i++)
 				{
-					memcpy(ptr, m.geometry.vertices + i, sizeof(m.geometry.vertices[i]));
-					ptr += sizeof(m.geometry.vertices[i]);
-					if (m.geometry.normals)
+					memcpy(ptr, g.vertices + i, sizeof(g.vertices[i]));
+					ptr += sizeof(g.vertices[i]);
+					if (g.normals)
 					{
-						memcpy(ptr, m.geometry.normals + i, sizeof(m.geometry.normals[i]));
-						ptr += sizeof(m.geometry.normals[i]);
+						memcpy(ptr, g.normals + i, sizeof(g.normals[i]));
+						ptr += sizeof(g.normals[i]);
 					}
-					if (m.geometry.tangents)
+					if (g.tangents)
 					{
-						memcpy(ptr, m.geometry.tangents + i, sizeof(m.geometry.tangents[i]));
-						ptr += sizeof(m.geometry.tangents[i]);
+						memcpy(ptr, g.tangents + i, sizeof(g.tangents[i]));
+						ptr += sizeof(g.tangents[i]);
 					}
-					if (m.geometry.binormals)
+					if (g.binormals)
 					{
-						memcpy(ptr, m.geometry.binormals + i, sizeof(m.geometry.binormals[i]));
-						ptr += sizeof(m.geometry.binormals[i]);
+						memcpy(ptr, g.binormals + i, sizeof(g.binormals[i]));
+						ptr += sizeof(g.binormals[i]);
 					}
-					for (uint j = 0; j < m.geometry.uvSlotCount; j++)
-						if (m.geometry.uvSlots[j])
+					for (uint j = 0; j < g.uvSlotCount; j++)
+						if (g.uvSlots[j])
 						{
-							memcpy(ptr, m.geometry.uvSlots[j] + i, sizeof(m.geometry.uvSlots[j][i]));
-							ptr += sizeof(m.geometry.uvSlots[j][i]);
+							memcpy(ptr, g.uvSlots[j] + i, sizeof(g.uvSlots[j][i]));
+							ptr += sizeof(g.uvSlots[j][i]);
 						}
-					if (m.geometry.boneIndices && m.geometry.boneWeights)
+					if (g.boneIndices && g.boneWeights)
 					{
-						memcpy(ptr, m.geometry.boneIndices + i, sizeof(m.geometry.boneIndices[i]));
-						ptr += sizeof(m.geometry.boneIndices[i]);
-						memcpy(ptr, m.geometry.boneWeights + i, sizeof(m.geometry.boneWeights[i]));
-						ptr += sizeof(m.geometry.boneWeights[i]);
+						memcpy(ptr, g.boneIndices + i, sizeof(g.boneIndices[i]));
+						ptr += sizeof(g.boneIndices[i]);
+						memcpy(ptr, g.boneWeights + i, sizeof(g.boneWeights[i]));
+						ptr += sizeof(g.boneWeights[i]);
 					}
 				}
 			};
@@ -554,11 +1312,6 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 
 		if (findBoneSetIndex < 0)
 		{
-			//REALLOC_RANGE_ZEROMEM(
-			//	prevBoneSetCount, res->boneSetCount, 1,
-			//	RenderResources::BoneSet, res->boneSets, allocs->realloc
-			//);
-
 			res->boneSetCount++;
 			RenderResources::BoneSet& boneSet = res->boneSets[res->boneSetCount - 1];
 
@@ -580,7 +1333,7 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 			bd.buffer.CPUAccessFlags = 0;
 			bd.buffer.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
 			bd.buffer.StructureByteStride = sizeof(Matrix4x4);
-			bd.copyToPtr = [&](void* ptr) {
+			bd.copyToPtr = [=](void* ptr) {
 				Matrix4x4* matrixBuffer = static_cast<Matrix4x4*>(ptr);
 				for (uint i = 0; i < boneSet.boneCount; i++)
 					matrixBuffer[i] = boneSet.bones[i].inverseGlobalTransformMatrix;
@@ -719,7 +1472,7 @@ HRESULT ReserveTex2DAndSRVFromFileByDX11(
 
 HRESULT ReserveShaderFromFileByDX11(
 	RenderResources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
-	uint compileCount, const DX11ShaderCompileDesc* descs, DX11CompileDescToShader* descToFileShader
+	uint compileCount, const ShaderCompileDesc* descs, DX11CompileDescToShader* descToFileShader
 )
 {
 	std::vector<RenderResources::ShaderFile> files = std::vector<RenderResources::ShaderFile>();
@@ -727,7 +1480,7 @@ HRESULT ReserveShaderFromFileByDX11(
 
 	for (uint i = 0; i < compileCount; i++)
 	{
-		const DX11ShaderCompileDesc& dsc = descs[i];
+		const ShaderCompileDesc& dsc = descs[i];
 		int fileIndex = -1;
 		for (int j = 0; j < files.size(); j++)
 			if (wcscmp(files[j].fileName, dsc.fileName) == 0)
@@ -759,9 +1512,11 @@ HRESULT ReserveShaderFromFileByDX11(
 		if (index == UINT_MAX)
 			continue;
 
+		descToFileShader[i].shaderFileIndex = fileIndex;
+		descToFileShader[i].shaderIndexInFile = shaderIndicesByFile[fileIndex][(int)s].size();
+		shaderIndicesByFile[fileIndex][(int)s].push_back(index);
 		descToFileShader[i].shaderKindIndex = (uint)s;
 		descToFileShader[i].shaderIndex = index;
-		shaderIndicesByFile[fileIndex][(int)s].push_back(index);
 	}
 
 	ALLOC_RANGE_MEMCPY(
@@ -802,6 +1557,7 @@ HRESULT ReserveSkinningInstances(
 		auto& geometry = res->geometryChunks[d.geometryIndex];
 
 		item.geometryIndex = d.geometryIndex;
+		item.animationIndex = d.animationIndex;
 
 		{
 			DX11BufferDesc desc;

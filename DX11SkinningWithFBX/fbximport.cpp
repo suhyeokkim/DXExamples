@@ -28,6 +28,47 @@ void DestroyFBX()
 	}
 }
 
+void ReleaseFBX(FBXChunk* c, const Allocaters* allocs)
+{
+	if (c->meshs)
+	{
+		for (uint i = 0; i < c->meshCount; i++)
+		{
+			FBXMeshChunk* mesh = c->meshs + i;
+
+			SAFE_DEALLOC(mesh->geometry.vertices, allocs->dealloc);
+			SAFE_DEALLOC(mesh->geometry.normals, allocs->dealloc);
+			SAFE_DEALLOC(mesh->geometry.tangents, allocs->dealloc);
+			SAFE_DEALLOC(mesh->geometry.binormals, allocs->dealloc);
+			SAFE_DEALLOC(mesh->geometry.boneIndices, allocs->dealloc);
+			SAFE_DEALLOC(mesh->geometry.boneWeights, allocs->dealloc);
+
+			SAFE_DEALLOC(mesh->geometry.indices, allocs->dealloc);
+
+			if (mesh->geometry.uvSlots)
+			{
+				for (uint j = 0; j < mesh->geometry.uvSlotCount; j++)
+					SAFE_DEALLOC(mesh->geometry.uvSlots[j], allocs->dealloc);
+				allocs->dealloc(mesh->geometry.uvSlots);
+			}
+
+			SAFE_DEALLOC(mesh->submesh.submeshs, allocs->dealloc);
+		}
+		allocs->dealloc(c->meshs);
+	}
+
+	SAFE_DEALLOC(c->textureRefs, allocs->dealloc);
+	SAFE_DEALLOC(c->hierarchyNodes, allocs->dealloc);
+	if (c->animations)
+	{
+		for (uint i = 0; i < c->animationCount; i++)
+			SAFE_DEALLOC(c->animations[i].globalAffineTransforms, allocs->dealloc);
+
+		allocs->dealloc(c->animations);
+	}
+}
+
+
 bool SceneToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs);
 bool ImportFBX(const wchar_t* fileDirectory, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
@@ -36,6 +77,8 @@ bool ImportFBX(const wchar_t* fileDirectory, FBXChunk& chunk, const FBXLoadOptio
 		InitializeFBX();
 		FALSE_ERROR_MESSAGE_RETURN_CODE(g_FbxManager != nullptr, L"fail to initialize fbxmaneger..", false);
 	}
+
+	chunk.allocs = allocs;
 
 	size_t len = lstrlenW(fileDirectory);
 	char fileDirBuffer[512];
@@ -206,12 +249,6 @@ int GetFPS(const fbxsdk::FbxTime::EMode& mode)
 
 bool SceneToChunk(FbxScene* fbxScene, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
-	chunk.allocs = allocs;
-
-	FbxGeometryConverter* conv = new FbxGeometryConverter(g_FbxManager);
-	conv->Triangulate(fbxScene, true);
-	delete conv;
-
 	uint meshCount = 0, animCount = 0;
 	{
 		std::vector<FbxNode*> nodeVector;
@@ -359,7 +396,7 @@ uint TraversalFBXNode(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* 
 bool LinkToChunk(FbxNode* node, FBXChunk& wholeChunk, FBXMeshChunk& meshChunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs);
 bool MeshToChunk(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, const Allocaters* allocs)
 {
-	const char* name = node->GetNameOnly();
+	const char* name = node->GetName();
 	FbxMesh* fbxMesh = node->GetMesh();
 
 	chunk.meshCount++;
@@ -616,7 +653,7 @@ bool MeshToChunk(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, 
 						int controlPointIndex = fbxMesh->GetPolygonVertex(polyIndex, itemIndex);
 						
 						uvs[controlPointIndex].x = static_cast<float>(fbxUV->GetDirectArray()[controlPointIndex].mData[0]);
-						uvs[controlPointIndex].y = static_cast<float>(fbxUV->GetDirectArray()[controlPointIndex].mData[1]);
+						uvs[controlPointIndex].y = 1.f - static_cast<float>(fbxUV->GetDirectArray()[controlPointIndex].mData[1]);
 
 						if (opt->flipU)
 							uvs[controlPointIndex].x = 1.f - uvs[controlPointIndex].x;
@@ -634,7 +671,7 @@ bool MeshToChunk(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, 
 						int controlPointIndex = fbxMesh->GetPolygonVertex(polyIndex, itemIndex);
 						int uvIndex = fbxUV->GetIndexArray()[controlPointIndex];
 						uvs[controlPointIndex].x = static_cast<float>(fbxUV->GetDirectArray()[uvIndex].mData[0]);
-						uvs[controlPointIndex].y = static_cast<float>(fbxUV->GetDirectArray()[uvIndex].mData[1]);
+						uvs[controlPointIndex].y = 1.f - static_cast<float>(fbxUV->GetDirectArray()[uvIndex].mData[1]);
 
 						if (opt->flipU)
 							uvs[controlPointIndex].x = 1.f - uvs[controlPointIndex].x;
@@ -658,7 +695,7 @@ bool MeshToChunk(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, 
 						int controlPointIndex = fbxMesh->GetPolygonVertex(polyIndex, itemIndex);
 						int textureUVIndex = fbxMesh->GetTextureUVIndex(polyIndex, itemIndex);
 						uvs[controlPointIndex].x = static_cast<float>(fbxUV->GetDirectArray()[textureUVIndex].mData[0]);
-						uvs[controlPointIndex].y = static_cast<float>(fbxUV->GetDirectArray()[textureUVIndex].mData[1]);
+						uvs[controlPointIndex].y = 1.f - static_cast<float>(fbxUV->GetDirectArray()[textureUVIndex].mData[1]);
 
 						if (opt->flipU)
 							uvs[controlPointIndex].x = 1.f - uvs[controlPointIndex].x;

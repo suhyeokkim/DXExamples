@@ -22,7 +22,7 @@
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{5A1C8144-D9E9-4A11-9213-3A5720D336FD}</ProjectGuid>
     <RootNamespace>DX11SkinningWithFBX</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.20279.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -185,6 +185,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="char_max.FBX" />
+    <None Include="char_max_triangulated.fbx" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

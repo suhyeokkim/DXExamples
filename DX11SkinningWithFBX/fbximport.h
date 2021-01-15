@@ -109,42 +109,6 @@ struct FBXChunk
 	{}
 	~FBXChunk()
 	{
-		if (meshs)
-		{
-			for (uint i = 0; i < meshCount; i++)
-			{
-				FBXMeshChunk* mesh = meshs + i;
-
-				SAFE_DEALLOC(mesh->geometry.vertices, allocs->dealloc);
-				SAFE_DEALLOC(mesh->geometry.normals, allocs->dealloc);
-				SAFE_DEALLOC(mesh->geometry.tangents, allocs->dealloc);
-				SAFE_DEALLOC(mesh->geometry.binormals, allocs->dealloc);
-				SAFE_DEALLOC(mesh->geometry.boneIndices, allocs->dealloc);
-				SAFE_DEALLOC(mesh->geometry.boneWeights, allocs->dealloc);
-
-				SAFE_DEALLOC(mesh->geometry.indices, allocs->dealloc);
-
-				if (mesh->geometry.uvSlots)
-				{
-					for (uint j = 0; j < mesh->geometry.uvSlotCount; j++)
-						SAFE_DEALLOC(mesh->geometry.uvSlots[j], allocs->dealloc);
-					allocs->dealloc(mesh->geometry.uvSlots);
-				}
-
-				SAFE_DEALLOC(mesh->submesh.submeshs, allocs->dealloc);
-			}
-			allocs->dealloc(meshs);
-		}
-
-		SAFE_DEALLOC(textureRefs, allocs->dealloc);
-		SAFE_DEALLOC(hierarchyNodes, allocs->dealloc);
-		if (animations)
-		{
-			for (uint i = 0; i < animationCount; i++)
-				SAFE_DEALLOC(animations[i].globalAffineTransforms, allocs->dealloc);
-
-			allocs->dealloc(animations);
-		}
 	}
 };
 
@@ -167,3 +131,4 @@ uint ImportFBX(
 	uint chunkCount, const wchar_t* const * fileDirectories, FBXChunk* chunk, 
 	const FBXLoadOptionChunk* opt = nullptr, const Allocaters* allocs = nullptr
 );
+void ReleaseFBX(FBXChunk* c, const Allocaters* allocs);

@@ -7,21 +7,6 @@
 #include <d3dcompiler.h>
 #include "fbximport.h"
 
-struct ProfileTime
-{
-	const char* string;
-	DWORD startTime;
-
-	ProfileTime(const char* string) : string(string)
-	{
-		startTime = GetTickCount();
-	}
-	~ProfileTime() 
-	{
-		printf("%s : %dms\n", string, GetTickCount() - startTime);
-	}
-};
-
 inline size_t GetFileSize(FILE* fp)
 {
 	size_t size;

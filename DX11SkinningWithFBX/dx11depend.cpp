@@ -9,7 +9,7 @@ HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocater
 
 		switch (depend.pipelineKind)
 		{
-		case PIPELINE_KIND::DRAW:
+		case PipelineKind::Draw:
 			for (int k = 0; k < 5; k++)
 			{
 				const DX11ShaderResourceDependancy& shaderDep = depend.draw.dependants[k];
@@ -36,7 +36,7 @@ HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocater
 				}
 			}
 			break;
-		case PIPELINE_KIND::COMPUTE:
+		case PipelineKind::Compute:
 		{
 			const DX11ShaderResourceDependancy& shaderDep = depend.compute.resources;
 
@@ -62,10 +62,10 @@ HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocater
 			}
 		}
 		break;
-		case PIPELINE_KIND::COPY:
-			if (depend.copy.kind == CopyKind::UPDATE_SUBRESOURCE)
+		case PipelineKind::Copy:
+			if (depend.copy.kind == CopyKind::UpdateSubResource)
 			{
-				maxCount = max(depend.copy.dataBufferSize + sizeof(D3D11_BOX), maxCount);
+				maxCount = max(depend.copy.args.updateSubRes.dataBufferSize + sizeof(D3D11_BOX), maxCount);
 			}
 			break;
 		}
@@ -85,15 +85,27 @@ HRESULT CopyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, 
 
 		switch (depends[i].kind)
 		{
-		case CopyKind::COPY_RESOURCE:
-			deviceContext->CopyResource(res->dx11.buffers[depends[i].dstBufferIndex], res->dx11.buffers[depends[i].srcBufferIndex]);
+		case CopyKind::CopyResource:
+			deviceContext->CopyResource(res->dx11.buffers[depends[i].args.copyRes.dstBufferIndex], res->dx11.buffers[depends[i].args.copyRes.srcBufferIndex]);
 			break;
-		case CopyKind::UPDATE_SUBRESOURCE:
+		case CopyKind::UpdateSubResource:
 		{
-			const D3D11_BOX* destBox = cd.getBoxFunc((D3D11_BOX*)state->bufferPtrBuffer);
+			const D3D11_BOX* destBox = nullptr;
+			if ((bool)cd.args.updateSubRes.getBoxFunc)
+				destBox = cd.args.updateSubRes.getBoxFunc((D3D11_BOX*)state->bufferPtrBuffer);
+
 			void* dataPtr = ((byte*)state->bufferPtrBuffer + sizeof(D3D11_BOX));
-			cd.copyToBufferFunc(dataPtr);
-			deviceContext->UpdateSubresource(res->dx11.buffers[cd.dstBufferIndex], cd.dstSubres, destBox, dataPtr, cd.srcRowPitch, cd.srcDepthPitch);
+			if ((bool)cd.args.updateSubRes.copyToBufferFunc)
+				cd.args.updateSubRes.copyToBufferFunc(dataPtr, cd.args.updateSubRes.param);
+
+			deviceContext->UpdateSubresource(
+				res->dx11.buffers[cd.args.updateSubRes.resIndex], 
+				cd.args.updateSubRes.dstSubres, 
+				destBox, 
+				dataPtr, 
+				cd.args.updateSubRes.srcRowPitch, 
+				cd.args.updateSubRes.srcDepthPitch
+			);
 			break;
 		}
 		}
@@ -108,13 +120,13 @@ HRESULT ExecuteExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextS
 	{
 		switch (depends[i].pipelineKind)
 		{
-		case PIPELINE_KIND::DRAW:
+		case PipelineKind::Draw:
 			DrawExplicitlyDX11(deviceContext, state, res, 1, &depends[i].draw);
 			break;
-		case PIPELINE_KIND::COMPUTE:
+		case PipelineKind::Compute:
 			ComputeExplicitlyDX11(deviceContext, state, res, 1, &depends[i].compute);
 			break;
-		case PIPELINE_KIND::COPY:
+		case PipelineKind::Copy:
 			CopyDX11(deviceContext, state, res, 1, &depends[i].copy);
 			break;
 		}
@@ -128,13 +140,13 @@ HRESULT ExecuteImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextS
 	{
 		switch (depends[i].pipelineKind)
 		{
-		case PIPELINE_KIND::DRAW:
+		case PipelineKind::Draw:
 			DrawImplicitlyDX11(deviceContext, state, res, 1, &depends[i].draw);
 			break;
-		case PIPELINE_KIND::COMPUTE:
+		case PipelineKind::Compute:
 			ComputeImplicitlyDX11(deviceContext, state, res, 1, &depends[i].compute);
 			break;
-		case PIPELINE_KIND::COPY:
+		case PipelineKind::Copy:
 			CopyDX11(deviceContext, state, res, 1, &depends[i].copy);
 			break;
 		}
@@ -188,14 +200,14 @@ HRESULT ComputeExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextS
 
 		switch (cpd.dispatchType)
 		{
-		case DX11ComputePipelineDependancy::DispatchType::DISPATCH:
+		case DX11ComputePipelineDependancy::DispatchType::Dispatch:
 			deviceContext->Dispatch(
 				cpd.argsAsDispatch.dispatch.threadGroupCountX,
 				cpd.argsAsDispatch.dispatch.threadGroupCountY,
 				cpd.argsAsDispatch.dispatch.threadGroupCountZ
 			);
 			break;
-		case DX11ComputePipelineDependancy::DispatchType::DISPATCH_INDIRECT:
+		case DX11ComputePipelineDependancy::DispatchType::DispatchIndirect:
 			deviceContext->DispatchIndirect(
 				dx11Res->buffers[cpd.argsAsDispatch.dispatchIndirect.bufferIndex],
 				cpd.argsAsDispatch.dispatchIndirect.bufferIndex
@@ -369,12 +381,12 @@ HRESULT DrawExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextStat
 
 		switch (depend.drawType)
 		{
-		case DX11DrawPipelineDependancy::DrawType::DRAW:
+		case DX11DrawPipelineDependancy::DrawType::Draw:
 			deviceContext->Draw(
 				depend.argsAsDraw.drawArgs.vertexCount, depend.argsAsDraw.drawArgs.startVertexLocation
 			);
 			break;
-		case DX11DrawPipelineDependancy::DrawType::DRAW_INDEXED:
+		case DX11DrawPipelineDependancy::DrawType::DrawIndexed:
 			deviceContext->DrawIndexed(
 				depend.argsAsDraw.drawIndexedArgs.indexCount,
 				depend.argsAsDraw.drawIndexedArgs.startIndexLocation,
@@ -402,13 +414,13 @@ HRESULT ReleaseDX11Dependancy(uint dependCount, DX11PipelineDependancy* dependan
 		{
 			switch (dependancy[i].pipelineKind)
 			{
-			case PIPELINE_KIND::DRAW:
+			case PipelineKind::Draw:
 				ReleaseDrawDependancy(&dependancy[i].draw, allocs);
 				break;
-			case PIPELINE_KIND::COMPUTE:
+			case PipelineKind::Compute:
 				ReleaseComputeDependancy(&dependancy[i].compute, allocs);
 				break;
-			case PIPELINE_KIND::COPY:
+			case PipelineKind::Copy:
 				ReleaseCopyDependancy(&dependancy[i].copy, allocs);
 				break;
 			}
@@ -461,4 +473,132 @@ HRESULT ReleaseContext(RenderContextState* context, const Allocaters* allocs)
 	SAFE_DEALLOC(context->bufferPtrBuffer, allocs->dealloc);
 	SAFE_DEALLOC(context->numberBuffer, allocs->dealloc);
 	return S_OK;
+}
+
+using namespace std;
+
+void PrintShaderResourceDependancy(const char* prefix0, const char* prefix1, const DX11ShaderResourceDependancy& srd)
+{
+	cout << prefix0 << prefix1 << "shaderFileIndex :: " << srd.shaderFileIndex << ", shaderIndex :: " << srd.shaderIndex << endl;
+
+	cout << prefix0 << prefix1 << "constantBufferCount :: " << srd.constantBufferCount << endl;
+	for (uint i = 0; i < srd.constantBufferCount; i++)
+	{
+		cout << prefix0 << prefix1 << "cb[" << i << "].indexCount :: " << srd.constantBuffers[i].indexCount << endl;
+		cout << prefix0 << prefix1 << "cb[" << i << "].slotOrRegister :: " << srd.constantBuffers[i].slotOrRegister << endl;
+		for (uint j = 0; j < srd.constantBuffers[i].indexCount; j++)
+			cout << prefix0 << prefix1 << "cb[" << i << "].indcices[" << j << "] :: " << srd.constantBuffers[i].indices[j] << endl;
+	}
+
+	cout << prefix0 << prefix1 << "srvCount :: " << srd.srvCount << endl;
+	for (uint i = 0; i < srd.srvCount; i++)
+	{
+		cout << prefix0 << prefix1 << "srv[" << i << "].indexCount :: " << srd.srvs[i].indexCount << endl;
+		cout << prefix0 << prefix1 << "srv[" << i << "].slotOrRegister :: " << srd.srvs[i].slotOrRegister << endl;
+		for (uint j = 0; j < srd.srvs[i].indexCount; j++)
+			cout << prefix0 << prefix1 << "srv[" << i << "].indcices[" << j << "] :: " << srd.srvs[i].indices[j] << endl;
+	}
+
+	cout << prefix0 << prefix1 << "samplerCount :: " << srd.samplerCount << endl;
+	for (uint i = 0; i < srd.samplerCount; i++)
+	{
+		cout << prefix0 << prefix1 << "sampler[" << i << "].indexCount :: " << srd.samplers[i].indexCount << endl;
+		cout << prefix0 << prefix1 << "sampler[" << i << "].slotOrRegister :: " << srd.samplers[i].slotOrRegister << endl;
+		for (uint j = 0; j < srd.samplers[i].indexCount; j++)
+			cout << prefix0 << prefix1 << "sampler[" << i << "].indcices[" << j << "] :: " << srd.samplers[i].indices[j] << endl;
+	}
+
+	cout << prefix0 << prefix1 << "uavCount :: " << srd.uavCount << endl;
+	for (uint i = 0; i < srd.uavCount; i++)
+	{
+		cout << prefix0 << prefix1 << "uav[" << i << "].indexCount :: " << srd.uavs[i].indexCount << endl;
+		cout << prefix0 << prefix1 << "uav[" << i << "].slotOrRegister :: " << srd.uavs[i].slotOrRegister << endl;
+		for (uint j = 0; j < srd.uavs[i].indexCount; j++)
+			cout << prefix0 << prefix1 << "uav[" << i << "].indcices[" << j << "] :: " << srd.uavs[i].indices[j] << endl;
+	}
+}
+
+void PrintPipelineDependancy(const char* prefix, const DX11PipelineDependancy& d)
+{
+	switch (d.pipelineKind)
+	{
+	case PipelineKind::Draw:
+	{
+		const DX11DrawPipelineDependancy& dr = d.draw;
+
+		cout << prefix << "> " << "drawType :: " << (uint)dr.drawType << endl;
+
+		switch (dr.drawType)
+		{
+		case DX11DrawPipelineDependancy::DrawType::Draw:
+			cout << prefix << "> " << "drawArgs.vertexCount :: " << dr.argsAsDraw.drawArgs.vertexCount << endl;
+			cout << prefix << "> " << "drawArgs.startVertexLocation :: " << dr.argsAsDraw.drawArgs.startVertexLocation << endl;
+			break;
+		case DX11DrawPipelineDependancy::DrawType::DrawIndexed:
+			cout << prefix << "> " << "drawIndexedArgs.indexCount :: " << dr.argsAsDraw.drawIndexedArgs.indexCount << endl;
+			cout << prefix << "> " << "drawIndexedArgs.startIndexLocation :: " << dr.argsAsDraw.drawIndexedArgs.startIndexLocation << endl;
+			cout << prefix << "> " << "drawIndexedArgs.baseVertexLocation :: " << dr.argsAsDraw.drawIndexedArgs.baseVertexLocation << endl;
+			break;
+		}
+
+		cout << prefix << "> " << "input.inputlayout :: " << dr.input.inputLayoutIndex << endl;
+		cout << prefix << "> " << "input.geometry :: " << dr.input.geometryIndex << endl;
+		cout << prefix << "> " << "input.topology :: " << dr.input.topology << endl;
+		cout << prefix << "> " << "input.vertexBufferIndex :: " << dr.input.vertexBufferIndex << endl;
+		cout << prefix << "> " << "input.vertexBufferOffset :: " << dr.input.vertexBufferOffset << endl;
+		cout << prefix << "> " << "input.vertexSize :: " << dr.input.vertexSize << endl;
+
+		for (int i = 0; i < 5; i++)
+		{
+			const DX11ShaderResourceDependancy& srd = dr.dependants[i];
+			cout << prefix << "> " << "dependants[" << i << "]" <<  endl;
+			PrintShaderResourceDependancy(prefix, ">> ", srd);
+		}
+	}
+		break;
+	case PipelineKind::Compute:
+	{
+		const DX11ComputePipelineDependancy& cm = d.compute;
+		cout << prefix << "> " << "dispatchType :: " << (uint)cm.dispatchType << endl;
+
+		switch (cm.dispatchType)
+		{
+		case DX11ComputePipelineDependancy::DispatchType::Dispatch:
+			cout << prefix << "> " << "dispatch.threadGroupCount :: " << cm.argsAsDispatch.dispatch.threadGroupCountX;
+			cout << ", " << cm.argsAsDispatch.dispatch.threadGroupCountY << ", ";
+			cout << cm.argsAsDispatch.dispatch.threadGroupCountZ << endl;
+			break;
+		case DX11ComputePipelineDependancy::DispatchType::DispatchIndirect:
+			cout << prefix << "> " << "dispatchIndirect.bufferIndex :: " << cm.argsAsDispatch.dispatchIndirect.bufferIndex << endl;
+			cout << prefix << "> " << "dispatchIndirect.alignedByteOffset :: " << cm.argsAsDispatch.dispatchIndirect.alignedByteOffset << endl;
+			break;
+		}
+
+		PrintShaderResourceDependancy(prefix, ">> ", cm.resources);
+	}
+		break;
+	case PipelineKind::Copy:
+	{
+		const DX11CopyDependancy& cp = d.copy;
+		cout << prefix << "> " << "copy kind :: " << (uint)cp.kind << endl;
+		switch (cp.kind)
+		{
+		case CopyKind::CopyResource:
+			cout << prefix << "> CopyResource :: ";
+			cout << cp.args.copyRes.srcBufferIndex << " ->> " << cp.args.copyRes.dstBufferIndex << endl;
+			break;
+		case CopyKind::UpdateSubResource:
+			cout << prefix << "> updateSubRes.resKind :: " << (uint)cp.args.updateSubRes.resKind << endl;
+			cout << prefix << "> updateSubRes.resIndex :: " << cp.args.updateSubRes.resIndex << endl;
+			cout << prefix << "> updateSubRes.dstSubres :: " << cp.args.updateSubRes.dstSubres << endl;
+			cout << prefix << "> updateSubRes.getBoxFunc :: " << (bool)cp.args.updateSubRes.getBoxFunc << endl;
+			cout << prefix << "> updateSubRes.param :: " << (lint)cp.args.updateSubRes.param << endl;
+			cout << prefix << "> updateSubRes.copyToBufferFunc :: " << (bool)cp.args.updateSubRes.copyToBufferFunc << endl;
+			cout << prefix << "> updateSubRes.srcRowPitch :: " << cp.args.updateSubRes.srcRowPitch << endl;
+			cout << prefix << "> updateSubRes.srcDepthPitch :: " << cp.args.updateSubRes.srcDepthPitch << endl;
+			break;
+		}
+	}
+		break;
+	}
 }

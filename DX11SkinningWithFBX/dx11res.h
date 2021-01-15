@@ -6,14 +6,21 @@
 #include <d3d11_4.h>
 #include "fbximport.h"
 
-// TODO:: 리소스 로드 후 인덱스 반환
-
-struct DX11ShaderCompileDesc
+struct ShaderCompileDesc
 {
 	const wchar_t* fileName;
 	const char* entrypoint;
 	const char* target;
 };
+
+inline bool operator==(const ShaderCompileDesc& d0, const ShaderCompileDesc& d1)
+{
+	return
+		wcscmp(d0.fileName, d1.fileName) == 0 &&
+		strcmp(d0.entrypoint, d1.entrypoint) == 0 &&
+		strcmp(d0.target, d1.target) == 0;
+}
+
 struct DX11ShaderTexture2DDesc
 {
 	uint srvIndex;
@@ -109,16 +116,16 @@ struct DX11InternalResourceDescBuffer
 	{
 		struct
 		{
-			std::vector<DX11ShaderCompileDesc> vertexShaderCompileDescs;
-			std::vector<DX11ShaderCompileDesc> pixelShaderCompileDescs;
-			std::vector<DX11ShaderCompileDesc> computeShaderCompileDescs;
-			std::vector<DX11ShaderCompileDesc> geometryShaderCompileDescs;
-			std::vector<DX11ShaderCompileDesc> hullShaderCompileDescs;
-			std::vector<DX11ShaderCompileDesc> domainShaderCompileDescs;
+			std::vector<ShaderCompileDesc> vertexShaderCompileDescs;
+			std::vector<ShaderCompileDesc> pixelShaderCompileDescs;
+			std::vector<ShaderCompileDesc> computeShaderCompileDescs;
+			std::vector<ShaderCompileDesc> geometryShaderCompileDescs;
+			std::vector<ShaderCompileDesc> hullShaderCompileDescs;
+			std::vector<ShaderCompileDesc> domainShaderCompileDescs;
 		};
 		struct
 		{
-			std::vector<DX11ShaderCompileDesc> shaderCompileDesces[6];
+			std::vector<ShaderCompileDesc> shaderCompileDesces[6];
 		};
 	};
 	std::vector<DX11ILDesc> inputLayoutDescs;
@@ -139,7 +146,7 @@ struct DX11InternalResourceDescBuffer
 
 uint ReserveLoadInputLayouts(DX11InternalResourceDescBuffer* rawResBuffer, uint additionalCount, const DX11ILDesc* ilDescs);
 uint ReserveLoadConstantBuffers(DX11InternalResourceDescBuffer* rawResBuffer, uint constantBufferCount, const uint* bufferSizes);
-void ReserveLoadShaders(DX11InternalResourceDescBuffer* rawResBuffer, uint additioanlCount, const DX11ShaderCompileDesc* descs, OUT ShaderKind* kinds, OUT int* indices);
+void ReserveLoadShaders(DX11InternalResourceDescBuffer* rawResBuffer, uint additioanlCount, const ShaderCompileDesc* descs, OUT ShaderKind* kinds, OUT int* indices);
 uint ReserveLoadSamplerStates(DX11InternalResourceDescBuffer* rawResBuffer, uint samplerCount, const D3D11_SAMPLER_DESC* descs);
 uint ReserveLoadShaderResourceViews(DX11InternalResourceDescBuffer* rawResBuffer, uint additioanlCount, const DX11SRVDesc* descs);
 uint ReserveLoadUnorderedAccessViews(DX11InternalResourceDescBuffer* rawResBuffer, uint additioanlCount, const  DX11UAVDesc* descs);
@@ -148,7 +155,7 @@ uint ReserveLoadTexture2Ds(DX11InternalResourceDescBuffer* rawResBuffer, uint ad
 
 uint ReserveLoadInputLayout(DX11InternalResourceDescBuffer* rawResBuffer, const DX11ILDesc& desc);
 uint ReserveLoadConstantBuffer(DX11InternalResourceDescBuffer* rawResBuffer, const uint bufferSize);
-uint ReserveLoadShader(DX11InternalResourceDescBuffer* rawResBuffer, const DX11ShaderCompileDesc* desc, OUT ShaderKind* s);
+uint ReserveLoadShader(DX11InternalResourceDescBuffer* rawResBuffer, const ShaderCompileDesc* desc, OUT ShaderKind* s);
 uint ReserveLoadSamplerState(DX11InternalResourceDescBuffer* rawResBuffer, const D3D11_SAMPLER_DESC* desc);
 uint ReserveLoadShaderResourceView(DX11InternalResourceDescBuffer* rawResBuffer, const DX11SRVDesc* desc);
 uint ReserveLoadUnorderedAccessView(DX11InternalResourceDescBuffer* rawResBuffer, const DX11UAVDesc* desc);
@@ -157,6 +164,10 @@ uint ReserveLoadTexture2D(DX11InternalResourceDescBuffer* rawResBuffer, const DX
 
 struct DX11CompileDescToShader
 {
+	// file to shader
+	uint shaderFileIndex;
+	uint shaderIndexInFile;
+	// resource
 	uint shaderKindIndex;
 	uint shaderIndex;
 };
@@ -183,7 +194,7 @@ struct DX11ResourceDesc
 	const FBXChunk* fbxChunks;
 	const FBXChunkConfig* fbxMeshConfigs;
 	uint shaderCompileCount;
-	const DX11ShaderCompileDesc* shaderCompileDescs;
+	const ShaderCompileDesc* shaderCompileDescs;
 	uint inputLayoutCount;
 	const DX11InputLayoutDesc* inputLayoutDescs;
 	uint textureDirCount;
