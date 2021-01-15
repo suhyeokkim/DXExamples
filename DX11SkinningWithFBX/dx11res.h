@@ -176,6 +176,7 @@ struct FBXChunkConfig
 	struct FBXMeshConfig
 	{
 		bool isSkinned;
+		FBXMeshConfig() : isSkinned(false) {}
 	}* meshConfigs;
 };
 struct DX11InputLayoutDesc

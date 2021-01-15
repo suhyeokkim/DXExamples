@@ -476,10 +476,22 @@ HRESULT LoadResourceAndDependancyFromInstance(
 			itod.shaderCompileIndices[0] >= 0,
 			L"fail to find vertex shader desc.."
 		);
-		itod.resInputLayoutIndex = vertexShaderAndGeometryVector.size();
-		vertexShaderAndGeometryVector.push_back(
-			std::pair<uint, uint> (itod.shaderCompileIndices[0], itod.resGeometryIndex)
-		);
+		auto it = 
+			std::find_if(
+				vertexShaderAndGeometryVector.begin(),
+				vertexShaderAndGeometryVector.end(),
+				[=](std::pair<uint, uint> p) -> bool {
+					return p.first == itod.shaderCompileIndices[0] & p.second == itod.resGeometryIndex; 
+				}
+			);
+		if (it == vertexShaderAndGeometryVector.end())
+		{
+			vertexShaderAndGeometryVector.push_back(
+				std::pair<uint, uint>(itod.shaderCompileIndices[0], itod.resGeometryIndex)
+			);
+			it = std::prev(vertexShaderAndGeometryVector.end());
+		}
+		itod.resInputLayoutIndex = std::distance(vertexShaderAndGeometryVector.begin(), it);
 
 		itodVector.push_back(itod);
 	}
@@ -1215,7 +1227,7 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 							memcpy(ptr, g.uvSlots[j] + i, sizeof(g.uvSlots[j][i]));
 							ptr += sizeof(g.uvSlots[j][i]);
 						}
-					if (g.boneIndices && g.boneWeights)
+					if (configs[ci].meshConfigs[mi].isSkinned && g.boneIndices && g.boneWeights)
 					{
 						memcpy(ptr, g.boneIndices + i, sizeof(g.boneIndices[i]));
 						ptr += sizeof(g.boneIndices[i]);

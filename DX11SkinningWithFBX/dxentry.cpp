@@ -140,7 +140,7 @@ HRESULT DXDeviceInit(UINT width, UINT height, UINT maxFrameRate, bool debug)
 
 Vector4f
 g_CurrentPos = Vector4f(-100.0f, 75.f, 150.0f, 0.0f),
-g_ObjectPos = Vector4f(0.0f, 25.f, 0.0f, 0.0f);
+g_ObjectPos = Vector4f(0.0f, 0, 0.0f, 0.0f);
 
 void UpdateFrameCB(void* ptr, void* ref)
 {
