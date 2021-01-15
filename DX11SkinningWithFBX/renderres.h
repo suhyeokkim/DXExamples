@@ -336,8 +336,8 @@ HRESULT LoadDX11Resoureces(
 );
 HRESULT ReleaseResources(RenderResources* res, const Allocaters* allocs);
 
-struct DX11PipelineDependancy;
+struct DX11PipelineDependancySet;
 HRESULT LoadResourceAndDependancyFromInstance(
 	IN ID3D11Device* device, IN const Allocaters* allocs, IN uint instanceCount, IN RenderInstance* instances,
-	OUT RenderResources* res, OUT DX11InternalResourceDescBuffer* rawBuffer, OUT uint* dependancyCount, OUT DX11PipelineDependancy** dependancies
+	OUT RenderResources* res, OUT DX11InternalResourceDescBuffer* rawBuffer, OUT DX11PipelineDependancySet* set
 );

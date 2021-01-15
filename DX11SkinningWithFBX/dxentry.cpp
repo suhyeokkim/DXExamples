@@ -47,8 +47,7 @@ XMMATRIX g_Projection;
 
 GeneralAllocater g_GeneralAllocater;
 RenderResources g_ExternalResources;
-uint g_DependancyCount;
-DX11PipelineDependancy* g_Dependancies;
+DX11PipelineDependancySet g_DepSet;
 RenderContextState g_ContextState;
 
 int g_FrameCount = 0;
@@ -227,6 +226,9 @@ HRESULT DXEntryResize(UINT width, UINT height)
 	g_D3D11ViewPort.TopLeftX = 0;
 	g_D3D11ViewPort.TopLeftY = 0;
 
+	// resize refresh data
+	ExecuteExplicitlyDX11(g_D3D11ImmediateContext, &g_ContextState, &g_ExternalResources, g_DepSet.resizeDependancyCount, g_DepSet.resizeDependancy);
+
 	return hr;
 }
 
@@ -315,13 +317,17 @@ HRESULT RenderResourceInit(bool debug)
 	FAILED_ERROR_MESSAGE_RETURN(
 		LoadResourceAndDependancyFromInstance(
 			g_D3D11Device, &g_GeneralAllocater.persistant, ARRAYSIZE(renderInstances), renderInstances, 
-			&g_ExternalResources, &buffer2, &g_DependancyCount, &g_Dependancies
+			&g_ExternalResources, &buffer2, &g_DepSet
 		),
 		L"fail to load resource & dependacies.."
 	);
 
 	// context prepare
-	DependancyContextStatePrepare(&g_ContextState, &g_GeneralAllocater.persistant, g_DependancyCount, g_Dependancies);
+	DependancyContextStatePrepare(&g_ContextState, &g_GeneralAllocater.persistant, &g_DepSet);
+
+	// init refresh data
+	ExecuteExplicitlyDX11(g_D3D11ImmediateContext, &g_ContextState, &g_ExternalResources, g_DepSet.initDependancyCount, g_DepSet.initDependancy);
+	ExecuteExplicitlyDX11(g_D3D11ImmediateContext, &g_ContextState, &g_ExternalResources, g_DepSet.resizeDependancyCount, g_DepSet.resizeDependancy);
 
 	return S_OK;
 }
@@ -369,8 +375,7 @@ void DXEntryClean()
 	ReleaseResources(&g_ExternalResources, &g_GeneralAllocater.persistant);
 	ReleaseContext(&g_ContextState, &g_GeneralAllocater.persistant);
 
-	if (g_Dependancies)
-		ReleaseDX11Dependancy(g_DependancyCount, g_Dependancies, &g_GeneralAllocater.persistant);
+	ReleaseDX11Dependancy(&g_DepSet, &g_GeneralAllocater.persistant);
 }
 void ReadKey();
 void Render();
@@ -431,7 +436,7 @@ void RenderDependancy()
 	g_D3D11ImmediateContext->RSSetViewports(1, &g_D3D11ViewPort);
 	g_D3D11ImmediateContext->OMSetRenderTargets(1, &g_D3D11RenderTargetView, g_D3D11DepthStencialView);
 	
-	ExecuteExplicitlyDX11(g_D3D11ImmediateContext, &g_ContextState, &g_ExternalResources, g_DependancyCount, g_Dependancies);
+	ExecuteExplicitlyDX11(g_D3D11ImmediateContext, &g_ContextState, &g_ExternalResources, g_DepSet.frameDependancyCount, g_DepSet.frameDependancy);
 
 	g_DXGISwapChain->Present(0, 0);
 }

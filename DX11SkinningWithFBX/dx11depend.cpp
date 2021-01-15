@@ -1,5 +1,13 @@
 #include "dx11depend.h"
 
+HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocaters* allocs, const DX11PipelineDependancySet* set)
+{
+	DependancyContextStatePrepare(state, allocs, set->frameDependancyCount, set->frameDependancy);
+	DependancyContextStatePrepare(state, allocs, set->initDependancyCount, set->initDependancy);
+	DependancyContextStatePrepare(state, allocs, set->resizeDependancyCount, set->resizeDependancy);
+
+	return S_OK;
+}
 HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocaters* allocs, uint dependCount, const DX11PipelineDependancy* depends)
 {
 	uint maxCount = state->bufferCount;
@@ -406,6 +414,14 @@ HRESULT ReleaseDrawDependancy(DX11DrawPipelineDependancy* dependancy, const Allo
 HRESULT ReleaseComputeDependancy(DX11ComputePipelineDependancy* dependancy, const Allocaters* allocs);
 HRESULT ReleaseCopyDependancy(DX11CopyDependancy* dependancy, const Allocaters* allocs);
 
+HRESULT ReleaseDX11Dependancy(DX11PipelineDependancySet* set, const Allocaters* allocs)
+{
+	ReleaseDX11Dependancy(set->frameDependancyCount, set->frameDependancy, allocs);
+	ReleaseDX11Dependancy(set->initDependancyCount, set->initDependancy, allocs);
+	ReleaseDX11Dependancy(set->resizeDependancyCount, set->resizeDependancy, allocs);
+
+	return S_OK;
+}
 HRESULT ReleaseDX11Dependancy(uint dependCount, DX11PipelineDependancy* dependancy, const Allocaters* allocs)
 {
 	if (dependancy)

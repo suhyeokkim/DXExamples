@@ -204,7 +204,7 @@ void SetShaderResourceDependancy(
 
 HRESULT LoadResourceAndDependancyFromInstance(
 	IN ID3D11Device* device, IN const Allocaters* allocs, IN uint instanceCount, IN RenderInstance* instances,
-	OUT RenderResources* res, OUT DX11InternalResourceDescBuffer* rawBuffer, OUT uint* dependancyCount, OUT DX11PipelineDependancy** dependacnies
+	OUT RenderResources* res, OUT DX11InternalResourceDescBuffer* rawBuffer, OUT DX11PipelineDependancySet* set
 )
 {
 	std::vector<std::pair<const wchar_t*, FBXAdjChunk>> fbxPathChunkVector;
@@ -215,7 +215,9 @@ HRESULT LoadResourceAndDependancyFromInstance(
 	std::vector<SkinningInstanceDesc> skinningInstanceDescVector;
 	std::vector<std::pair<uint, uint>> vertexShaderAndGeometryVector;
 
-	std::vector<DX11PipelineDependancy> dx11DependVector;
+	std::vector<DX11PipelineDependancy> dx11FrameDependVector;
+	std::vector<DX11PipelineDependancy> dx11ResizeDependVector;
+	std::vector<DX11PipelineDependancy> dx11InitDependVector;
 
 	std::vector<InstanceToDependancy> itodVector;
 
@@ -621,9 +623,20 @@ HRESULT LoadResourceAndDependancyFromInstance(
 					IntToPtr(itodVector[instanceIndex].skinInstanceIndex);
 				break;
 			}
-
 			cbDepend.copy.args.updateSubRes.copyToBufferFunc = cb.setFunc;
-			dx11DependVector.push_back(cbDepend);
+
+			switch (cb.freq)
+			{
+			case UpdateFrequency::PerFrame:
+				dx11FrameDependVector.push_back(cbDepend);
+				break;
+			case UpdateFrequency::OnlyOnce:
+				dx11InitDependVector.push_back(cbDepend);
+				break;
+			case UpdateFrequency::OnResize:
+				dx11ResizeDependVector.push_back(cbDepend);
+				break;
+			}
 		}
 
 		// only zero values
@@ -695,7 +708,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 				instance.skinCSParam, compute.resources
 			);
 
-			dx11DependVector.push_back(computeDepend);
+			dx11FrameDependVector.push_back(computeDepend);
 
 			DX11PipelineDependancy vtxCopy;
 			vtxCopy.pipelineKind = PipelineKind::Copy;
@@ -704,7 +717,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 			copy.args.copyRes.srcBufferIndex = skin.vertexStreamBufferIndex;
 			copy.args.copyRes.dstBufferIndex = skin.vertexBufferIndex;
 
-			dx11DependVector.push_back(vtxCopy);
+			dx11FrameDependVector.push_back(vtxCopy);
 		}
 
 		{
@@ -744,14 +757,25 @@ HRESULT LoadResourceAndDependancyFromInstance(
 			draw.draw.argsAsDraw.drawIndexedArgs.baseVertexLocation = baseVertexLocation;
 			draw.draw.argsAsDraw.drawIndexedArgs.startIndexLocation = startIndexLocation;
 
-			dx11DependVector.push_back(draw);
+			dx11FrameDependVector.push_back(draw);
 		}
 	}
 
-	*dependancyCount = static_cast<size_t>(dx11DependVector.size());
-	*dependacnies = (DX11PipelineDependancy*)allocs->alloc(sizeof(DX11PipelineDependancy) * dx11DependVector.size());
-	for (size_t i = 0; i < dx11DependVector.size(); i++)
-		new ((*dependacnies) + i) DX11PipelineDependancy(std::move(dx11DependVector[i]));
+
+	set->frameDependancyCount = static_cast<size_t>(dx11FrameDependVector.size());
+	set->frameDependancy = (DX11PipelineDependancy*)allocs->alloc(sizeof(DX11PipelineDependancy) * dx11FrameDependVector.size());
+	for (size_t i = 0; i < dx11FrameDependVector.size(); i++)
+		new (set->frameDependancy + i) DX11PipelineDependancy(std::move(dx11FrameDependVector[i]));
+
+	set->resizeDependancyCount = static_cast<size_t>(dx11ResizeDependVector.size());
+	set->resizeDependancy = (DX11PipelineDependancy*)allocs->alloc(sizeof(DX11PipelineDependancy) * dx11ResizeDependVector.size());
+	for (size_t i = 0; i < dx11ResizeDependVector.size(); i++)
+		new (set->resizeDependancy + i) DX11PipelineDependancy(std::move(dx11ResizeDependVector[i]));
+
+	set->initDependancyCount = static_cast<size_t>(dx11InitDependVector.size());
+	set->initDependancy = (DX11PipelineDependancy*)allocs->alloc(sizeof(DX11PipelineDependancy) * dx11InitDependVector.size());
+	for (size_t i = 0; i < dx11InitDependVector.size(); i++)
+		new (set->initDependancy + i) DX11PipelineDependancy(std::move(dx11InitDependVector[i]));
 
 #pragma endregion
 

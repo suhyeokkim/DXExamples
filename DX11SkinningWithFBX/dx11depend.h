@@ -260,6 +260,21 @@ struct DX11PipelineDependancy
 	}
 	~DX11PipelineDependancy() {}
 };
+struct DX11PipelineDependancySet
+{
+	uint initDependancyCount;
+	DX11PipelineDependancy* initDependancy;
+	uint resizeDependancyCount;
+	DX11PipelineDependancy* resizeDependancy;
+	uint frameDependancyCount;
+	DX11PipelineDependancy* frameDependancy;
+
+	DX11PipelineDependancySet() :
+		initDependancyCount(0), initDependancy(nullptr), resizeDependancyCount(0), resizeDependancy(nullptr),
+		frameDependancyCount(0), frameDependancy(nullptr)
+	{
+	}
+};
 
 void PrintPipelineDependancy(const char* prefix, const DX11PipelineDependancy& d);
 
@@ -273,6 +288,7 @@ HRESULT ComputeImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextS
 HRESULT DrawExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11DrawPipelineDependancy* depends);
 HRESULT DrawImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11DrawPipelineDependancy* depends);
 HRESULT ReleaseDX11Dependancy(uint dependCount, DX11PipelineDependancy* dependancy, const Allocaters* allocs);
+HRESULT ReleaseDX11Dependancy(DX11PipelineDependancySet* set, const Allocaters* allocs);
 
 struct RenderContextState
 {
@@ -281,5 +297,6 @@ struct RenderContextState
 	uint* numberBuffer;
 };
 
+HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocaters* allocs, const DX11PipelineDependancySet* set);
 HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocaters* allocs, uint dependCount, const DX11PipelineDependancy* depends);
 HRESULT ReleaseContext(RenderContextState* context, const Allocaters* allocs);
