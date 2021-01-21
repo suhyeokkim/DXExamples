@@ -54,5 +54,8 @@
     <FxCompile Include="lbs_compute.hlsl">
       <Filter>Resoureces</Filter>
     </FxCompile>
+    <FxCompile Include="object_srv.hlsl">
+      <Filter>Resoureces</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

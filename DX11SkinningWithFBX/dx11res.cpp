@@ -366,11 +366,13 @@ HRESULT CreateDX11ResourcesByDesc(DX11Resources* res, DX11InternalResourceDescBu
 			break;
 		}
 		
+		ID3D11ShaderResourceView* srv = nullptr;
 		FAILED_ERROR_MESSAGE_ARGS(
-			device->CreateShaderResourceView(dx11res, &rawBuffer->srvDescs[i].view, &res->srvs[i]),
+			device->CreateShaderResourceView(dx11res, &rawBuffer->srvDescs[i].view, &srv),
 			L"failed to create SRV(idx:%d)..",
 			i
 		);
+		res->srvs[i] = srv;
 	}
 		
 	ALLOC_RANGE_ZEROMEM(

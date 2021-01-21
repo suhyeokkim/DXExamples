@@ -601,6 +601,69 @@ HRESULT LoadResourceAndDependancyFromInstance(
 
 	for (uint instanceIndex = 0; instanceIndex < instanceCount; instanceIndex++)
 	{
+		InstanceToDependancy& itod = itodVector[instanceIndex];
+		RenderInstance& instance = instances[instanceIndex];
+
+		RenderResources::SkinningInstance* skin = 
+			instance.isSkinDeform ? &res->skinningInstances[itod.skinInstanceIndex] : nullptr;
+
+		for (uint sidx = 0; sidx < 6; sidx++)
+		{
+			if (sidx < 5 && !(instance.shaderFlag & (0x01 << sidx))) continue;
+			const ShaderInstance& si = sidx < 5 ? instance.si[sidx] : instance.skinCSParam;
+
+			for (uint paramIndex = 0; paramIndex < si.paramCount; paramIndex++)
+			{
+				const ShaderParams& p = si.params[paramIndex];
+
+				switch (p.kind)
+				{
+				case ShaderParamKind::ExistBufferSRV:
+				{
+					int srvIndex = -1;
+					switch (p.existSRV.kind)
+					{
+					case ExistSRVKind::GeometryVertexBufferForSkin:
+						srvIndex = res->geometryChunks[skin->geometryIndex].vertexDataSRVIndex;
+						break;
+					case ExistSRVKind::BindPoseBufferForSkin:
+						srvIndex = 
+							res->boneSets[res->anims[skin->animationIndex].boneSetIndex].binePoseTransformSRVIndex;
+						break;
+					case ExistSRVKind::AnimationBufferForSkin:
+						srvIndex = res->anims[skin->animationIndex].animPoseTransformSRVIndex;
+						break;
+					case ExistSRVKind::DeformedVertexBufferForSkin:
+						srvIndex = skin->vertexStreamSRVIndex;
+						break;
+					}
+
+					itod.srvCurrentIndexVector[sidx].push_back(
+						InstanceToDependancy::SRVParamIndices(
+							InstanceToDependancy::SRVParamIndices::SRVArrayKind::ExistSRV,
+							paramIndex, srvIndex
+						)
+					);
+				}
+					break;
+				case ShaderParamKind::ExistBufferUAV:
+					switch (p.existUAV.kind)
+					{
+					case ExistUAVKind::DeformedVertexBufferForSkin:
+						itod.uavCurrentIndexVector[sidx].push_back(
+							std::pair<uint, uint>(paramIndex, skin->vertexStreamUAVIndex)
+						);
+						break;
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	std::vector<ShaderParamCB> cbVector;
+	for (uint instanceIndex = 0; instanceIndex < instanceCount; instanceIndex++)
+	{
 		// variables
 		InstanceToDependancy& itod = itodVector[instanceIndex];
 		RenderInstance& instance = instances[instanceIndex];
@@ -612,7 +675,9 @@ HRESULT LoadResourceAndDependancyFromInstance(
 		{
 			// TODO:: prune duplicate update
 			const uint dstSubres = 0, srcRowPitch = 0, srcDepthPitch = 0;
-			InstanceToDependancy::CBParamIndices& indices = itod.cbCurrentIndexVector[shaderIndex][cbIndex];
+			const std::vector<InstanceToDependancy::CBParamIndices>& cbCurrentIndexVector =
+				itod.cbCurrentIndexVector[shaderIndex];
+			const InstanceToDependancy::CBParamIndices& indices = cbCurrentIndexVector[cbIndex];
 			ShaderParamCB& cb = constantBufferVector[indices.cbIndex].second;
 
 			DX11PipelineDependancy cbDepend = DX11PipelineDependancy(CopyKind::UpdateSubResource);
@@ -636,19 +701,35 @@ HRESULT LoadResourceAndDependancyFromInstance(
 				break;
 			}
 			cbDepend.copy.args.updateSubRes.copyToBufferFunc = cb.setFunc;
-
+			std::vector<DX11PipelineDependancy>* dep = nullptr;
 			switch (cb.freq)
 			{
 			case UpdateFrequency::PerFrame:
-				dx11FrameDependVector.push_back(cbDepend);
+				dep = &dx11FrameDependVector;
 				break;
 			case UpdateFrequency::OnlyOnce:
-				dx11InitDependVector.push_back(cbDepend);
+				dep = &dx11InitDependVector;
 				break;
 			case UpdateFrequency::OnResize:
-				dx11ResizeDependVector.push_back(cbDepend);
+				dep = &dx11ResizeDependVector;
 				break;
 			}
+
+			if (!cb.unique)
+			{
+				auto it = std::find_if(
+					cbVector.begin(), cbVector.end(),
+					[=](const ShaderParamCB& c) -> bool
+					{ 
+						return wcscmp(cb.name, c.name) == 0;
+					}
+				);
+				if (it != cbVector.end())
+					continue;
+				cbVector.push_back(cb);
+			}
+
+			dep->push_back(cbDepend);
 		}
 
 		// only zero values
@@ -657,8 +738,6 @@ HRESULT LoadResourceAndDependancyFromInstance(
 
 		if (instance.isSkinDeform)
 		{
-			RenderResources::SkinningInstance& skin = res->skinningInstances[itod.skinInstanceIndex];
-
 			DX11PipelineDependancy computeDepend;
 			computeDepend.pipelineKind = PipelineKind::Compute;
 			DX11ComputePipelineDependancy& compute = computeDepend.compute;
@@ -667,69 +746,12 @@ HRESULT LoadResourceAndDependancyFromInstance(
 			compute.argsAsDispatch.dispatch.threadGroupCountY = 1;
 			compute.argsAsDispatch.dispatch.threadGroupCountZ = 1;
 
-			for (uint i = 0; i < instance.skinCSParam.paramCount; i++)
-			{
-				ShaderParams& p = instance.skinCSParam.params[i];
-
-				switch (p.kind)
-				{
-				case ShaderParamKind::ExistBufferSRV:
-					switch (p.existSRV.kind)
-					{
-					case ExistSRVKind::GeometryVertexBufferForSkin:
-						itod.srvCurrentIndexVector[5].push_back(
-							InstanceToDependancy::SRVParamIndices(
-								InstanceToDependancy::SRVParamIndices::SRVArrayKind::ExistSRV,
-								i, res->geometryChunks[skin.geometryIndex].vertexDataSRVIndex
-							)
-						);
-						break;
-					case ExistSRVKind::BindPoseBufferForSkin:
-						itod.srvCurrentIndexVector[5].push_back(
-							InstanceToDependancy::SRVParamIndices(
-								InstanceToDependancy::SRVParamIndices::SRVArrayKind::ExistSRV,
-								i, res->boneSets[
-									res->anims[skin.animationIndex].boneSetIndex
-								].binePoseTransformSRVIndex
-							)
-						);
-						break;
-					case ExistSRVKind::AnimationBufferForSkin:
-						itod.srvCurrentIndexVector[5].push_back(
-							InstanceToDependancy::SRVParamIndices(
-								InstanceToDependancy::SRVParamIndices::SRVArrayKind::ExistSRV,
-								i, res->anims[skin.animationIndex].animPoseTransformSRVIndex
-							)
-						);
-						break;
-					}
-					break;
-				case ShaderParamKind::ExistBufferUAV:
-					switch (p.existUAV.kind)
-					{
-					case ExistUAVKind::DeformedVertexBufferForSkin:
-						itod.uavCurrentIndexVector[5].push_back(std::pair<uint, uint>(i, skin.vertexStreamUAVIndex));
-						break;
-					}
-					break;
-				}
-			}
-
 			SetShaderResourceDependancy(
 				res, allocs, itod.shaderCompileIndices[5], cdToShader, itod, 5, 
 				instance.skinCSParam, compute.resources
 			);
 
 			dx11FrameDependVector.push_back(computeDepend);
-
-			DX11PipelineDependancy vtxCopy;
-			vtxCopy.pipelineKind = PipelineKind::Copy;
-			DX11CopyDependancy& copy = vtxCopy.copy;
-			copy.kind = CopyKind::CopyResource;
-			copy.args.copyRes.srcBufferIndex = skin.vertexStreamBufferIndex;
-			copy.args.copyRes.dstBufferIndex = skin.vertexBufferIndex;
-
-			dx11FrameDependVector.push_back(vtxCopy);
 		}
 
 		{
@@ -756,11 +778,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 			draw.draw.input.vertexBufferOffset = vertexBufferOffset;
 			draw.draw.input.vertexSize = layoutChunk.vertexSize;
 			if (instance.isSkinDeform && itod.skinInstanceIndex >= 0)
-			{
-				RenderResources::SkinningInstance& skinInstance =
-					res->skinningInstances[itod.skinInstanceIndex];
-				draw.draw.input.vertexBufferIndex = skinInstance.vertexBufferIndex;
-			}
+				draw.draw.input.vertexBufferIndex = UINT_MAX;
 			else
 				draw.draw.input.vertexBufferIndex = geometryChunk.vertexBufferIndex;
 
@@ -1600,24 +1618,38 @@ HRESULT ReserveSkinningInstances(
 			memset(&desc, 0, sizeof(DX11BufferDesc));
 			desc.buffer.Usage = D3D11_USAGE_DEFAULT;
 			desc.buffer.ByteWidth = geometry.streamedVertexSize * geometry.vertexCount;
-			desc.buffer.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+			desc.buffer.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
 			desc.buffer.CPUAccessFlags = 0;
 			desc.buffer.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
 			desc.buffer.StructureByteStride = geometry.streamedVertexSize;
 
 			item.vertexStreamBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
 		}
-		{
-			DX11BufferDesc desc;
-			memset(&desc, 0, sizeof(DX11BufferDesc));
-			desc.buffer.Usage = D3D11_USAGE_DEFAULT;
-			desc.buffer.ByteWidth = geometry.streamedVertexSize * geometry.vertexCount;
-			desc.buffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-			desc.buffer.CPUAccessFlags = 0;
 
-			item.vertexBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
+		{
+			//DX11BufferDesc desc;
+			//memset(&desc, 0, sizeof(DX11BufferDesc));
+			//desc.buffer.Usage = D3D11_USAGE_DEFAULT;
+			//desc.buffer.ByteWidth = geometry.streamedVertexSize * geometry.vertexCount;
+			//desc.buffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+			//desc.buffer.CPUAccessFlags = 0;
+
+			//item.vertexBufferIndex = ReserveLoadBuffer(rawBuffer, &desc);
 		}
 
+		{
+			DX11SRVDesc desc;
+			memset(&desc, 0, sizeof(DX11SRVDesc));
+
+			desc.bufferIndex = item.vertexStreamBufferIndex;
+			desc.view.Format = DXGI_FORMAT_UNKNOWN;
+			desc.view.ViewDimension = D3D11_SRV_DIMENSION::D3D11_SRV_DIMENSION_BUFFER;
+			desc.view.BufferEx.FirstElement = 0;
+			desc.view.BufferEx.NumElements = geometry.vertexCount;
+			desc.view.BufferEx.Flags = 0;
+
+			item.vertexStreamSRVIndex = ReserveLoadShaderResourceView(rawBuffer, &desc);
+		}
 		{
 			DX11UAVDesc desc;
 			memset(&desc, 0, sizeof(DX11UAVDesc));
@@ -1632,61 +1664,5 @@ HRESULT ReserveSkinningInstances(
 			item.vertexStreamUAVIndex = ReserveLoadUnorderedAccessView(rawBuffer, &desc);
 		}
 	}
-	return S_OK;
-}
-
-#include "dx11res.h"
-#include "dx11depend.h"
-
-struct ShaderDesc
-{
-	const wchar_t* fileName;
-	const char* entrypoint;
-};
-enum class ShaderResourceKind : uint
-{
-	SRV,
-	CBUFFER,
-	SAMPLER,
-	UAV
-};
-struct ShaderResourceDesc
-{
-	ShaderResourceKind kind;
-	uint slot;
-
-};
-
-struct StaticMeshTask
-{
-	wchar_t* fbxFilePath;
-	uint fbxGeometryIndex;
-
-
-	ShaderDesc vertexShader;
-	ShaderDesc pixelShader;
-};
-
-struct SkeletalMeshTask
-{
-	uint fbxIndex;
-	uint geometryIndex;
-	uint vertexShaderIndex;
-	uint pixelShaderIndex;
-};
-
-struct RenderTask
-{
-	int staticMeshTaskCount;
-	StaticMeshTask* staticMeshTasks;
-
-	int skeletalMeshTaskCount;
-	SkeletalMeshTask* skeletalMeshTasks;
-};
-
-HRESULT LoadDependAndDX11Resource(IN const RenderTask* task, OUT DX11PipelineDependancy** depends, OUT DX11ResourceDesc* res)
-{
-
-
 	return S_OK;
 }

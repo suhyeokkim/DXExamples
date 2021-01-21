@@ -222,6 +222,16 @@ HRESULT ComputeExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextS
 			);
 			break;
 		}
+
+		for (uint j = 0; j < srd.uavCount; j++)
+		{
+			auto ref = srd.uavs[j];
+			for (uint k = 0; k < ref.indexCount; k++)
+				state->bufferPtrBuffer[k] = nullptr;
+			// TODO:: set uav argument for append, consume buffer
+			state->numberBuffer[0] = state->numberBuffer[1] = 0;
+			deviceContext->CSSetUnorderedAccessViews(ref.slotOrRegister, ref.indexCount, reinterpret_cast<ID3D11UnorderedAccessView *const *>(state->bufferPtrBuffer), state->numberBuffer);
+		}
 	}
 
 	return S_OK;
@@ -242,12 +252,16 @@ HRESULT DrawExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextStat
 		const auto& resGeo = res->geometryChunks[depIn.geometryIndex];
 
 		deviceContext->IASetInputLayout(dx11Res->inputLayoutItems[depIn.inputLayoutIndex]);
-		deviceContext->IASetVertexBuffers(
-			0,
-			1,
-			&dx11Res->buffers[depIn.vertexBufferIndex],
-			&depIn.vertexSize,
-			&depIn.vertexBufferOffset);
+		if (depIn.vertexBufferIndex < UINT_MAX)
+			deviceContext->IASetVertexBuffers(
+				0, 1, &dx11Res->buffers[depIn.vertexBufferIndex], &depIn.vertexSize, &depIn.vertexBufferOffset
+			);
+		else
+		{
+			ID3D11Buffer* buffer = nullptr;
+			uint size = 0, offset = 0;
+			deviceContext->IASetVertexBuffers(0, 1, &buffer, &size, &offset);
+		}
 		deviceContext->IASetIndexBuffer(dx11Res->buffers[resGeo.indexBufferIndex], DXGI_FORMAT_R32_UINT, 0);
 		deviceContext->IASetPrimitiveTopology(depIn.topology);
 

@@ -99,6 +99,7 @@ enum class ExistSRVKind : uint
 	GeometryVertexBufferForSkin,
 	BindPoseBufferForSkin,
 	AnimationBufferForSkin,
+	DeformedVertexBufferForSkin,
 };
 struct ShaderParamExistSRV
 {
@@ -206,8 +207,9 @@ struct RenderResources
 	{
 		uint geometryIndex;
 		uint animationIndex;
-		uint vertexBufferIndex;
+		//uint vertexBufferIndex;
 		uint vertexStreamBufferIndex;
+		uint vertexStreamSRVIndex;
 		uint vertexStreamUAVIndex;
 	}*skinningInstances;
 

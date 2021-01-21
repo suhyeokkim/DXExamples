@@ -270,8 +270,8 @@ HRESULT RenderResourceInit(bool debug)
 	renderInstances[0].skinCSParam.paramCount = ARRAYSIZE(computeParams);
 	renderInstances[0].skinCSParam.params = computeParams;
 
-	ShaderCompileDesc vsd = { L"./object.hlsl", "vertex", "vs_5_0" };
-	ShaderParams vsParams[3];
+	ShaderCompileDesc vsd = { L"./object_srv.hlsl", "vertex", "vs_5_0" };
+	ShaderParams vsParams[4];
 	new (vsParams + 0) ShaderParams(
 		0, L"Initialize", sizeof(ImmutableCB), UpdateFrequency::OnlyOnce, UpdateImmutableCB, false
 	);
@@ -280,6 +280,9 @@ HRESULT RenderResourceInit(bool debug)
 	);
 	new (vsParams + 2) ShaderParams(
 		2, L"OnFrame", sizeof(OnFrameCB), UpdateFrequency::PerFrame, UpdateFrameCB, false
+	);
+	new (vsParams + 3) ShaderParams(
+		0, ExistSRVKind::DeformedVertexBufferForSkin
 	);
 
 	renderInstances[0].vs.sd = vsd;
@@ -291,14 +294,14 @@ HRESULT RenderResourceInit(bool debug)
 	new (psParams + 0) ShaderParams(
 		2, L"OnFrame", sizeof(OnFrameCB), UpdateFrequency::PerFrame, UpdateFrameCB, false
 	);
-	psParams[1].slotIndex = 0;
+	psParams[1].slotIndex = 1;
 	psParams[1].kind = ShaderParamKind::Texture2DSRV;
 	psParams[1].tex2DSRV = tex2D[0];
 	psParams[2].slotIndex = 0;
 	psParams[2].kind = ShaderParamKind::SamplerState;
 	psParams[2].sampler.isLinear = true;
 
-	ShaderCompileDesc psd = { L"./object.hlsl", "pixel", "ps_5_0" };
+	ShaderCompileDesc psd = { L"./object_srv.hlsl", "pixel", "ps_5_0" };
 
 	renderInstances[0].ps.sd = psd;
 	renderInstances[0].ps.paramCount = ARRAYSIZE(psParams);

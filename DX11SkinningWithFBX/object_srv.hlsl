@@ -1,4 +1,3 @@
-
 cbuffer ResizeCB : register(b1)
 {
 	matrix projection;
@@ -16,9 +15,9 @@ cbuffer OnFrameCB : register(b2)
 
 struct VS_INPUT
 {
-	float3 pos : POSITION;
-	float3 normal : NORMAL;
-	float2 uv : TEXCOORD0;
+	float3 pos;
+	float3 normal;
+	float2 uv;
 };
 
 struct PS_INPUT
@@ -28,8 +27,11 @@ struct PS_INPUT
 	float3 normal : TEXCOORD1;
 };
 
-PS_INPUT vertex(VS_INPUT input)
+StructuredBuffer<VS_INPUT> vertexBuffer : register(t0);
+
+PS_INPUT vertex(uint vi : SV_VertexID)
 {
+	VS_INPUT input = vertexBuffer[vi];
 	PS_INPUT output = (PS_INPUT)0;
 	output.pos = mul(transform, float4(input.pos, 1));
 	output.pos = output.pos / output.pos.w;
@@ -39,7 +41,7 @@ PS_INPUT vertex(VS_INPUT input)
 	return output;
 }
 
-Texture2D diffuseTexture : register(t0);
+Texture2D diffuseTexture : register(t1);
 SamplerState linearSampler : register(s0);
 
 float4 pixel(PS_INPUT input) : SV_Target
