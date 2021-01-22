@@ -1,5 +1,5 @@
-#include "dx11res.h"
 #include "dx11depend.h"
+#include "dx11res.h"
 
 HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocaters* allocs, const DX11PipelineDependancySet* set)
 {

@@ -14,8 +14,10 @@ using namespace DirectX;
 #include "defined.h"
 #include "dxentry.h"
 #include "dx11util.h"
-#include "renderres.h"
 #include "dx11depend.h"
+#include "dx11resdesc.h"
+#include "dx11res.h"
+#include "renderinstance.h"
 
 // windonw instances
 HWND g_hWnd;

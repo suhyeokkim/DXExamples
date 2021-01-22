@@ -119,3 +119,7 @@ inline HRESULT CreateDepthStencilInline(ID3D11Device* device, ID3D11Texture2D** 
 
 	return hr;
 }
+
+bool EqualInputElementDesc(int descCount, D3D11_INPUT_ELEMENT_DESC* descArray0, D3D11_INPUT_ELEMENT_DESC* descArray1);
+int ByteSizeOfFormatElement(DXGI_FORMAT format);
+int BitSizeOfFormatElement(DXGI_FORMAT format);
