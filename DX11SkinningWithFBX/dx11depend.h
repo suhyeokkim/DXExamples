@@ -4,7 +4,6 @@
 #include <d3d11_4.h>
 #include <functional>
 #include <DirectXMath.h>
-#include "renderres.h"
 
 enum class PipelineKind : uint
 {
@@ -279,14 +278,15 @@ struct DX11PipelineDependancySet
 void PrintPipelineDependancy(const char* prefix, const DX11PipelineDependancy& d);
 
 struct RenderContextState;
+struct DX11Resources;
 
-HRESULT ExecuteExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11PipelineDependancy* depends);
-HRESULT ExecuteImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11PipelineDependancy* depends);
-HRESULT CopyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11CopyDependancy* depends);
-HRESULT ComputeExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11ComputePipelineDependancy* depends);
-HRESULT ComputeImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11ComputePipelineDependancy* depends);
-HRESULT DrawExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11DrawPipelineDependancy* depends);
-HRESULT DrawImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11DrawPipelineDependancy* depends);
+HRESULT ExecuteExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11PipelineDependancy* depends);
+HRESULT ExecuteImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11PipelineDependancy* depends);
+HRESULT CopyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11CopyDependancy* depends);
+HRESULT ComputeExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11ComputePipelineDependancy* depends);
+HRESULT ComputeImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11ComputePipelineDependancy* depends);
+HRESULT DrawExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11DrawPipelineDependancy* depends);
+HRESULT DrawImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11DrawPipelineDependancy* depends);
 HRESULT ReleaseDX11Dependancy(uint dependCount, DX11PipelineDependancy* dependancy, const Allocaters* allocs);
 HRESULT ReleaseDX11Dependancy(DX11PipelineDependancySet* set, const Allocaters* allocs);
 

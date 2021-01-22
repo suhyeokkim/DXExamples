@@ -233,6 +233,104 @@ struct DX11CompiledShader
 
 struct DX11Resources
 {
+	uint skinningCount;
+	struct SkinningInstance
+	{
+		uint geometryIndex;
+		uint animationIndex;
+		//uint vertexBufferIndex;
+		uint vertexStreamBufferIndex;
+		uint vertexStreamSRVIndex;
+		uint vertexStreamUAVIndex;
+	}*skinningInstances;
+
+	uint geometryCount;
+	struct GeometryChunk
+	{
+		bool isSkinned;
+		Bounds bound;
+		uint vertexCount;
+		uint indexBufferIndex;
+		uint indexCount;
+		uint vertexLayoutIndex;
+		struct
+		{
+			uint vertexBufferIndex;
+		};
+		// skinning
+		struct
+		{
+			uint streamedVertexSize;
+			uint vertexDataBufferIndex;
+			uint vertexDataSRVIndex;
+		};
+	}*geometryChunks;
+
+	uint boneSetCapacity;
+	uint boneSetCount;
+	struct BoneSet
+	{
+		uint boneCount;
+		struct Bone
+		{
+			char* name;
+			int parentIndex;
+			int childIndexStart;
+			int childCount;
+			Matrix4x4 inverseGlobalTransformMatrix;
+		}*bones;
+
+		uint bindPoseTransformBufferIndex;
+		uint binePoseTransformSRVIndex;
+	}*boneSets;
+
+	uint animCount;
+	struct Animation
+	{
+		char* animName;
+		uint frameKeyCount;
+		uint fpsCount;
+		uint animPoseTransformBufferIndex;
+		uint animPoseTransformSRVIndex;
+		uint boneSetIndex;
+	}*anims;
+
+	uint shaderTex2DCount;
+	struct ShaderTexture2D
+	{
+		uint tex2DIndex;
+		uint srvIndex;
+	}*shaderTex2Ds;
+
+	uint shaderFileCount;
+	struct ShaderFile
+	{
+		wchar_t* fileName;
+		union
+		{
+			struct
+			{
+				uint vsCount;
+				uint* vsIndices;
+				uint psCount;
+				uint* psIndices;
+				uint csCount;
+				uint* csIndices;
+				uint gsCount;
+				uint* gsIndices;
+				uint hsCount;
+				uint* hsIndices;
+				uint dsCount;
+				uint* dsIndices;
+			};
+			struct
+			{
+				uint count;
+				uint* indices;
+			} shaderIndices[6];
+		};
+	}*shaderFiles;
+
 	uint vertexLayoutCount;
 	struct DX11LayoutChunk
 	{
@@ -290,6 +388,11 @@ struct DX11Resources
 	ID3D11UnorderedAccessView** uavs;
 
 	DX11Resources() : 
+		geometryCount(0), geometryChunks(nullptr),
+		shaderTex2DCount(0), shaderTex2Ds(nullptr),
+		shaderFileCount(0), shaderFiles(nullptr),
+		animCount(0), anims(nullptr),
+		boneSetCount(0), boneSets(nullptr),
 		vertexLayoutCount(0), vertexLayouts(nullptr), 
 		inputLayoutCount(0), inputLayouts(nullptr),
 		samplerCount(0), samplerStates(nullptr),

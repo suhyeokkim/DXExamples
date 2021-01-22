@@ -46,7 +46,7 @@ XMMATRIX g_View;
 XMMATRIX g_Projection;
 
 GeneralAllocater g_GeneralAllocater;
-RenderResources g_ExternalResources;
+DX11Resources g_ExternalResources;
 DX11PipelineDependancySet g_DepSet;
 RenderContextState g_ContextState;
 
@@ -253,10 +253,10 @@ HRESULT RenderResourceInit(bool debug)
 	{
 		int index = PtrToInt(ref);
 		SkinningConfigCB* cb = static_cast<SkinningConfigCB*>(p);
-		const RenderResources* res = &g_ExternalResources;
-		const RenderResources::SkinningInstance* skinI = res->skinningInstances + index;
-		const RenderResources::BoneSet* boneSet = res->boneSets + res->anims[skinI->animationIndex].boneSetIndex;
-		const RenderResources::Animation* anim = res->anims + skinI->animationIndex;
+		const DX11Resources* res = &g_ExternalResources;
+		const DX11Resources::SkinningInstance* skinI = res->skinningInstances + index;
+		const DX11Resources::BoneSet* boneSet = res->boneSets + res->anims[skinI->animationIndex].boneSetIndex;
+		const DX11Resources::Animation* anim = res->anims + skinI->animationIndex;
 		cb->vertexCount = res->geometryChunks[skinI->geometryIndex].vertexCount;
 		cb->poseOffset =
 			boneSet->boneCount * (((GetTickCount() - g_StartTick) / anim->fpsCount) % anim->frameKeyCount);

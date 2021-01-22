@@ -1,3 +1,4 @@
+#include "dx11res.h"
 #include "dx11depend.h"
 
 HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocaters* allocs, const DX11PipelineDependancySet* set)
@@ -85,7 +86,7 @@ HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocater
 
 	return S_OK;
 }
-HRESULT CopyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11CopyDependancy* depends)
+HRESULT CopyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11CopyDependancy* depends)
 {
 	for (uint i = 0; i < dependCount; i++)
 	{
@@ -94,7 +95,7 @@ HRESULT CopyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, 
 		switch (depends[i].kind)
 		{
 		case CopyKind::CopyResource:
-			deviceContext->CopyResource(res->dx11.buffers[depends[i].args.copyRes.dstBufferIndex], res->dx11.buffers[depends[i].args.copyRes.srcBufferIndex]);
+			deviceContext->CopyResource(res->buffers[depends[i].args.copyRes.dstBufferIndex], res->buffers[depends[i].args.copyRes.srcBufferIndex]);
 			break;
 		case CopyKind::UpdateSubResource:
 		{
@@ -107,7 +108,7 @@ HRESULT CopyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, 
 				cd.args.updateSubRes.copyToBufferFunc(dataPtr, cd.args.updateSubRes.param);
 
 			deviceContext->UpdateSubresource(
-				res->dx11.buffers[cd.args.updateSubRes.resIndex], 
+				res->buffers[cd.args.updateSubRes.resIndex], 
 				cd.args.updateSubRes.dstSubres, 
 				destBox, 
 				dataPtr, 
@@ -122,7 +123,7 @@ HRESULT CopyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, 
 	return S_OK;
 }
 
-HRESULT ExecuteExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11PipelineDependancy* depends)
+HRESULT ExecuteExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11PipelineDependancy* depends)
 {
 	for (uint i = 0; i < dependCount; i++)
 	{
@@ -142,7 +143,7 @@ HRESULT ExecuteExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextS
 
 	return S_OK;
 }
-HRESULT ExecuteImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11PipelineDependancy* depends)
+HRESULT ExecuteImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11PipelineDependancy* depends)
 {
 	for (uint i = 0; i < dependCount; i++)
 	{
@@ -162,9 +163,9 @@ HRESULT ExecuteImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextS
 
 	return S_OK;
 }
-HRESULT ComputeExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11ComputePipelineDependancy* depends)
+HRESULT ComputeExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11ComputePipelineDependancy* depends)
 {
-	const DX11Resources* dx11Res = &res->dx11;
+	const DX11Resources* dx11Res = res;
 
 	for (uint i = 0; i < dependCount; i++)
 	{
@@ -236,14 +237,14 @@ HRESULT ComputeExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextS
 
 	return S_OK;
 }
-HRESULT ComputeImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11ComputePipelineDependancy* depends)
+HRESULT ComputeImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11ComputePipelineDependancy* depends)
 {
 	return E_NOTIMPL;
 }
 
-HRESULT DrawExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11DrawPipelineDependancy* depends)
+HRESULT DrawExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11DrawPipelineDependancy* depends)
 {
-	const DX11Resources* dx11Res = &res->dx11;
+	const DX11Resources* dx11Res = res;
 
 	for (uint i = 0; i < dependCount; i++)
 	{
@@ -419,7 +420,7 @@ HRESULT DrawExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextStat
 	}
 	return S_OK;
 }
-HRESULT DrawImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const RenderResources* res, uint dependCount, const DX11DrawPipelineDependancy* depends)
+HRESULT DrawImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11DrawPipelineDependancy* depends)
 {
 	return E_NOTIMPL;
 }

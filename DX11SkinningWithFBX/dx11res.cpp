@@ -8,7 +8,7 @@
 
 #include "defined.h"
 #include "dx11util.h"
-
+#include "dx11depend.h"
 
 HRESULT ReserveLoadInputLayoutRefIndex(
 	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,

@@ -1,8 +1,9 @@
 #include <array>
 #include <map>
 
-#include "dx11depend.h"
+#include "dx11res.h"
 #include "renderres.h"
+#include "dx11depend.h"
 #include "fbximport.h"
 
 struct FBXAdjChunk
@@ -101,7 +102,7 @@ struct InstanceToDependancy
 };
 
 void SetShaderResourceDependancy(
-	const RenderResources* res, const Allocaters* allocs, 
+	const DX11Resources* res, const Allocaters* allocs, 
 	int shaderDescIndex, const DX11CompileDescToShader* cdToShader, const InstanceToDependancy& itod,
 	int shaderIndex, ShaderInstance& shaderInstance, DX11ShaderResourceDependancy& srd
 )
@@ -204,7 +205,7 @@ void SetShaderResourceDependancy(
 
 HRESULT LoadResourceAndDependancyFromInstance(
 	IN ID3D11Device* device, IN const Allocaters* allocs, IN uint instanceCount, IN RenderInstance* instances,
-	OUT RenderResources* res, OUT DX11InternalResourceDescBuffer* rawBuffer, OUT DX11PipelineDependancySet* set
+	OUT DX11Resources* res, OUT DX11InternalResourceDescBuffer* rawBuffer, OUT DX11PipelineDependancySet* set
 )
 {
 	std::vector<std::pair<const wchar_t*, FBXAdjChunk>> fbxPathChunkVector;
@@ -547,7 +548,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 		}
 		FAILED_ERROR_MESSAGE_RETURN(
 			ReserveLoadInputLayoutRefIndex(
-				&res->dx11, rawBuffer, allocs,
+				res, rawBuffer, allocs,
 				shaderCompileVector.size(), cdToShader,
 				vertexShaderAndGeometryVector.size(), inputLayoutDescs
 			),
@@ -566,15 +567,15 @@ HRESULT LoadResourceAndDependancyFromInstance(
 	// constant buffer
 	{
 		ALLOC_RANGE_ZEROMEM(
-			res->dx11.constantBufferCount, constantBufferVector.size(),
-			uint, res->dx11.constantBufferIndices, allocs->alloc
+			res->constantBufferCount, constantBufferVector.size(),
+			uint, res->constantBufferIndices, allocs->alloc
 		);
 		uint* cbSizes = (uint*)alloca(sizeof(uint) * constantBufferVector.size());
 		for (uint i = 0; i < constantBufferVector.size(); i++)
 			cbSizes[i] = constantBufferVector[i].second.size;
 		uint count = ReserveLoadConstantBuffers(rawBuffer, constantBufferVector.size(), cbSizes);
-		for (uint i = 0; i < res->dx11.constantBufferCount; i++)
-			res->dx11.constantBufferIndices[i] = count + i;
+		for (uint i = 0; i < res->constantBufferCount; i++)
+			res->constantBufferIndices[i] = count + i;
 	}
 
 	// sampler states
@@ -592,7 +593,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 	}
 
 	FAILED_ERROR_MESSAGE_RETURN(
-		CreateDX11ResourcesByDesc(&res->dx11, rawBuffer, allocs, device, true),
+		CreateDX11ResourcesByDesc(res, rawBuffer, allocs, device, true),
 		L"fail to create dx11 samplers.."
 	);
 #pragma endregion
@@ -604,7 +605,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 		InstanceToDependancy& itod = itodVector[instanceIndex];
 		RenderInstance& instance = instances[instanceIndex];
 
-		RenderResources::SkinningInstance* skin = 
+		DX11Resources::SkinningInstance* skin = 
 			instance.isSkinDeform ? &res->skinningInstances[itod.skinInstanceIndex] : nullptr;
 
 		for (uint sidx = 0; sidx < 6; sidx++)
@@ -667,8 +668,8 @@ HRESULT LoadResourceAndDependancyFromInstance(
 		// variables
 		InstanceToDependancy& itod = itodVector[instanceIndex];
 		RenderInstance& instance = instances[instanceIndex];
-		RenderResources::GeometryChunk& geometryChunk = res->geometryChunks[itod.resGeometryIndex];
-		DX11Resources::DX11LayoutChunk& layoutChunk = res->dx11.vertexLayouts[geometryChunk.vertexLayoutIndex];
+		DX11Resources::GeometryChunk& geometryChunk = res->geometryChunks[itod.resGeometryIndex];
+		DX11Resources::DX11LayoutChunk& layoutChunk = res->vertexLayouts[geometryChunk.vertexLayoutIndex];
 
 		for (uint shaderIndex = 0; shaderIndex < 6; shaderIndex++)
 		for (uint cbIndex = 0; cbIndex < itod.cbCurrentIndexVector[shaderIndex].size(); cbIndex++)
@@ -683,7 +684,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 			DX11PipelineDependancy cbDepend = DX11PipelineDependancy(CopyKind::UpdateSubResource);
 
 			cbDepend.copy.args.updateSubRes.resKind = ResourceKind::Buffer;
-			cbDepend.copy.args.updateSubRes.resIndex = res->dx11.constantBufferIndices[indices.cbIndex];
+			cbDepend.copy.args.updateSubRes.resIndex = res->constantBufferIndices[indices.cbIndex];
 			cbDepend.copy.args.updateSubRes.dstSubres = dstSubres;
 			cbDepend.copy.args.updateSubRes.getBoxFunc;
 			cbDepend.copy.args.updateSubRes.srcRowPitch = srcRowPitch;
@@ -812,7 +813,57 @@ HRESULT LoadResourceAndDependancyFromInstance(
 	return S_OK;
 }
 
-HRESULT ReleaseResources(RenderResources* res, const Allocaters* allocs)
+
+HRESULT LoadDX11Resoureces(DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, DX11ResourceDesc* desc, const Allocaters* allocs, ID3D11Device* device)
+{
+	HRESULT hr = S_OK;
+
+	hr = LoadMeshAndAnimsFromFBXByDX11(res, rawBuffer, allocs, desc->fbxChunkCount, desc->fbxChunks, desc->fbxMeshConfigs);
+	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to load geometries by FBX..");
+
+	hr = ReserveTex2DAndSRVFromFileByDX11(
+		res, rawBuffer, allocs, desc->textureDirCount, desc->texturedirs
+	);
+	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to load textures..");
+
+	DX11CompileDescToShader* dtosBuffer = (DX11CompileDescToShader*)alloca(sizeof(DX11CompileDescToShader) * desc->shaderCompileCount);;
+
+	hr = ReserveShaderFromFileByDX11(
+		res, rawBuffer, allocs,
+		desc->shaderCompileCount, desc->shaderCompileDescs, dtosBuffer
+	);
+	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to compile shaders..");
+
+	hr = ReserveSkinningInstances(
+		res, rawBuffer, allocs, desc->skinningInstanceCount, desc->skinningInstances
+	);
+	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create dx11 input layout..");
+
+	hr = ReserveLoadInputLayoutRefIndex(
+		res, rawBuffer, allocs,
+		desc->shaderCompileCount, dtosBuffer, desc->inputLayoutCount, desc->inputLayoutDescs
+	);
+	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create dx11 input layout..");
+
+	ALLOC_RANGE_ZEROMEM(
+		res->constantBufferCount, desc->constantBufferCount,
+		uint, res->constantBufferIndices, allocs->alloc
+	);
+	uint count = ReserveLoadConstantBuffers(rawBuffer, desc->constantBufferCount, desc->constantBufferSizes);
+	for (uint i = 0; i < desc->constantBufferCount; i++)
+		res->constantBufferIndices[i] = count + i;
+
+	count = ReserveLoadSamplerStates(rawBuffer, desc->samplerCount, desc->samplerDescs);
+
+	FAILED_ERROR_MESSAGE_RETURN(
+		CreateDX11ResourcesByDesc(res, rawBuffer, allocs, device, true),
+		L"fail to create dx11 samplers.."
+	);
+
+	return hr;
+}
+
+HRESULT ReleaseResources(DX11Resources* res, const Allocaters* allocs)
 {
 	SAFE_DEALLOC(res->geometryChunks, allocs->dealloc);
 	SAFE_DEALLOC(res->shaderTex2Ds, allocs->dealloc);
@@ -845,7 +896,7 @@ HRESULT ReleaseResources(RenderResources* res, const Allocaters* allocs)
 	{
 		for (uint i = 0; i < res->shaderFileCount; i++)
 		{
-			RenderResources::ShaderFile* file = res->shaderFiles + i;
+			DX11Resources::ShaderFile* file = res->shaderFiles + i;
 			for (uint j = 0; j < 6; j++)
 				SAFE_DEALLOC(file->shaderIndices[j].indices, allocs->dealloc);
 		}
@@ -853,63 +904,6 @@ HRESULT ReleaseResources(RenderResources* res, const Allocaters* allocs)
 		allocs->dealloc(res->shaderFiles);
 	}
 
-	ReleaseResources(&res->dx11, allocs);
-
-	return S_OK;
-}
-
-
-HRESULT LoadDX11Resoureces(RenderResources* res, DX11InternalResourceDescBuffer* rawBuffer, DX11ResourceDesc* desc, const Allocaters* allocs, ID3D11Device* device)
-{
-	HRESULT hr = S_OK;
-
-	hr = LoadMeshAndAnimsFromFBXByDX11(res, rawBuffer, allocs, desc->fbxChunkCount, desc->fbxChunks, desc->fbxMeshConfigs);
-	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to load geometries by FBX..");
-
-	hr = ReserveTex2DAndSRVFromFileByDX11(
-		res, rawBuffer, allocs, desc->textureDirCount, desc->texturedirs
-	);
-	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to load textures..");
-
-	DX11CompileDescToShader* dtosBuffer = (DX11CompileDescToShader*)alloca(sizeof(DX11CompileDescToShader) * desc->shaderCompileCount);;
-
-	hr = ReserveShaderFromFileByDX11(
-		res, rawBuffer, allocs,
-		desc->shaderCompileCount, desc->shaderCompileDescs, dtosBuffer
-	);
-	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to compile shaders..");
-
-	hr = ReserveSkinningInstances(
-		res, rawBuffer, allocs, desc->skinningInstanceCount, desc->skinningInstances
-	);
-	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create dx11 input layout..");
-
-	hr = ReserveLoadInputLayoutRefIndex(
-		&res->dx11, rawBuffer, allocs,
-		desc->shaderCompileCount, dtosBuffer, desc->inputLayoutCount, desc->inputLayoutDescs
-	);
-	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create dx11 input layout..");
-
-	ALLOC_RANGE_ZEROMEM(
-		res->dx11.constantBufferCount, desc->constantBufferCount,
-		uint, res->dx11.constantBufferIndices, allocs->alloc
-	);
-	uint count = ReserveLoadConstantBuffers(rawBuffer, desc->constantBufferCount, desc->constantBufferSizes);
-	for (uint i = 0; i < desc->constantBufferCount; i++)
-		res->dx11.constantBufferIndices[i] = count + i;
-
-	count = ReserveLoadSamplerStates(rawBuffer, desc->samplerCount, desc->samplerDescs);
-
-	FAILED_ERROR_MESSAGE_RETURN(
-		CreateDX11ResourcesByDesc(&res->dx11, rawBuffer, allocs, device, true),
-		L"fail to create dx11 samplers.."
-	);
-
-	return hr;
-}
-
-HRESULT ReleaseResources(DX11Resources* res, const Allocaters* allocs)
-{
 	SAFE_DEALLOC(res->constantBufferIndices, allocs->dealloc);
 	SAFE_DEALLOC(res->inputLayouts, allocs->dealloc);
 
@@ -1116,11 +1110,11 @@ int FindEqualDescIndex(uint descCount, D3D11_INPUT_ELEMENT_DESC* descBuffer, uin
 }
 
 HRESULT LoadMeshAndAnimsFromFBXByDX11(
-	RenderResources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
+	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
 	uint chunkCount, const FBXChunk* chunks, const FBXChunkConfig* configs
 )
 {
-	int startLayoutCount = res->dx11.vertexLayoutCount,
+	int startLayoutCount = res->vertexLayoutCount,
 		newGeometryCount = 0, newBufferCount = 0, newSRVUAVCount = 0;
 	for (uint ci = 0; ci < chunkCount; ci++)
 		for (uint mi = 0; mi < chunks[ci].meshCount; mi++)
@@ -1138,7 +1132,7 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 
 	ALLOC_RANGE_ZEROMEM(
 		res->geometryCount, newGeometryCount,
-		RenderResources::GeometryChunk, res->geometryChunks, allocs->alloc
+		DX11Resources::GeometryChunk, res->geometryChunks, allocs->alloc
 	);
 
 	int vertexLayoutBufferCount = 0;
@@ -1160,11 +1154,11 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 
 	ALLOC_RANGE_ZEROMEM(
 		res->boneSetCapacity, totalBoneSetCount,
-		RenderResources::BoneSet, res->boneSets, allocs->alloc
+		DX11Resources::BoneSet, res->boneSets, allocs->alloc
 	);
 	ALLOC_RANGE_ZEROMEM(
 		res->animCount, totalAnimationCount,
-		RenderResources::Animation, res->anims, allocs->alloc
+		DX11Resources::Animation, res->anims, allocs->alloc
 	);
 
 	for (
@@ -1180,7 +1174,7 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 		{
 			FBXChunkConfig::FBXMeshConfig& mc = configs[ci].meshConfigs[mi];
 			FBXMeshChunk& m = c.meshs[mi];
-			RenderResources::GeometryChunk& g = res->geometryChunks[geometryOffset];
+			DX11Resources::GeometryChunk& g = res->geometryChunks[geometryOffset];
 			g.bound = m.geometry.bound;
 
 			// vertexlayout record start 
@@ -1189,7 +1183,7 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 			SetDX11InputDescWithChunk(mc.isSkinned, &descCount, vertexSizes, descBuffer, &m.geometry);
 			int vertexSize = mc.isSkinned ? vertexSizes[1] : vertexSizes[0];
 
-			int findVertexLayoutIndex = FindEqualDescIndex(descCount, descBuffer, vertexLayoutBufferCount, vertexLayoutBuffer, &res->dx11);
+			int findVertexLayoutIndex = FindEqualDescIndex(descCount, descBuffer, vertexLayoutBufferCount, vertexLayoutBuffer, res);
 
 			if (findVertexLayoutIndex < 0)
 			{
@@ -1332,7 +1326,7 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 		int findBoneSetIndex = -1;
 		for (uint i = 0; i < res->boneSetCount; i++)
 		{
-			RenderResources::BoneSet& boneSet = res->boneSets[i];
+			DX11Resources::BoneSet& boneSet = res->boneSets[i];
 
 			if (boneSet.boneCount == c.hierarchyCount)
 			{
@@ -1367,11 +1361,11 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 		if (findBoneSetIndex < 0)
 		{
 			res->boneSetCount++;
-			RenderResources::BoneSet& boneSet = res->boneSets[res->boneSetCount - 1];
+			DX11Resources::BoneSet& boneSet = res->boneSets[res->boneSetCount - 1];
 
 			ALLOC_RANGE_ZEROMEM(
 				boneSet.boneCount, c.hierarchyCount, 
-				RenderResources::BoneSet::Bone, boneSet.bones, allocs->alloc
+				DX11Resources::BoneSet::Bone, boneSet.bones, allocs->alloc
 			);
 
 			for (uint i = 0; i < c.hierarchyCount; i++)
@@ -1412,7 +1406,7 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 
 		for (uint ai = 0; ai < c.animationCount; ai++)
 		{
-			RenderResources::Animation& anim = res->anims[ai + animOffset];
+			DX11Resources::Animation& anim = res->anims[ai + animOffset];
 			FBXChunk::FBXAnimation& fbxAnim = c.animations[ai];
 
 			ALLOC_AND_STRCPY(anim.animName, fbxAnim.animationName, allocs->alloc);
@@ -1452,23 +1446,23 @@ HRESULT LoadMeshAndAnimsFromFBXByDX11(
 	}
 
 	// allocate & copy vertex layout
-	res->dx11.vertexLayoutCount = vertexLayoutBufferCount;
-	res->dx11.vertexLayouts =
+	res->vertexLayoutCount = vertexLayoutBufferCount;
+	res->vertexLayouts =
 		(DX11Resources::DX11LayoutChunk*)allocs->alloc(
 			sizeof(DX11Resources::DX11LayoutChunk) *
-			(res->dx11.vertexLayoutCount + res->dx11.vertexLayoutCount)
+			(res->vertexLayoutCount + res->vertexLayoutCount)
 		);
 	memcpy(
-		res->dx11.vertexLayouts,
+		res->vertexLayouts,
 		vertexLayoutBuffer,
-		sizeof(DX11Resources::DX11LayoutChunk) * res->dx11.vertexLayoutCount
+		sizeof(DX11Resources::DX11LayoutChunk) * res->vertexLayoutCount
 	);
 
 	return S_OK;
 }
 
 HRESULT ReserveTex2DAndSRVFromFileByDX11(
-	RenderResources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
+	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
 	uint dirCount, const wchar_t** dirs, uint textureBufferSize, void* allocatedtextureBuffer
 )
 {
@@ -1476,12 +1470,12 @@ HRESULT ReserveTex2DAndSRVFromFileByDX11(
 
 	ALLOC_RANGE_ZEROMEM(
 		res->shaderTex2DCount, dirCount,
-		RenderResources::ShaderTexture2D, res->shaderTex2Ds, allocs->alloc
+		DX11Resources::ShaderTexture2D, res->shaderTex2Ds, allocs->alloc
 	);
 
 	for (uint i = 0; i < dirCount; i++)
 	{
-		RenderResources::ShaderTexture2D& shaderTex2D = res->shaderTex2Ds[i];
+		DX11Resources::ShaderTexture2D& shaderTex2D = res->shaderTex2Ds[i];
 		uint reservedTexture2DIndex = static_cast<uint>(rawBuffer->tex2DDescs.size());
 
 		DX11SRVDesc srvd;
@@ -1493,13 +1487,13 @@ HRESULT ReserveTex2DAndSRVFromFileByDX11(
 		srvd.setSRVDesc = [=](D3D11_SHADER_RESOURCE_VIEW_DESC* viewDesc) -> bool
 		{
 			if (
-				res->dx11.texture2Ds &&
-				reservedTexture2DIndex < res->dx11.texture2DCount &&
-				res->dx11.texture2Ds[reservedTexture2DIndex]
+				res->texture2Ds &&
+				reservedTexture2DIndex < res->texture2DCount &&
+				res->texture2Ds[reservedTexture2DIndex]
 				)
 			{
 				D3D11_TEXTURE2D_DESC td;
-				res->dx11.texture2Ds[reservedTexture2DIndex]->GetDesc(&td);
+				res->texture2Ds[reservedTexture2DIndex]->GetDesc(&td);
 				viewDesc->Format = td.Format;
 				return true;
 			}
@@ -1525,11 +1519,11 @@ HRESULT ReserveTex2DAndSRVFromFileByDX11(
 }
 
 HRESULT ReserveShaderFromFileByDX11(
-	RenderResources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
+	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
 	uint compileCount, const ShaderCompileDesc* descs, DX11CompileDescToShader* descToFileShader
 )
 {
-	std::vector<RenderResources::ShaderFile> files = std::vector<RenderResources::ShaderFile>();
+	std::vector<DX11Resources::ShaderFile> files = std::vector<DX11Resources::ShaderFile>();
 	std::vector<std::array<std::vector<uint>, 6>> shaderIndicesByFile = std::vector<std::array<std::vector<uint>, 6>>();
 
 	for (uint i = 0; i < compileCount; i++)
@@ -1545,8 +1539,8 @@ HRESULT ReserveShaderFromFileByDX11(
 
 		if (fileIndex < 0)
 		{
-			RenderResources::ShaderFile file;
-			memset(&file, 0, sizeof(RenderResources::ShaderFile));
+			DX11Resources::ShaderFile file;
+			memset(&file, 0, sizeof(DX11Resources::ShaderFile));
 
 			size_t len = wcslen(dsc.fileName);
 			wchar_t* tempFileName = (wchar_t*)allocs->alloc(sizeof(wchar_t) * (len + 1));
@@ -1560,7 +1554,7 @@ HRESULT ReserveShaderFromFileByDX11(
 			shaderIndicesByFile.push_back(arr);
 		}
 
-		RenderResources::ShaderFile& file = files[fileIndex];
+		DX11Resources::ShaderFile& file = files[fileIndex];
 		ShaderKind s;
 		uint index = ReserveLoadShader(rawBuffer, &dsc, &s);
 		if (index == UINT_MAX)
@@ -1575,12 +1569,12 @@ HRESULT ReserveShaderFromFileByDX11(
 
 	ALLOC_RANGE_MEMCPY(
 		res->shaderFileCount, files.size(),
-		RenderResources::ShaderFile, res->shaderFiles, files.data(), allocs->alloc
+		DX11Resources::ShaderFile, res->shaderFiles, files.data(), allocs->alloc
 	);
 
 	for (uint i = 0; i < res->shaderFileCount; i++)
 	{
-		RenderResources::ShaderFile& file = res->shaderFiles[i];
+		DX11Resources::ShaderFile& file = res->shaderFiles[i];
 
 		for (int j = 0; j < 6; j++)
 		{
@@ -1595,13 +1589,13 @@ HRESULT ReserveShaderFromFileByDX11(
 }
 
 HRESULT ReserveSkinningInstances(
-	RenderResources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
+	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
 	uint skinningInstanceCount, const SkinningInstanceDesc* skinningInstances
 )
 {
 	ALLOC_RANGE_ZEROMEM(
 		res->skinningCount, skinningInstanceCount,
-		RenderResources::SkinningInstance, res->skinningInstances, allocs->alloc
+		DX11Resources::SkinningInstance, res->skinningInstances, allocs->alloc
 	);
 
 	for (uint i = 0; i < res->skinningCount; i++)
