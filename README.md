@@ -4,6 +4,7 @@
 
 - ide: visual studio 2017
 - 내용: dx11, fbx 관련 간단한 튜토리얼
+- 사용 라이브러리 : DirectXTex, EASTL
 
 # directx11 튜토리얼
 
@@ -19,5 +20,7 @@
 - ObjectWithFBX : FBX에서 추출한 정점/인덱스 데이터 렌더링
 - SkinningWithFBX : FBX에서 추출한 지오메트리/스켈레톤/애니메이션 렌더링
 
-# fbx 튜토리얼
+# 기타
+
 - ImportScene : 지오메트리, 스켈레톤, 키 애니메이션 추출
+- CPPAllocator : STL, EASTL Allocator 튜토리얼

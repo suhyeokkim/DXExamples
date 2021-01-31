@@ -1,3 +1,9 @@
 [submodule "DirectXTex"]
 	path = DirectXTex
 	url = https://github.com/suhyeokkim/DirectXTex.git
+[submodule "TTFRendering/ttf-parser"]
+	path = TTFRendering/ttf-parser
+	url = https://github.com/kv01/ttf-parser.git
+[submodule "EASTL"]
+	path = EASTL
+	url = https://github.com/electronicarts/EASTL
