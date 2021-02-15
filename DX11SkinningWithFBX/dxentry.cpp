@@ -116,6 +116,7 @@ HRESULT DXDeviceInit(UINT width, UINT height, UINT maxFrameRate, bool debug)
 
 	hr = g_D3D11Device->CreateRenderTargetView(backBuffer, nullptr, &g_D3D11RenderTargetView);
 	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create rendertargetview..");
+	backBuffer->Release();
 
 	hr = CreateDepthStencilInline(g_D3D11Device, &g_D3D11DepthStencilTexture, &g_D3D11DepthStencialView, width, height);
 	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create depth-stencil buffer and view..");
@@ -356,23 +357,6 @@ HRESULT DXEntryInit(HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, UIN
 
 void DXEntryClean()
 {
-#if defined _DEBUG | DEBUG
-	ID3D11Debug *dbg;
-	g_D3D11Device->QueryInterface(IID_ID3D11Debug, (void**)(&dbg));
-	if (dbg)
-	{
-		dbg->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
-		dbg->Release();
-	}
-#endif
-
-	if (g_D3D11ImmediateContext) g_D3D11ImmediateContext->ClearState();
-
-	if (g_D3D11RenderTargetView) g_D3D11RenderTargetView->Release();
-	if (g_DXGISwapChain) g_DXGISwapChain->Release();
-	if (g_D3D11ImmediateContext) g_D3D11ImmediateContext->Release();
-	if (g_D3D11Device) g_D3D11Device->Release();
-
 	if (g_KeyInputDevice) 
 	{
 		g_KeyInputDevice->Unacquire();
@@ -390,6 +374,29 @@ void DXEntryClean()
 	ReleaseContext(&g_ContextState);
 
 	ReleaseDX11Dependancy(&g_DepSet);
+
+	if (g_D3D11ImmediateContext)
+	{
+		g_D3D11ImmediateContext->ClearState();
+		g_D3D11ImmediateContext->Release();
+	}
+
+	SAFE_RELEASE(g_D3D11RenderTargetView);
+	SAFE_RELEASE(g_D3D11DepthStencialView);
+	SAFE_RELEASE(g_DXGISwapChain);
+	SAFE_RELEASE(g_DXGIFactory);
+
+#if defined _DEBUG | DEBUG
+	ID3D11Debug *dbg;
+	g_D3D11Device->QueryInterface(IID_ID3D11Debug, (void**)(&dbg));
+	if (dbg)
+	{
+		dbg->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+		dbg->Release();
+	}
+#endif
+
+	g_D3D11Device->Release();
 }
 void ReadKey();
 void Render();

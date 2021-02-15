@@ -116,6 +116,7 @@ inline HRESULT CreateDepthStencilInline(ID3D11Device* device, ID3D11Texture2D** 
 	descView.Texture2D.MipSlice = 0;
 	hr = device->CreateDepthStencilView(*buffer, &descView, view);
 	FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create depthstencialview..");
+	(*buffer)->Release();
 
 	return hr;
 }
