@@ -1,15 +1,19 @@
 #include "dx11depend.h"
 #include "dx11res.h"
+#include "defined_alloc_macro.h"
 
-HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocaters* allocs, const DX11PipelineDependancySet* set)
+#include <iostream>
+#include <windows.h>
+
+HRESULT DependancyContextStatePrepare(RenderContextState* state, const DX11PipelineDependancySet* set)
 {
-	DependancyContextStatePrepare(state, allocs, set->frameDependancyCount, set->frameDependancy);
-	DependancyContextStatePrepare(state, allocs, set->initDependancyCount, set->initDependancy);
-	DependancyContextStatePrepare(state, allocs, set->resizeDependancyCount, set->resizeDependancy);
+	DependancyContextStatePrepare(state, set->frameDependancyCount, set->frameDependancy);
+	DependancyContextStatePrepare(state, set->initDependancyCount, set->initDependancy);
+	DependancyContextStatePrepare(state, set->resizeDependancyCount, set->resizeDependancy);
 
 	return S_OK;
 }
-HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocaters* allocs, uint dependCount, const DX11PipelineDependancy* depends)
+HRESULT DependancyContextStatePrepare(RenderContextState* state, uint dependCount, const DX11PipelineDependancy* depends)
 {
 	uint maxCount = state->bufferCount;
 	for (uint i = 0; i < dependCount; i++)
@@ -26,22 +30,22 @@ HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocater
 				for (uint j = 0; j < shaderDep.constantBufferCount; j++)
 				{
 					auto ref = shaderDep.constantBuffers[j];
-					maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
+					maxCount = MAX(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 				}
 				for (uint j = 0; j < shaderDep.samplerCount; j++)
 				{
 					auto ref = shaderDep.samplers[j];
-					maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
+					maxCount = MAX(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 				}
 				for (uint j = 0; j < shaderDep.srvCount; j++)
 				{
 					auto ref = shaderDep.srvs[j];
-					maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
+					maxCount = MAX(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 				}
 				for (uint j = 0; j < shaderDep.uavCount; j++)
 				{
 					auto ref = shaderDep.uavs[j];
-					maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
+					maxCount = MAX(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 				}
 			}
 			break;
@@ -52,37 +56,37 @@ HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocater
 			for (uint j = 0; j < shaderDep.constantBufferCount; j++)
 			{
 				auto ref = shaderDep.constantBuffers[j];
-				maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
+				maxCount = MAX(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 			}
 			for (uint j = 0; j < shaderDep.samplerCount; j++)
 			{
 				auto ref = shaderDep.samplers[j];
-				maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
+				maxCount = MAX(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 			}
 			for (uint j = 0; j < shaderDep.srvCount; j++)
 			{
 				auto ref = shaderDep.srvs[j];
-				maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
+				maxCount = MAX(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 			}
 			for (uint j = 0; j < shaderDep.uavCount; j++)
 			{
 				auto ref = shaderDep.uavs[j];
-				maxCount = max(ref.indexCount * sizeof(ref.indices[0]), maxCount);
+				maxCount = MAX(ref.indexCount * sizeof(ref.indices[0]), maxCount);
 			}
 		}
 		break;
 		case PipelineKind::Copy:
 			if (depend.copy.kind == CopyKind::UpdateSubResource)
 			{
-				maxCount = max(depend.copy.args.updateSubRes.dataBufferSize + sizeof(D3D11_BOX), maxCount);
+				maxCount = MAX(depend.copy.args.updateSubRes.dataBufferSize + sizeof(D3D11_BOX), maxCount);
 			}
 			break;
 		}
 	}
 
 	state->bufferCount = maxCount;
-	state->bufferPtrBuffer = (void**)allocs->alloc(maxCount);
-	state->numberBuffer = (uint*)allocs->alloc(sizeof(uint) * 2);
+	ALLOC_OVERLOADED_SIZED(EASTL_PERSISTANT_NAME, state->bufferPtrBuffer, void*, maxCount);
+	ALLOC_OVERLOADED_SIZED(EASTL_PERSISTANT_NAME, state->numberBuffer, uint, sizeof(uint) * 2);
 
 	return S_OK;
 }
@@ -424,20 +428,20 @@ HRESULT DrawImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextStat
 {
 	return E_NOTIMPL;
 }
-HRESULT ReleaseShaderDependancy(DX11ShaderResourceDependancy* dependancy, const Allocaters* allocs);
-HRESULT ReleaseDrawDependancy(DX11DrawPipelineDependancy* dependancy, const Allocaters* allocs);
-HRESULT ReleaseComputeDependancy(DX11ComputePipelineDependancy* dependancy, const Allocaters* allocs);
-HRESULT ReleaseCopyDependancy(DX11CopyDependancy* dependancy, const Allocaters* allocs);
+HRESULT ReleaseShaderDependancy(DX11ShaderResourceDependancy* dependancy);
+HRESULT ReleaseDrawDependancy(DX11DrawPipelineDependancy* dependancy);
+HRESULT ReleaseComputeDependancy(DX11ComputePipelineDependancy* dependancy);
+HRESULT ReleaseCopyDependancy(DX11CopyDependancy* dependancy);
 
-HRESULT ReleaseDX11Dependancy(DX11PipelineDependancySet* set, const Allocaters* allocs)
+HRESULT ReleaseDX11Dependancy(DX11PipelineDependancySet* set)
 {
-	ReleaseDX11Dependancy(set->frameDependancyCount, set->frameDependancy, allocs);
-	ReleaseDX11Dependancy(set->initDependancyCount, set->initDependancy, allocs);
-	ReleaseDX11Dependancy(set->resizeDependancyCount, set->resizeDependancy, allocs);
+	ReleaseDX11Dependancy(set->frameDependancyCount, set->frameDependancy);
+	ReleaseDX11Dependancy(set->initDependancyCount, set->initDependancy);
+	ReleaseDX11Dependancy(set->resizeDependancyCount, set->resizeDependancy);
 
 	return S_OK;
 }
-HRESULT ReleaseDX11Dependancy(uint dependCount, DX11PipelineDependancy* dependancy, const Allocaters* allocs)
+HRESULT ReleaseDX11Dependancy(uint dependCount, DX11PipelineDependancy* dependancy)
 {
 	if (dependancy)
 	{
@@ -446,63 +450,62 @@ HRESULT ReleaseDX11Dependancy(uint dependCount, DX11PipelineDependancy* dependan
 			switch (dependancy[i].pipelineKind)
 			{
 			case PipelineKind::Draw:
-				ReleaseDrawDependancy(&dependancy[i].draw, allocs);
+				ReleaseDrawDependancy(&dependancy[i].draw);
 				break;
 			case PipelineKind::Compute:
-				ReleaseComputeDependancy(&dependancy[i].compute, allocs);
+				ReleaseComputeDependancy(&dependancy[i].compute);
 				break;
 			case PipelineKind::Copy:
-				ReleaseCopyDependancy(&dependancy[i].copy, allocs);
+				ReleaseCopyDependancy(&dependancy[i].copy);
 				break;
 			}
-
 		}
 
-		allocs->dealloc(dependancy);
+		SAFE_DELETE_OVERLOADED(dependancy, EASTL_PERSISTANT_NAME);
 	}
 
 	return S_OK;
 }
-HRESULT ReleaseShaderDependancy(DX11ShaderResourceDependancy* dependancy, const Allocaters* allocs)
+HRESULT ReleaseShaderDependancy(DX11ShaderResourceDependancy* dependancy)
 {
 	for (uint i = 0; i < dependancy->srvCount; i++)
-		SAFE_DEALLOC(dependancy->srvs[i].indices, allocs->dealloc);
-	SAFE_DEALLOC(dependancy->srvs, allocs->dealloc);
+		SAFE_DELETE_OVERLOADED(dependancy->srvs[i].indices, EASTL_PERSISTANT_NAME);
+	SAFE_DELETE_OVERLOADED(dependancy->srvs, EASTL_PERSISTANT_NAME);
 
 	for (uint i = 0; i < dependancy->uavCount; i++)
-		SAFE_DEALLOC(dependancy->uavs[i].indices, allocs->dealloc);
-	SAFE_DEALLOC(dependancy->uavs, allocs->dealloc);
+		SAFE_DELETE_OVERLOADED(dependancy->uavs[i].indices, EASTL_PERSISTANT_NAME);
+	SAFE_DELETE_OVERLOADED(dependancy->uavs, EASTL_PERSISTANT_NAME);
 
 	for (uint i = 0; i < dependancy->samplerCount; i++)
-		SAFE_DEALLOC(dependancy->samplers[i].indices, allocs->dealloc);
-	SAFE_DEALLOC(dependancy->samplers, allocs->dealloc);
+		SAFE_DELETE_OVERLOADED(dependancy->samplers[i].indices, EASTL_PERSISTANT_NAME);
+	SAFE_DELETE_OVERLOADED(dependancy->samplers, EASTL_PERSISTANT_NAME);
 
 	for (uint i = 0; i < dependancy->constantBufferCount; i++)
-		SAFE_DEALLOC(dependancy->constantBuffers[i].indices, allocs->dealloc);
-	SAFE_DEALLOC(dependancy->constantBuffers, allocs->dealloc);
+		SAFE_DELETE_OVERLOADED(dependancy->constantBuffers[i].indices, EASTL_PERSISTANT_NAME);
+	SAFE_DELETE_OVERLOADED(dependancy->constantBuffers, EASTL_PERSISTANT_NAME);
 
 	return S_OK;
 }
-HRESULT ReleaseDrawDependancy(DX11DrawPipelineDependancy* dependancy, const Allocaters* allocs)
+HRESULT ReleaseDrawDependancy(DX11DrawPipelineDependancy* dependancy)
 {
 	for (int i = 0; i < 5; i++)
-		ReleaseShaderDependancy(dependancy->dependants + i, allocs);
+		ReleaseShaderDependancy(dependancy->dependants + i);
 
 	return S_OK;
 }
-HRESULT ReleaseComputeDependancy(DX11ComputePipelineDependancy* dependancy, const Allocaters* allocs)
+HRESULT ReleaseComputeDependancy(DX11ComputePipelineDependancy* dependancy)
 {
-	ReleaseShaderDependancy(&dependancy->resources, allocs);
+	ReleaseShaderDependancy(&dependancy->resources);
 	return S_OK;
 }
-HRESULT ReleaseCopyDependancy(DX11CopyDependancy* dependancy, const Allocaters* allocs)
+HRESULT ReleaseCopyDependancy(DX11CopyDependancy* dependancy)
 {
 	return S_OK;
 }
-HRESULT ReleaseContext(RenderContextState* context, const Allocaters* allocs)
+HRESULT ReleaseContext(RenderContextState* context)
 {
-	SAFE_DEALLOC(context->bufferPtrBuffer, allocs->dealloc);
-	SAFE_DEALLOC(context->numberBuffer, allocs->dealloc);
+	SAFE_DELETE_OVERLOADED(context->bufferPtrBuffer, EASTL_PERSISTANT_NAME);
+	SAFE_DELETE_OVERLOADED(context->numberBuffer, EASTL_PERSISTANT_NAME);
 	return S_OK;
 }
 

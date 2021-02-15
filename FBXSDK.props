@@ -2,13 +2,19 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
-    <FBXSDK_PATH>E:\Libraries\FBX\FBX SDK\2020.1.1\</FBXSDK_PATH>
+    <FBXSDK_PATH>D:\Libraries\FBX\FBX SDK\2020.1.1\</FBXSDK_PATH>
+    <EASTL_PATH>..\EASTL\</EASTL_PATH>
   </PropertyGroup>
-  <PropertyGroup />
+  <PropertyGroup>
+    <_PropertySheetDisplayName>EXTERNAL_PATH</_PropertySheetDisplayName>
+  </PropertyGroup>
   <ItemDefinitionGroup />
   <ItemGroup>
     <BuildMacro Include="FBXSDK_PATH">
       <Value>$(FBXSDK_PATH)</Value>
+    </BuildMacro>
+    <BuildMacro Include="EASTL_PATH">
+      <Value>$(EASTL_PATH)</Value>
     </BuildMacro>
   </ItemGroup>
 </Project>

@@ -47,7 +47,6 @@ XMMATRIX g_World;
 XMMATRIX g_View;
 XMMATRIX g_Projection;
 
-GeneralAllocater g_GeneralAllocater;
 DX11Resources g_ExternalResources;
 DX11PipelineDependancySet g_DepSet;
 RenderContextState g_ContextState;
@@ -321,14 +320,14 @@ HRESULT RenderResourceInit(bool debug)
 	DX11InternalResourceDescBuffer buffer2;
 	FAILED_ERROR_MESSAGE_RETURN(
 		LoadResourceAndDependancyFromInstance(
-			g_D3D11Device, &g_GeneralAllocater.persistant, ARRAYSIZE(renderInstances), renderInstances, 
+			g_D3D11Device, ARRAYSIZE(renderInstances), renderInstances, 
 			&g_ExternalResources, &buffer2, &g_DepSet
 		),
 		L"fail to load resource & dependacies.."
 	);
 
 	// context prepare
-	DependancyContextStatePrepare(&g_ContextState, &g_GeneralAllocater.persistant, &g_DepSet);
+	DependancyContextStatePrepare(&g_ContextState, &g_DepSet);
 
 	// init refresh data
 	ExecuteExplicitlyDX11(g_D3D11ImmediateContext, &g_ContextState, &g_ExternalResources, g_DepSet.initDependancyCount, g_DepSet.initDependancy);
@@ -357,6 +356,16 @@ HRESULT DXEntryInit(HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, UIN
 
 void DXEntryClean()
 {
+#if defined _DEBUG | DEBUG
+	ID3D11Debug *dbg;
+	g_D3D11Device->QueryInterface(IID_ID3D11Debug, (void**)(&dbg));
+	if (dbg)
+	{
+		dbg->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+		dbg->Release();
+	}
+#endif
+
 	if (g_D3D11ImmediateContext) g_D3D11ImmediateContext->ClearState();
 
 	if (g_D3D11RenderTargetView) g_D3D11RenderTargetView->Release();
@@ -377,10 +386,10 @@ void DXEntryClean()
 		g_Input = nullptr;
 	}
 
-	ReleaseResources(&g_ExternalResources, &g_GeneralAllocater.persistant);
-	ReleaseContext(&g_ContextState, &g_GeneralAllocater.persistant);
+	ReleaseResources(&g_ExternalResources);
+	ReleaseContext(&g_ContextState);
 
-	ReleaseDX11Dependancy(&g_DepSet, &g_GeneralAllocater.persistant);
+	ReleaseDX11Dependancy(&g_DepSet);
 }
 void ReadKey();
 void Render();

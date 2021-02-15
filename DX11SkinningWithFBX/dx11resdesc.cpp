@@ -1,5 +1,62 @@
 #include "dx11resdesc.h"
 
+inline size_t GetFileSize(FILE* fp)
+{
+	size_t size;
+	fseek(fp, 0, SEEK_END);
+	size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	return size;
+}
+
+size_t GetMaximumBufferSize(DX11InternalResourceDescBuffer* rawBuffer)
+{
+	size_t maxSize = 0;
+
+	for (uint i = 0; i < rawBuffer->tex2DDescs.size(); i++)
+	{
+		DX11Texture2DDesc& desc = rawBuffer->tex2DDescs[i];
+
+		if (desc.loadFromFile)
+		{
+			if (!desc.fileName)
+				ERROR_MESSAGE_CONTINUE_ARGS(L"fail to load texture because fileName is null..(idx:%d)", i);
+
+			FILE* fp;
+			_wfopen_s(&fp, desc.fileName, L"rb");
+			size_t size = GetFileSize(fp);
+			if (maxSize < size)
+				maxSize = size;
+			fclose(fp);
+		}
+	}
+
+	for (uint i = 0; i < rawBuffer->bufferDescs.size(); i++)
+	{
+		DX11BufferDesc& d = rawBuffer->bufferDescs[i];
+
+		if (d.subres.pSysMem == nullptr)
+		{
+			if ((bool)d.copyToPtr)
+			{
+				if (maxSize < d.buffer.ByteWidth)
+					maxSize = d.buffer.ByteWidth;
+			}
+			else if (d.fileName)
+			{
+				FILE* fp;
+				_wfopen_s(&fp, d.fileName, L"rb");
+				size_t size = GetFileSize(fp);
+				if (maxSize < size)
+					maxSize = size;
+				fclose(fp);
+			}
+		}
+	}
+
+	return maxSize;
+}
+
 uint ReserveLoadInputLayouts(DX11InternalResourceDescBuffer* rawResBuffer, uint additioanlCount, const DX11ILDesc* descs)
 {
 	rawResBuffer->inputLayoutDescs.insert(rawResBuffer->inputLayoutDescs.end(), descs, descs + additioanlCount);

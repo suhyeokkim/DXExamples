@@ -1,5 +1,6 @@
 #include <functional>
 #include "datatypes.h"
+#include "allocators.h"
 
 #pragma once
 
@@ -99,13 +100,9 @@ struct FBXChunk
 		Matrix4x4* globalAffineTransforms;
 	}* animations;
 
-	// allocater
-	const Allocaters* allocs;
-
 	FBXChunk() :
 		meshCount(0), meshs(nullptr), materialPropertyCount(0), textureRefs(0),
-		hierarchyCount(0), hierarchyNodes(nullptr), animationCount(0), animations(nullptr), 
-		allocs(nullptr)
+		hierarchyCount(0), hierarchyNodes(nullptr), animationCount(0), animations(nullptr)
 	{}
 	~FBXChunk()
 	{
@@ -117,18 +114,18 @@ void DestroyFBX();
 
 bool ImportFBX(
 	const wchar_t* fileDirectory, FBXChunk& chunk, 
-	const FBXLoadOptionChunk* opt = nullptr, const Allocaters* allocs = nullptr
+	const FBXLoadOptionChunk* opt = nullptr
 );
 bool ImportFBX(
 	const char* fileDirectory, FBXChunk& chunk, 
-	const FBXLoadOptionChunk* opt = nullptr, const Allocaters* allocs = nullptr
+	const FBXLoadOptionChunk* opt = nullptr
 );
 uint ImportFBX(
 	uint chunkCount, const char* const * fileDirectories, FBXChunk* chunk, 
-	const FBXLoadOptionChunk* opt = nullptr, const Allocaters* allocs = nullptr
+	const FBXLoadOptionChunk* opt = nullptr
 );
 uint ImportFBX(
 	uint chunkCount, const wchar_t* const * fileDirectories, FBXChunk* chunk, 
-	const FBXLoadOptionChunk* opt = nullptr, const Allocaters* allocs = nullptr
+	const FBXLoadOptionChunk* opt = nullptr
 );
-void ReleaseFBX(FBXChunk* c, const Allocaters* allocs);
+void ReleaseFBX(FBXChunk* c);

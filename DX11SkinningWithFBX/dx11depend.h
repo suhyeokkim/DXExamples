@@ -1,9 +1,11 @@
-#pragma once
-
 #include <dxgi1_6.h>
 #include <d3d11_4.h>
 #include <functional>
+
 #include "datatypes.h"
+#include "allocators.h"
+
+#pragma once
 
 enum class PipelineKind : uint
 {
@@ -247,13 +249,13 @@ struct DX11PipelineDependancy
 		switch (pipelineKind)
 		{
 		case PipelineKind::Draw:
-			draw = std::move(d.draw);
+			draw = eastl::move(d.draw);
 			break;
 		case PipelineKind::Compute:
-			compute = std::move(d.compute);
+			compute = eastl::move(d.compute);
 			break;
 		case PipelineKind::Copy:
-			copy = std::move(d.copy);
+			copy = eastl::move(d.copy);
 			break;
 		}
 	}
@@ -287,8 +289,8 @@ HRESULT ComputeExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextS
 HRESULT ComputeImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11ComputePipelineDependancy* depends);
 HRESULT DrawExplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11DrawPipelineDependancy* depends);
 HRESULT DrawImplicitlyDX11(ID3D11DeviceContext* deviceContext, RenderContextState* state, const DX11Resources* res, uint dependCount, const DX11DrawPipelineDependancy* depends);
-HRESULT ReleaseDX11Dependancy(uint dependCount, DX11PipelineDependancy* dependancy, const Allocaters* allocs);
-HRESULT ReleaseDX11Dependancy(DX11PipelineDependancySet* set, const Allocaters* allocs);
+HRESULT ReleaseDX11Dependancy(uint dependCount, DX11PipelineDependancy* dependancy);
+HRESULT ReleaseDX11Dependancy(DX11PipelineDependancySet* set);
 
 struct RenderContextState
 {
@@ -297,6 +299,6 @@ struct RenderContextState
 	uint* numberBuffer;
 };
 
-HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocaters* allocs, const DX11PipelineDependancySet* set);
-HRESULT DependancyContextStatePrepare(RenderContextState* state, const Allocaters* allocs, uint dependCount, const DX11PipelineDependancy* depends);
-HRESULT ReleaseContext(RenderContextState* context, const Allocaters* allocs);
+HRESULT DependancyContextStatePrepare(RenderContextState* state, const DX11PipelineDependancySet* set);
+HRESULT DependancyContextStatePrepare(RenderContextState* state, uint dependCount, const DX11PipelineDependancy* depends);
+HRESULT ReleaseContext(RenderContextState* context);

@@ -57,7 +57,7 @@ inline HRESULT CompileShaderFromFile(IN const wchar_t* fileName, IN const char* 
 
 inline HRESULT GetDXGIAdaptersInline(IDXGIFactory1* factory, int* adapterCount, IDXGIAdapter1** dxgiAdapterArray)
 {
-	std::vector<IDXGIAdapter1*> dxgiAdapters;
+	eastl::vector<IDXGIAdapter1*, EASTLAllocator> dxgiAdapters(EASTL_TEMPARARY_NAME);
 	IDXGIAdapter1* dxgiAdapter;
 	*adapterCount = 0;
 	while (SUCCEEDED(factory->EnumAdapters1((*adapterCount)++, &dxgiAdapter)))

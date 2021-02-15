@@ -1,7 +1,9 @@
 #include <dxgi1_6.h>
 #include <d3d11_4.h>
+
 #include "dx11resdesc.h"
 #include "fbximport.h"
+#include "allocators.h"
 
 #pragma once
 
@@ -241,35 +243,35 @@ struct SkinningInstanceDesc;
 
 HRESULT LoadDX11Resoureces(
 	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, DX11ResourceDesc* desc,
-	const Allocaters* allocs, ID3D11Device* device
+	ID3D11Device* device
 );
 HRESULT CreateDX11ResourcesByDesc(
-	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs, ID3D11Device* device, bool isDebug
+	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, void* dataBuffer, ID3D11Device* device, bool isDebug
 );
 HRESULT UploadDX11ConstantBuffer(
 	DX11Resources* res, ID3D11DeviceContext* deviceContext, uint constantBufferIndex, void* uploadData
 );
-HRESULT ReleaseResources(DX11Resources* res, const Allocaters* allocs);
+HRESULT ReleaseResources(DX11Resources* res);
 
 HRESULT ReserveLoadInputLayoutRefIndex(
-	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
+	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer,
 	uint descCount, const DX11CompileDescToShader* dtoss,
 	uint inputLayoutCount, const DX11InputLayoutDesc* inputLayoutDesc
 );
 HRESULT LoadMeshAndAnimsFromFBXByDX11(
-	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
+	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer,
 	uint chunkCount, const FBXChunk* chunks, const FBXChunkConfig* configs
 );
 HRESULT ReserveTex2DAndSRVFromFileByDX11(
-	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
-	uint dirCount, const wchar_t** dirs, uint textureBufferSize = 0, void* allocatedtextureBuffer = nullptr
+	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer,
+	uint dirCount, const wchar_t** dirs
 );
 HRESULT ReserveShaderFromFileByDX11(
-	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
+	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer,
 	uint compileCount, const ShaderCompileDesc* descs, DX11CompileDescToShader* descToFileShader
 );
 HRESULT ReserveSkinningInstances(
-	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer, const Allocaters* allocs,
+	DX11Resources* res, DX11InternalResourceDescBuffer* rawBuffer,
 	uint skinningInstanceCount, const SkinningInstanceDesc* skinningInstances
 );
 

@@ -10,10 +10,10 @@
     <ClCompile Include="dx11resdesc.cpp" />
     <ClCompile Include="dx11util.cpp" />
     <ClCompile Include="renderinstance.cpp" />
+    <ClCompile Include="allocators.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="datatypes.h" />
-    <ClInclude Include="defined.h" />
     <ClInclude Include="dxentry.h" />
     <ClInclude Include="fbximport.h" />
     <ClInclude Include="dx11res.h" />
@@ -21,6 +21,11 @@
     <ClInclude Include="dx11depend.h" />
     <ClInclude Include="dx11resdesc.h" />
     <ClInclude Include="renderinstance.h" />
+    <ClInclude Include="allocators.h" />
+    <ClInclude Include="defined_macro.h" />
+    <ClInclude Include="defined_type.h" />
+    <ClInclude Include="defined_alloc_macro.h" />
+    <ClInclude Include="defined.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Char_Max.png">

@@ -58,6 +58,12 @@ struct DX11BufferDesc
 	std::function<void(void*)> copyToPtr;
 	D3D11_BUFFER_DESC buffer;
 	D3D11_SUBRESOURCE_DATA subres;
+
+	DX11BufferDesc() : fileName(nullptr), copyToPtr() 
+	{
+		memset(&buffer, 0, sizeof(buffer));
+		memset(&subres, 0, sizeof(subres));
+	}
 };
 struct DX11SRVDesc
 {
@@ -68,16 +74,28 @@ struct DX11SRVDesc
 		uint bufferIndex;
 		uint texture2DIndex;
 	};
+
+	DX11SRVDesc() : setSRVDesc(), bufferIndex(0)
+	{
+		memset(&view, 0, sizeof(view));
+	}
 };
 struct DX11UAVDesc
 {
 	uint bufferIndex;
 	D3D11_UNORDERED_ACCESS_VIEW_DESC view;
+
+	DX11UAVDesc() : bufferIndex(0)
+	{
+		memset(&view, 0, sizeof(view));
+	}
 };
 struct DX11ILDesc
 {
 	uint vertexLayoutChunkIndex;
 	uint vertexShaderIndex;
+
+	DX11ILDesc() : vertexLayoutChunkIndex(0), vertexShaderIndex(0) {}
 };
 enum class ShaderKind : uint
 {
@@ -116,33 +134,37 @@ struct DX11InternalResourceDescBuffer
 	{
 		struct
 		{
-			std::vector<ShaderCompileDesc> vertexShaderCompileDescs;
-			std::vector<ShaderCompileDesc> pixelShaderCompileDescs;
-			std::vector<ShaderCompileDesc> computeShaderCompileDescs;
-			std::vector<ShaderCompileDesc> geometryShaderCompileDescs;
-			std::vector<ShaderCompileDesc> hullShaderCompileDescs;
-			std::vector<ShaderCompileDesc> domainShaderCompileDescs;
+			eastl::vector<ShaderCompileDesc, EASTLAllocator> vertexShaderCompileDescs;
+			eastl::vector<ShaderCompileDesc, EASTLAllocator> pixelShaderCompileDescs;
+			eastl::vector<ShaderCompileDesc, EASTLAllocator> computeShaderCompileDescs;
+			eastl::vector<ShaderCompileDesc, EASTLAllocator> geometryShaderCompileDescs;
+			eastl::vector<ShaderCompileDesc, EASTLAllocator> hullShaderCompileDescs;
+			eastl::vector<ShaderCompileDesc, EASTLAllocator> domainShaderCompileDescs;
 		};
 		struct
 		{
-			std::vector<ShaderCompileDesc> shaderCompileDesces[6];
+			eastl::vector<ShaderCompileDesc, EASTLAllocator> shaderCompileDesces[6];
 		};
 	};
-	std::vector<DX11ILDesc> inputLayoutDescs;
-	std::vector<D3D11_SAMPLER_DESC> samplerDescs;
-	std::vector<DX11BufferDesc> bufferDescs;
-	std::vector<DX11UAVDesc> uavDescs;
-	std::vector<DX11SRVDesc> srvDescs;
-	std::vector<DX11Texture2DDesc> tex2DDescs;
+	eastl::vector<DX11ILDesc, EASTLAllocator> inputLayoutDescs;
+	eastl::vector<D3D11_SAMPLER_DESC, EASTLAllocator> samplerDescs;
+	eastl::vector<DX11BufferDesc, EASTLAllocator> bufferDescs;
+	eastl::vector<DX11UAVDesc, EASTLAllocator> uavDescs;
+	eastl::vector<DX11SRVDesc, EASTLAllocator> srvDescs;
+	eastl::vector<DX11Texture2DDesc, EASTLAllocator> tex2DDescs;
 
 	DX11InternalResourceDescBuffer() :
-		samplerDescs(), bufferDescs(), uavDescs(), srvDescs(), inputLayoutDescs(), /*shaderTex2DDescs(),*/
-		tex2DDescs(), vertexShaderCompileDescs(), pixelShaderCompileDescs(), computeShaderCompileDescs(),
-		geometryShaderCompileDescs(), hullShaderCompileDescs(), domainShaderCompileDescs()
+		samplerDescs(EASTL_TEMPARARY_NAME), bufferDescs(EASTL_TEMPARARY_NAME), uavDescs(EASTL_TEMPARARY_NAME), 
+		srvDescs(EASTL_TEMPARARY_NAME), inputLayoutDescs(EASTL_TEMPARARY_NAME), tex2DDescs(EASTL_TEMPARARY_NAME), 
+		vertexShaderCompileDescs(EASTL_TEMPARARY_NAME), pixelShaderCompileDescs(EASTL_TEMPARARY_NAME), 
+		computeShaderCompileDescs(EASTL_TEMPARARY_NAME), geometryShaderCompileDescs(EASTL_TEMPARARY_NAME), 
+		hullShaderCompileDescs(EASTL_TEMPARARY_NAME), domainShaderCompileDescs(EASTL_TEMPARARY_NAME)
 	{
 	}
 	~DX11InternalResourceDescBuffer() { }
 };
+
+size_t GetMaximumBufferSize(DX11InternalResourceDescBuffer* rawResBuffer);
 
 uint ReserveLoadInputLayouts(DX11InternalResourceDescBuffer* rawResBuffer, uint additionalCount, const DX11ILDesc* ilDescs);
 uint ReserveLoadConstantBuffers(DX11InternalResourceDescBuffer* rawResBuffer, uint constantBufferCount, const uint* bufferSizes);

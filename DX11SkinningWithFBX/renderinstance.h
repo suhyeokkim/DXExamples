@@ -200,6 +200,6 @@ struct DX11InternalResourceDescBuffer;
 struct DX11PipelineDependancySet;
 
 HRESULT LoadResourceAndDependancyFromInstance(
-	IN ID3D11Device* device, IN const Allocaters* allocs, IN uint instanceCount, IN RenderInstance* instances,
+	IN ID3D11Device* device, IN uint instanceCount, IN RenderInstance* instances,
 	OUT DX11Resources* res, OUT DX11InternalResourceDescBuffer* rawBuffer, OUT DX11PipelineDependancySet* set
 );

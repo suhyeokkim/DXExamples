@@ -1,11 +1,14 @@
 #include <array>
 #include <map>
+#include <iostream>
 
 #include "fbximport.h"
 #include "dx11res.h"
 #include "dx11resdesc.h"
 #include "dx11depend.h"
 #include "renderinstance.h"
+#include <EASTL/string.h>
+#include "defined_alloc_macro.h"
 
 struct FBXAdjChunk
 {
@@ -19,7 +22,7 @@ struct FBXAdjChunk
 		startGeometryCount(startGeometryCount), startAnimationCount(startAnimationCount)
 	{}
 };
-using PathFBXAdjChunkPair = std::pair<const wchar_t*, FBXAdjChunk>;
+using PathFBXAdjChunkPair = eastl::pair<const wchar_t*, FBXAdjChunk>;
 
 inline void GetDX11Sampler(ShaderParamSampler s, D3D11_SAMPLER_DESC& sd)
 {
@@ -65,8 +68,8 @@ struct InstanceToDependancy
 			kind(kind), instanceParamIndex(instanceParamIndex), refArrayIndex(refArrayIndex)
 		{}
 	};
-	std::vector<SRVParamIndices> srvCurrentIndexVector[6];
-	std::vector<std::pair<uint, uint>> samplerCurrentIndexVector[6];
+	eastl::vector<SRVParamIndices, EASTLAllocator> srvCurrentIndexVector[6];
+	eastl::vector<eastl::pair<uint, uint>, EASTLAllocator> samplerCurrentIndexVector[6];
 	struct CBParamIndices
 	{
 		uint instanceIndex;
@@ -77,8 +80,8 @@ struct InstanceToDependancy
 			: instanceIndex(instanceIndex), instanceParamIndex(instanceParamIndex), cbIndex(cbIndex)
 		{}
 	};
-	std::vector<CBParamIndices> cbCurrentIndexVector[6];
-	std::vector<std::pair<uint, uint>> uavCurrentIndexVector[6];
+	eastl::vector<CBParamIndices, EASTLAllocator> cbCurrentIndexVector[6];
+	eastl::vector<eastl::pair<uint, uint>, EASTLAllocator> uavCurrentIndexVector[6];
 
 	InstanceToDependancy()
 	{
@@ -94,16 +97,16 @@ struct InstanceToDependancy
 		for (int i = 0; i < 6; i++)
 		{
 			shaderCompileIndices[i] = -1;
-			new (srvCurrentIndexVector + i) std::vector<SRVParamIndices>();
-			new (samplerCurrentIndexVector + i) std::vector<std::pair<uint, uint>>();
-			new (cbCurrentIndexVector + i) std::vector<CBParamIndices>();
-			new (uavCurrentIndexVector + i) std::vector<std::pair<uint, uint>>();
+			new (srvCurrentIndexVector + i) eastl::vector<SRVParamIndices, EASTLAllocator>(EASTL_TEMPARARY_NAME);
+			new (samplerCurrentIndexVector + i) eastl::vector<eastl::pair<uint, uint>, EASTLAllocator>(EASTL_TEMPARARY_NAME);
+			new (cbCurrentIndexVector + i) eastl::vector<CBParamIndices, EASTLAllocator>(EASTL_TEMPARARY_NAME);
+			new (uavCurrentIndexVector + i) eastl::vector<eastl::pair<uint, uint>, EASTLAllocator>(EASTL_TEMPARARY_NAME);
 		}
 	}
 };
 
 void SetShaderResourceDependancy(
-	const DX11Resources* res, const Allocaters* allocs, 
+	const DX11Resources* res,
 	int shaderDescIndex, const DX11CompileDescToShader* cdToShader, const InstanceToDependancy& itod,
 	int shaderIndex, ShaderInstance& shaderInstance, DX11ShaderResourceDependancy& srd
 )
@@ -113,75 +116,75 @@ void SetShaderResourceDependancy(
 
 	// constant buffer
 	{
-		const std::vector<InstanceToDependancy::CBParamIndices>& cbVector =
+		const eastl::vector<InstanceToDependancy::CBParamIndices, EASTLAllocator>& cbVector =
 			itod.cbCurrentIndexVector[shaderIndex];
 		srd.constantBufferCount = static_cast<uint>(cbVector.size());
 		srd.constantBuffers =
 			(DX11ShaderResourceDependancy::DX11ConstantBufferRef*)
-			allocs->alloc(
+			new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) char[
 				sizeof(DX11ShaderResourceDependancy::DX11ConstantBufferRef) * srd.constantBufferCount
-			);
+			];
 		for (size_t i = 0; i < cbVector.size(); i++)
 		{
 			ShaderParams& p = shaderInstance.params[cbVector[i].instanceParamIndex];
 			srd.constantBuffers[i].indexCount = 1;
 			srd.constantBuffers[i].slotOrRegister = p.slotIndex;
 			srd.constantBuffers[i].indices =
-				(uint*)allocs->alloc(sizeof(uint) * srd.constantBuffers[i].indexCount);
+				(uint*)new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) char[sizeof(uint) * srd.constantBuffers[i].indexCount];
 			srd.constantBuffers[i].indices[0] = cbVector[i].cbIndex;
 		}
 	}
 
 	// sampelr state
 	{
-		const std::vector<std::pair<uint, uint>>& samplerVector = itod.samplerCurrentIndexVector[shaderIndex];
+		const eastl::vector<eastl::pair<uint, uint>, EASTLAllocator>& samplerVector = itod.samplerCurrentIndexVector[shaderIndex];
 		srd.samplerCount = static_cast<uint>(samplerVector.size());
 		srd.samplers =
 			(DX11ShaderResourceDependancy::DX11SamplerRef*)
-			allocs->alloc(
+			new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) char[
 				sizeof(DX11ShaderResourceDependancy::DX11SamplerRef) * srd.samplerCount
-			);
+			];
 		for (size_t i = 0; i < samplerVector.size(); i++)
 		{
 			ShaderParams& p = shaderInstance.params[samplerVector[i].first];
 			srd.samplers[i].indexCount = 1;
 			srd.samplers[i].slotOrRegister = p.slotIndex;
 			srd.samplers[i].indices =
-				(uint*)allocs->alloc(sizeof(uint) * srd.samplers[i].indexCount);
+				(uint*)new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) char[sizeof(uint) * srd.samplers[i].indexCount];
 			srd.samplers[i].indices[0] = samplerVector[i].second;
 		}
 	}
 
 	// uav
 	{
-		const std::vector<std::pair<uint, uint>>& uavVector = itod.uavCurrentIndexVector[shaderIndex];
+		const eastl::vector<eastl::pair<uint, uint>, EASTLAllocator>& uavVector = itod.uavCurrentIndexVector[shaderIndex];
 		srd.uavCount = static_cast<uint>(uavVector.size());
 		srd.uavs =
 			(DX11ShaderResourceDependancy::DX11UAVRef*)
-			allocs->alloc(
+			new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) char[
 				sizeof(DX11ShaderResourceDependancy::DX11UAVRef) * srd.uavCount
-			);
+			];
 		for (size_t i = 0; i < uavVector.size(); i++)
 		{
 			ShaderParams& p = shaderInstance.params[uavVector[i].first];
 			srd.uavs[i].indexCount = 1;
 			srd.uavs[i].slotOrRegister = p.slotIndex;
 			srd.uavs[i].indices =
-				(uint*)allocs->alloc(sizeof(uint) * srd.uavs[i].indexCount);
+				(uint*)new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) char[sizeof(uint) * srd.uavs[i].indexCount];
 			srd.uavs[i].indices[0] = uavVector[i].second;
 		}
 	}
 
 	// SRV : various types
 	{
-		const std::vector<InstanceToDependancy::SRVParamIndices>& srvVector =
+		const eastl::vector<InstanceToDependancy::SRVParamIndices, EASTLAllocator>& srvVector =
 			itod.srvCurrentIndexVector[shaderIndex];
 		srd.srvCount = static_cast<uint>(srvVector.size());
 		srd.srvs =
 			(DX11ShaderResourceDependancy::DX11SRVRef*)
-			allocs->alloc(
+			new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) char[
 				sizeof(DX11ShaderResourceDependancy::DX11SRVRef) * srd.srvCount
-			);
+			];
 		for (size_t i = 0; i < srvVector.size(); i++)
 		{
 			const InstanceToDependancy::SRVParamIndices& srvIndex = srvVector[i];
@@ -189,7 +192,7 @@ void SetShaderResourceDependancy(
 			srd.srvs[i].indexCount = 1;
 			srd.srvs[i].slotOrRegister = p.slotIndex;
 			srd.srvs[i].indices =
-				(uint*)allocs->alloc(sizeof(uint) * srd.srvs[i].indexCount);
+				(uint*)new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) char[sizeof(uint) * srd.srvs[i].indexCount];
 
 			switch (srvIndex.kind)
 			{
@@ -205,28 +208,32 @@ void SetShaderResourceDependancy(
 }
 
 HRESULT LoadResourceAndDependancyFromInstance(
-	IN ID3D11Device* device, IN const Allocaters* allocs, IN uint instanceCount, IN RenderInstance* instances,
+	IN ID3D11Device* device, IN uint instanceCount, IN RenderInstance* instances,
 	OUT DX11Resources* res, OUT DX11InternalResourceDescBuffer* rawBuffer, OUT DX11PipelineDependancySet* set
 )
 {
-	std::vector<std::pair<const wchar_t*, FBXAdjChunk>> fbxPathChunkVector;
-	std::vector<const wchar_t*> texturePathVector;
-	std::vector<ShaderParamSampler> samplerStateVector;
-	std::vector<std::pair<uint, ShaderParamCB>> constantBufferVector;
-	std::vector<ShaderCompileDesc> shaderCompileVector;
-	std::vector<SkinningInstanceDesc> skinningInstanceDescVector;
-	std::vector<std::pair<uint, uint>> vertexShaderAndGeometryVector;
+	std::cout << "call LoadResourceAndDependancyFromInstance " << std::endl;
 
-	std::vector<DX11PipelineDependancy> dx11FrameDependVector;
-	std::vector<DX11PipelineDependancy> dx11ResizeDependVector;
-	std::vector<DX11PipelineDependancy> dx11InitDependVector;
+	eastl::vector<eastl::pair<const wchar_t*, FBXAdjChunk>, EASTLAllocator> fbxPathChunkVector(EASTL_TEMPARARY_NAME);
+	eastl::vector<const wchar_t*, EASTLAllocator> texturePathVector(EASTL_TEMPARARY_NAME);
+	eastl::vector<ShaderParamSampler, EASTLAllocator> samplerStateVector(EASTL_TEMPARARY_NAME);
+	eastl::vector<eastl::pair<uint, ShaderParamCB>, EASTLAllocator> constantBufferVector(EASTL_TEMPARARY_NAME);
+	eastl::vector<ShaderCompileDesc, EASTLAllocator> shaderCompileVector(EASTL_TEMPARARY_NAME);
+	eastl::vector<SkinningInstanceDesc, EASTLAllocator> skinningInstanceDescVector(EASTL_TEMPARARY_NAME);
+	eastl::vector<eastl::pair<uint, uint>, EASTLAllocator> vertexShaderAndGeometryVector(EASTL_TEMPARARY_NAME);
 
-	std::vector<InstanceToDependancy> itodVector;
+	eastl::vector<DX11PipelineDependancy, EASTLAllocator> dx11FrameDependVector(EASTL_TEMPARARY_NAME);
+	eastl::vector<DX11PipelineDependancy, EASTLAllocator> dx11ResizeDependVector(EASTL_TEMPARARY_NAME);
+	eastl::vector<DX11PipelineDependancy, EASTLAllocator> dx11InitDependVector(EASTL_TEMPARARY_NAME);
 
-	std::vector<FBXChunkConfig::FBXMeshConfig> fbxMeshConfigVector;
+	eastl::vector<InstanceToDependancy, EASTLAllocator> itodVector(EASTL_TEMPARARY_NAME);
+
+	eastl::vector<FBXChunkConfig::FBXMeshConfig, EASTLAllocator> fbxMeshConfigVector(EASTL_TEMPARARY_NAME);
 
 	for (uint instanceIndex = 0; instanceIndex < instanceCount; instanceIndex++)
 	{
+		std::cout << "instanceIndex: " << instanceIndex << std::endl;
+
 		InstanceToDependancy itod = InstanceToDependancy();
 		RenderInstance& instance = instances[instanceIndex];
 		uint accumGeometryCount = 0, accumAnimationCount = 0, resInputLayoutIndex = 0;
@@ -235,10 +242,10 @@ HRESULT LoadResourceAndDependancyFromInstance(
 
 		// instance :: geometry
 		{
-			auto it = std::find_if(
+			auto it = eastl::find_if(
 				fbxPathChunkVector.begin(), 
 				fbxPathChunkVector.end(), 
-				[=](std::pair<const wchar_t*, FBXAdjChunk> val) -> bool
+				[=](eastl::pair<const wchar_t*, FBXAdjChunk> val) -> bool
 				{
 					return wcscmp(val.first, instance.geometry.filePath) == 0;
 				}
@@ -254,7 +261,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 				memset(&config, 0, sizeof(config));
 
 				FALSE_ERROR_MESSAGE_CONTINUE_ARGS(
-					ImportFBX(instance.geometry.filePath, c, &opt, allocs),
+					ImportFBX(instance.geometry.filePath, c, &opt),
 					L"fail to import FBX(%s) for geometry..",
 					instance.geometry.filePath
 				);
@@ -267,17 +274,17 @@ HRESULT LoadResourceAndDependancyFromInstance(
 				fbxPathChunkVector.push_back(
 					PathFBXAdjChunkPair(
 						instance.geometry.filePath,
-						FBXAdjChunk(std::move(c), config, accumGeometryCount, accumAnimationCount)
+						FBXAdjChunk(eastl::move(c), config, accumGeometryCount, accumAnimationCount)
 					)
 				);
 
-				it = std::prev(fbxPathChunkVector.end());
+				it = eastl::prev(fbxPathChunkVector.end());
 
 				accumGeometryCount += c.meshCount;
 				accumAnimationCount += c.animationCount;
 			}
 
-			itod.fbxGeometryChunkIndex = static_cast<int>(std::distance(fbxPathChunkVector.begin(), it));
+			itod.fbxGeometryChunkIndex = static_cast<int>(eastl::distance(fbxPathChunkVector.begin(), it));
 
 			for (uint j = 0; j < it->second.chunk.meshCount; j++)
 			{
@@ -299,10 +306,10 @@ HRESULT LoadResourceAndDependancyFromInstance(
 
 			if (instance.isSkinDeform)
 			{
-				it = std::find_if(
+				it = eastl::find_if(
 					fbxPathChunkVector.begin(),
 					fbxPathChunkVector.end(),
-					[=](std::pair<const wchar_t*, FBXAdjChunk> val) -> bool
+					[=](const eastl::pair<const wchar_t*, FBXAdjChunk>& val) -> bool
 					{
 						return wcscmp(val.first, instance.anim.filePath) == 0;
 					}
@@ -318,7 +325,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 					memset(&config, 0, sizeof(config));
 
 					FALSE_ERROR_MESSAGE_CONTINUE_ARGS(
-						ImportFBX(instance.anim.filePath, c, &opt, allocs),
+						ImportFBX(instance.anim.filePath, c, &opt),
 						L"fail to import FBX(%s) for animation..",
 						instance.anim.filePath
 					);
@@ -326,17 +333,17 @@ HRESULT LoadResourceAndDependancyFromInstance(
 					fbxPathChunkVector.push_back(
 						PathFBXAdjChunkPair(
 							instance.geometry.filePath,
-							FBXAdjChunk(std::move(c), config, accumGeometryCount, accumAnimationCount)
+							FBXAdjChunk(eastl::move(c), config, accumGeometryCount, accumAnimationCount)
 						)
 					);
 
-					it = std::prev(fbxPathChunkVector.end());
+					it = eastl::prev(fbxPathChunkVector.end());
 
 					accumGeometryCount += c.meshCount;
 					accumAnimationCount += c.animationCount;
 				}
 
-				itod.fbxAnimChunkIndex = static_cast<int>(std::distance(fbxPathChunkVector.begin(), it));
+				itod.fbxAnimChunkIndex = static_cast<int>(eastl::distance(fbxPathChunkVector.begin(), it));
 
 				// animation find in FBXChunk
 				for (uint j = 0; j < it->second.chunk.animationCount; j++)
@@ -374,7 +381,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 
 			// shader
 			{
-				auto it = std::find_if(
+				auto it = eastl::find_if(
 					shaderCompileVector.begin(), shaderCompileVector.end(),
 					[=](const ShaderCompileDesc& d) -> bool 
 					{
@@ -385,10 +392,10 @@ HRESULT LoadResourceAndDependancyFromInstance(
 				if (it == shaderCompileVector.end())
 				{
 					shaderCompileVector.push_back(shaderInstance.sd);
-					it = std::prev(shaderCompileVector.end());
+					it = eastl::prev(shaderCompileVector.end());
 				}
 
-				itod.shaderCompileIndices[shaderIndex] = static_cast<int>(std::distance(shaderCompileVector.begin(), it));
+				itod.shaderCompileIndices[shaderIndex] = static_cast<int>(eastl::distance(shaderCompileVector.begin(), it));
 			}
 
 			// param 
@@ -398,11 +405,11 @@ HRESULT LoadResourceAndDependancyFromInstance(
 				{
 				case ShaderParamKind::Texture2DSRV:
 				{
-					auto it = std::find_if(
+					auto it = eastl::find_if(
 						texturePathVector.begin(),
 						texturePathVector.end(),
-						[=](const std::wstring& ws) -> bool {
-							return ws.compare(shaderInstance.params[paramIndex].tex2DSRV.filePath) == 0;
+						[=](const wchar_t* wstr) -> bool {
+							return wcscmp(wstr, shaderInstance.params[paramIndex].tex2DSRV.filePath) == 0;
 						});
 
 					if (it == texturePathVector.end())
@@ -410,20 +417,20 @@ HRESULT LoadResourceAndDependancyFromInstance(
 						texturePathVector.push_back(
 							shaderInstance.params[paramIndex].tex2DSRV.filePath
 						);
-						it = std::prev(texturePathVector.end());
+						it = eastl::prev(texturePathVector.end());
 					}
 
 					itod.srvCurrentIndexVector[shaderIndex].push_back(
 						InstanceToDependancy::SRVParamIndices(
 							InstanceToDependancy::SRVParamIndices::SRVArrayKind::Texture2D,
-							paramIndex, static_cast<uint>(std::distance(texturePathVector.begin(), it))
+							paramIndex, static_cast<uint>(eastl::distance(texturePathVector.begin(), it))
 						)
 					);
 				}
 				break;
 				case ShaderParamKind::SamplerState:
 				{
-					auto it = std::find_if(
+					auto it = eastl::find_if(
 						samplerStateVector.begin(),
 						samplerStateVector.end(),
 						[=](const ShaderParamSampler& sampler) -> bool {
@@ -433,39 +440,39 @@ HRESULT LoadResourceAndDependancyFromInstance(
 					if (it == samplerStateVector.end())
 					{
 						samplerStateVector.push_back(shaderInstance.params[paramIndex].sampler);
-						it = std::prev(samplerStateVector.end());
+						it = eastl::prev(samplerStateVector.end());
 					}
 
 					itod.samplerCurrentIndexVector[shaderIndex].push_back(
-						std::pair<uint, uint>(
-							paramIndex, std::distance(samplerStateVector.begin(), it)
+						eastl::pair<uint, uint>(
+							paramIndex, eastl::distance(samplerStateVector.begin(), it)
 						)
 					);
 				}
 				break;
 				case ShaderParamKind::ConstantBuffer:
 				{
-					auto it = std::find_if(
+					auto it = eastl::find_if(
 						constantBufferVector.begin(),
 						constantBufferVector.end(),
-						[=](const std::pair<uint, ShaderParamCB>& cb) -> bool {
+						[=](const eastl::pair<uint, ShaderParamCB>& cb) -> bool {
 							return cb.second == shaderInstance.params[paramIndex].cb;
 						});
 
 					if (it == constantBufferVector.end())
 					{
 						constantBufferVector.push_back(
-							std::pair<uint, ShaderParamCB>(
+							eastl::pair<uint, ShaderParamCB>(
 								instanceIndex,
 								shaderInstance.params[paramIndex].cb
 								)
 						);
-						it = std::prev(constantBufferVector.end());
+						it = eastl::prev(constantBufferVector.end());
 					}
 
 					itod.cbCurrentIndexVector[shaderIndex].push_back(
 						InstanceToDependancy::CBParamIndices(
-							instanceIndex, paramIndex, static_cast<uint>(std::distance(constantBufferVector.begin(), it))
+							instanceIndex, paramIndex, static_cast<uint>(eastl::distance(constantBufferVector.begin(), it))
 						)
 					);
 				}
@@ -479,21 +486,21 @@ HRESULT LoadResourceAndDependancyFromInstance(
 			L"fail to find vertex shader desc.."
 		);
 		auto it = 
-			std::find_if(
+			eastl::find_if(
 				vertexShaderAndGeometryVector.begin(),
 				vertexShaderAndGeometryVector.end(),
-				[=](std::pair<uint, uint> p) -> bool {
+				[=](eastl::pair<uint, uint> p) -> bool {
 					return p.first == itod.shaderCompileIndices[0] && p.second == itod.resGeometryIndex; 
 				}
 			);
 		if (it == vertexShaderAndGeometryVector.end())
 		{
 			vertexShaderAndGeometryVector.push_back(
-				std::pair<uint, uint>(itod.shaderCompileIndices[0], itod.resGeometryIndex)
+				eastl::pair<uint, uint>(itod.shaderCompileIndices[0], itod.resGeometryIndex)
 			);
-			it = std::prev(vertexShaderAndGeometryVector.end());
+			it = eastl::prev(vertexShaderAndGeometryVector.end());
 		}
-		itod.resInputLayoutIndex = static_cast<int>(std::distance(vertexShaderAndGeometryVector.begin(), it));
+		itod.resInputLayoutIndex = static_cast<int>(eastl::distance(vertexShaderAndGeometryVector.begin(), it));
 
 		itodVector.push_back(itod);
 	}
@@ -506,13 +513,13 @@ HRESULT LoadResourceAndDependancyFromInstance(
 		FBXChunkConfig* chunkConfigs = (FBXChunkConfig*)alloca(sizeof(FBXChunkConfig) * fbxPathChunkVector.size());
 		for (auto ci = fbxPathChunkVector.begin(); ci != fbxPathChunkVector.end(); ci++)
 		{
-			uint i = static_cast<uint>(std::distance(ci, fbxPathChunkVector.begin()));
+			uint i = static_cast<uint>(eastl::distance(ci, fbxPathChunkVector.begin()));
 
 			chunks[i] = ci->second.chunk;
 			chunkConfigs[i] = ci->second.config;
 		}
 		FAILED_ERROR_MESSAGE_RETURN_ARGS(
-			LoadMeshAndAnimsFromFBXByDX11(res, rawBuffer, allocs, static_cast<uint>(fbxPathChunkVector.size()), chunks, chunkConfigs),
+			LoadMeshAndAnimsFromFBXByDX11(res, rawBuffer, static_cast<uint>(fbxPathChunkVector.size()), chunks, chunkConfigs),
 			L"fail to LoadMeshAndAnimsFromFBXByDX11.."
 		);
 	}
@@ -520,7 +527,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 	// texture load
 	FAILED_ERROR_MESSAGE_RETURN_ARGS(
 		ReserveTex2DAndSRVFromFileByDX11(
-			res, rawBuffer, allocs,
+			res, rawBuffer,
 			static_cast<uint>(texturePathVector.size()), texturePathVector.data()
 		),
 		L"fail to LoadMeshAndAnimsFromFBXByDX11.."
@@ -531,7 +538,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 		(DX11CompileDescToShader*)alloca(sizeof(DX11CompileDescToShader) * shaderCompileVector.size());
 	FAILED_ERROR_MESSAGE_RETURN(
 		ReserveShaderFromFileByDX11(
-			res, rawBuffer, allocs,
+			res, rawBuffer,
 			static_cast<uint>(shaderCompileVector.size()), shaderCompileVector.data(), cdToShader
 		),
 		L"fail to compile shaders.."
@@ -549,7 +556,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 		}
 		FAILED_ERROR_MESSAGE_RETURN(
 			ReserveLoadInputLayoutRefIndex(
-				res, rawBuffer, allocs,
+				res, rawBuffer,
 				static_cast<uint>(shaderCompileVector.size()), cdToShader,
 				static_cast<uint>(vertexShaderAndGeometryVector.size()), inputLayoutDescs
 			),
@@ -560,7 +567,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 	// skinning instance load
 	FAILED_ERROR_MESSAGE_RETURN(
 		ReserveSkinningInstances(
-			res, rawBuffer, allocs, 
+			res, rawBuffer, 
 			static_cast<uint>(skinningInstanceDescVector.size()), skinningInstanceDescVector.data()
 		),
 		L"fail to create dx11 input layout.."
@@ -569,8 +576,8 @@ HRESULT LoadResourceAndDependancyFromInstance(
 	// constant buffer
 	{
 		ALLOC_RANGE_ZEROMEM(
-			res->constantBufferCount, constantBufferVector.size(),
-			uint, res->constantBufferIndices, allocs->alloc
+			EASTL_PERSISTANT_NAME, res->constantBufferCount, constantBufferVector.size(),
+			uint, res->constantBufferIndices
 		);
 		uint* cbSizes = (uint*)alloca(sizeof(uint) * constantBufferVector.size());
 		for (uint i = 0; i < constantBufferVector.size(); i++)
@@ -594,10 +601,15 @@ HRESULT LoadResourceAndDependancyFromInstance(
 		ReserveLoadSamplerStates(rawBuffer, static_cast<uint>(samplerStateVector.size()), sds);
 	}
 
+	size_t maxRawBufferSize = GetMaximumBufferSize(rawBuffer);
+	// TODO:: change to temparary allocator
+	void* buffer = new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) char[maxRawBufferSize];
 	FAILED_ERROR_MESSAGE_RETURN(
-		CreateDX11ResourcesByDesc(res, rawBuffer, allocs, device, true),
+		CreateDX11ResourcesByDesc(res, rawBuffer, buffer, device, true),
 		L"fail to create dx11 samplers.."
-	);
+	);	
+	SAFE_DELETE_OVERLOADED(buffer, EASTL_PERSISTANT_NAME);
+
 #pragma endregion
 
 #pragma region link instance to dependancy
@@ -654,7 +666,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 					{
 					case ExistUAVKind::DeformedVertexBufferForSkin:
 						itod.uavCurrentIndexVector[sidx].push_back(
-							std::pair<uint, uint>(paramIndex, skin->vertexStreamUAVIndex)
+							eastl::pair<uint, uint>(paramIndex, skin->vertexStreamUAVIndex)
 						);
 						break;
 					}
@@ -664,7 +676,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 		}
 	}
 
-	std::vector<ShaderParamCB> cbVector;
+	eastl::vector<ShaderParamCB, EASTLAllocator> cbVector;
 	for (uint instanceIndex = 0; instanceIndex < instanceCount; instanceIndex++)
 	{
 		// variables
@@ -678,7 +690,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 		{
 			// TODO:: prune duplicate update
 			const uint dstSubres = 0, srcRowPitch = 0, srcDepthPitch = 0;
-			const std::vector<InstanceToDependancy::CBParamIndices>& cbCurrentIndexVector =
+			const eastl::vector<InstanceToDependancy::CBParamIndices, EASTLAllocator>& cbCurrentIndexVector =
 				itod.cbCurrentIndexVector[shaderIndex];
 			const InstanceToDependancy::CBParamIndices& indices = cbCurrentIndexVector[cbIndex];
 			ShaderParamCB& cb = constantBufferVector[indices.cbIndex].second;
@@ -704,7 +716,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 				break;
 			}
 			cbDepend.copy.args.updateSubRes.copyToBufferFunc = cb.setFunc;
-			std::vector<DX11PipelineDependancy>* dep = nullptr;
+			eastl::vector<DX11PipelineDependancy, EASTLAllocator>* dep = nullptr;
 			switch (cb.freq)
 			{
 			case UpdateFrequency::PerFrame:
@@ -720,7 +732,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 
 			if (!cb.unique)
 			{
-				auto it = std::find_if(
+				auto it = eastl::find_if(
 					cbVector.begin(), cbVector.end(),
 					[=](const ShaderParamCB& c) -> bool
 					{ 
@@ -750,7 +762,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 			compute.argsAsDispatch.dispatch.threadGroupCountZ = 1;
 
 			SetShaderResourceDependancy(
-				res, allocs, itod.shaderCompileIndices[5], cdToShader, itod, 5, 
+				res, itod.shaderCompileIndices[5], cdToShader, itod, 5, 
 				instance.skinCSParam, compute.resources
 			);
 
@@ -768,8 +780,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 				if (instance.shaderFlag & (0x01 << shaderIndex))
 				{
 					SetShaderResourceDependancy(
-						res, allocs,
-						itod.shaderCompileIndices[shaderIndex], cdToShader, itod, shaderIndex,
+						res, itod.shaderCompileIndices[shaderIndex], cdToShader, itod, shaderIndex,
 						instance.si[shaderIndex], draw.draw.dependants[shaderIndex]
 					);
 				}
@@ -796,19 +807,19 @@ HRESULT LoadResourceAndDependancyFromInstance(
 
 
 	set->frameDependancyCount = static_cast<uint>(dx11FrameDependVector.size());
-	set->frameDependancy = (DX11PipelineDependancy*)allocs->alloc(sizeof(DX11PipelineDependancy) * dx11FrameDependVector.size());
+	set->frameDependancy = (DX11PipelineDependancy*)new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) DX11PipelineDependancy[dx11FrameDependVector.size()];
 	for (size_t i = 0; i < dx11FrameDependVector.size(); i++)
-		new (set->frameDependancy + i) DX11PipelineDependancy(std::move(dx11FrameDependVector[i]));
+		new (set->frameDependancy + i) DX11PipelineDependancy(eastl::move(dx11FrameDependVector[i]));
 
 	set->resizeDependancyCount = static_cast<uint>(dx11ResizeDependVector.size());
-	set->resizeDependancy = (DX11PipelineDependancy*)allocs->alloc(sizeof(DX11PipelineDependancy) * dx11ResizeDependVector.size());
+	set->resizeDependancy = (DX11PipelineDependancy*)new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) DX11PipelineDependancy[dx11ResizeDependVector.size()];
 	for (size_t i = 0; i < dx11ResizeDependVector.size(); i++)
-		new (set->resizeDependancy + i) DX11PipelineDependancy(std::move(dx11ResizeDependVector[i]));
+		new (set->resizeDependancy + i) DX11PipelineDependancy(eastl::move(dx11ResizeDependVector[i]));
 
 	set->initDependancyCount = static_cast<uint>(dx11InitDependVector.size());
-	set->initDependancy = (DX11PipelineDependancy*)allocs->alloc(sizeof(DX11PipelineDependancy) * dx11InitDependVector.size());
+	set->initDependancy = (DX11PipelineDependancy*)new (EASTL_PERSISTANT_NAME, __FILE__, __LINE__) DX11PipelineDependancy[dx11InitDependVector.size()];
 	for (size_t i = 0; i < dx11InitDependVector.size(); i++)
-		new (set->initDependancy + i) DX11PipelineDependancy(std::move(dx11InitDependVector[i]));
+		new (set->initDependancy + i) DX11PipelineDependancy(eastl::move(dx11InitDependVector[i]));
 
 #pragma endregion
 

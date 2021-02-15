@@ -1,5 +1,5 @@
-#include "defined.h"
-#include <iostream>
+#include "defined_type.h"
+#include "defined_macro.h"
 
 #pragma once
 
@@ -540,15 +540,7 @@ std::ostream& operator<<(std::ostream &o, Vector3<Type>& v)
 	return o;
 }
 
-#define MachineEpsilon (std::numeric_limits<float>::epsilon() * 0.5)
-
-#ifndef MAX
-#define MAX(a,b)            (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef MIN
-#define MIN(a,b)            (((a) < (b)) ? (a) : (b))
-#endif
+#define MachineEpsilon (eastl::numeric_limits<float>::epsilon() * 0.5)
 
 template <typename T>
 int MaxDimension(const Vector3<T> &v) {
@@ -567,7 +559,7 @@ inline Vector3<T> Max(const Vector3<T> &p1, const Vector3<T> &p2) {
 
 template <typename T>
 inline Vector3<T> Abs(const Vector3<T> &v) {
-	return Vector3<T>(std::abs(v.x), std::abs(v.y), std::abs(v.z));
+	return Vector3<T>(eastl::abs(v.x), eastl::abs(v.y), eastl::abs(v.z));
 }
 
 template <typename T>
