@@ -187,7 +187,7 @@ HRESULT DXShaderResourceInit(bool debug)
 	);
 
 	const wchar_t* textureName[] = { L"./char_max.png", L"./face_00.png" };
-	DX11ShaderCompileDesc shaderDescArray[] = { { L"./object.hlsl", "vertex", "vs_5_0" }, { L"./object.hlsl", "pixel", "ps_5_0" } };
+	ShaderCompileDesc shaderDescArray[] = { { L"./object.hlsl", "vertex", "vs_5_0" }, { L"./object.hlsl", "pixel", "ps_5_0" } };
 	DX11InputLayoutDesc inputLayoutDescArray[] = { { 0, 0 } };
 	D3D11_SAMPLER_DESC samplerDescs[] = { 
 		{
@@ -543,7 +543,7 @@ HRESULT PipelineDependancySet()
 		g_Dependancies[0].ps.samplers[0].indices = (uint*)g_GlobalAllocaters.alloc(sizeof(uint));
 		g_Dependancies[0].ps.samplers[0].indices[0] = 0;
 
-		g_Dependancies[0].drawType = DX11PipelineDependancy::DrawType::DRAW_INDEXED;
+		g_Dependancies[0].drawType = DX11PipelineDependancy::DrawType::DrawIndexed;
 		g_Dependancies[0].argsAsDraw.drawIndexedArgs.indexCount =
 			g_ExternalResources.geometryChunks[g_Dependancies[0].input.geometryIndex].indexCount;
 		g_Dependancies[0].argsAsDraw.drawIndexedArgs.startIndexLocation = 0;
@@ -620,7 +620,7 @@ HRESULT PipelineDependancySet()
 		g_Dependancies[1].ps.samplers[0].indices = (uint*)g_GlobalAllocaters.alloc(sizeof(uint));
 		g_Dependancies[1].ps.samplers[0].indices[0] = 0;
 
-		g_Dependancies[1].drawType = DX11PipelineDependancy::DrawType::DRAW_INDEXED;
+		g_Dependancies[1].drawType = DX11PipelineDependancy::DrawType::DrawIndexed;
 		g_Dependancies[1].argsAsDraw.drawIndexedArgs.indexCount =
 			g_ExternalResources.geometryChunks[g_Dependancies[1].input.geometryIndex].indexCount;
 		g_Dependancies[1].argsAsDraw.drawIndexedArgs.startIndexLocation = 0;

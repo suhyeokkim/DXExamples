@@ -4,7 +4,7 @@
 #include <d3d11_4.h>
 #include "fbximport.h"
 
-struct DX11ShaderCompileDesc
+struct ShaderCompileDesc
 {
 	const wchar_t* fileName;
 	const char* entrypoint;
@@ -164,7 +164,7 @@ HRESULT LoadTexture2DAndSRVFromDirectories(
 );
 HRESULT LoadShaderFromDirectoriesAndInputLayout(
 	DX11Resources* res, const Allocaters* allocs, ID3D11Device* device, 
-	int compileCount, const DX11ShaderCompileDesc* descs, 
+	int compileCount, const ShaderCompileDesc* descs, 
 	int inputLayoutCount, const DX11InputLayoutDesc* inputLayoutDesc
 );
 HRESULT CreateSamplerStates(
@@ -240,9 +240,9 @@ struct DX11PipelineDependancy
 	};
 	enum class DrawType : uint 
 	{
-		NONE,
-		DRAW,
-		DRAW_INDEXED
+		None,
+		Draw,
+		DrawIndexed
 	} drawType;
 	union ArgsAsDrawType {
 		struct DrawArgs
@@ -257,7 +257,7 @@ struct DX11PipelineDependancy
 			sint baseVertexLocation;
 		} drawIndexedArgs;
 	} argsAsDraw;
-	DX11PipelineDependancy() : drawType(DrawType::NONE)
+	DX11PipelineDependancy() : drawType(DrawType::None)
 	{
 		new (dependants + 0) DX11ShaderResourceDependancy();
 		new (dependants + 1) DX11ShaderResourceDependancy();

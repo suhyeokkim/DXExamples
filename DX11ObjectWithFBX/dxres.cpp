@@ -458,7 +458,7 @@ HRESULT LoadTexture2DAndSRVFromDirectories(DX11Resources* res, const Allocaters*
 // TODO:: Append
 HRESULT LoadShaderFromDirectoriesAndInputLayout(
 	DX11Resources* res, const Allocaters* allocs, ID3D11Device* device, 
-	int compileCount, const DX11ShaderCompileDesc* descs, 
+	int compileCount, const ShaderCompileDesc* descs, 
 	int inputLayoutCount, const DX11InputLayoutDesc* inputLayoutDesc
 )
 {
@@ -472,7 +472,7 @@ HRESULT LoadShaderFromDirectoriesAndInputLayout(
 	std::vector<DX11Resources::DX11ShaderFile> files;
 	for (int i = 0; i < compileCount; i++)
 	{
-		const DX11ShaderCompileDesc& dsc = descs[i];
+		const ShaderCompileDesc& dsc = descs[i];
 		int fileIndex = -1;
 		for (int j = 0; j < files.size(); j++)
 			if (wcscmp(files[j].fileName, dsc.fileName) == 0)
@@ -538,7 +538,7 @@ HRESULT LoadShaderFromDirectoriesAndInputLayout(
 	memset(res->inputLayouts, 0, sizeof(DX11Resources::DX11InputLayout) * inputLayoutCount);
 	for (int i = 0; i < compileCount; i++)
 	{
-		const DX11ShaderCompileDesc& dsc = descs[i];
+		const ShaderCompileDesc& dsc = descs[i];
 		const DescToFileShader& dtof = descToFileShader[i];
 
 		DX11Resources::DX11ShaderFile::DX11CompiledShader* compiledShader = 
@@ -902,12 +902,12 @@ HRESULT DrawExplicitly(ID3D11DeviceContext* deviceContext, DX11ContextState* sta
 
 		switch(depend.drawType)
 		{
-		case DX11PipelineDependancy::DrawType::DRAW:
+		case DX11PipelineDependancy::DrawType::Draw:
 			deviceContext->Draw(
 				depend.argsAsDraw.drawArgs.vertexCount, depend.argsAsDraw.drawArgs.startVertexLocation
 			);
 			break;
-		case DX11PipelineDependancy::DrawType::DRAW_INDEXED:
+		case DX11PipelineDependancy::DrawType::DrawIndexed:
 			deviceContext->DrawIndexed(
 				depend.argsAsDraw.drawIndexedArgs.indexCount, 
 				depend.argsAsDraw.drawIndexedArgs.startIndexLocation, 
