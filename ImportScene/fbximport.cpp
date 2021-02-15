@@ -350,14 +350,20 @@ bool MeshToChunk(FbxNode* node, FBXChunk& chunk, const FBXLoadOptionChunk* opt, 
 	strcpy_s(mesh.name, sizeof(char) * (nameLen + 1), name);
 	mesh.geometry.vertexCount = fbxMesh->GetControlPointsCount();
 
+	FbxAMatrix geometricTransform = node->EvaluateGlobalTransform().Inverse();
+	Matrix4x4 geometricTransform4x4;
+	FbxAMatrixToMatrix4x4(geometricTransform, geometricTransform4x4);
+
 	// controlpoint to vertex
 	FbxVector4* fbxVertices = fbxMesh->GetControlPoints();
 	mesh.geometry.vertices = (Vector3f*)allocs->alloc(sizeof(Vector3f) * mesh.geometry.vertexCount);
 	for (uint i = 0; i < mesh.geometry.vertexCount; i++)
 	{
-		mesh.geometry.vertices[i].x = static_cast<float>(fbxVertices[i].mData[0]);
-		mesh.geometry.vertices[i].y = static_cast<float>(fbxVertices[i].mData[1]);
-		mesh.geometry.vertices[i].z = static_cast<float>(fbxVertices[i].mData[2]);
+		FbxDouble4 d = fbxVertices[i];
+		mesh.geometry.vertices[i].x = static_cast<float>(d.mData[0]);
+		mesh.geometry.vertices[i].y = static_cast<float>(d.mData[1]);
+		mesh.geometry.vertices[i].z = static_cast<float>(d.mData[2]);
+		geometricTransform4x4.TransformPoint(mesh.geometry.vertices[i]);
 	}
 
 	// non-unifoirm polygon to uniform triangle
