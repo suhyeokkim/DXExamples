@@ -45,6 +45,15 @@
 { \
 	dst = (type*)::new(alloc_name, __FILE__, __LINE__) type[count]; \
 }
+#define ALLOC_OVERLOADED_VOID_SIZED_DEFINED(alloc_name, dst, size) \
+	void* dst = (void*)::new(alloc_name, __FILE__, __LINE__) char[size]; 
+
+#define ALLOC_OVERLOADED_SIZED_DEFINED(alloc_name, dst, type, size) \
+	type* dst = (type*)::new(alloc_name, __FILE__, __LINE__) char[size]
+
+#define ALLOC_OVERLOADED_DEFINED(alloc_name, dst, type, count) \
+	type* dst = (type*)::new(alloc_name, __FILE__, __LINE__) type[count]
+
 #define ALLOC_SIZE_AND_WCSCPY(alloc_name, dst, size, src) \
 { \
 	size_t len = wcslen(src); \
