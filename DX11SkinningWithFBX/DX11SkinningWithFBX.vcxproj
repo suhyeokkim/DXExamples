@@ -82,7 +82,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(EASTL_PATH)include;$(EASTL_PATH)test\packages\EAAssert\include;$(EASTL_PATH)test\packages\EABase\include/Common;$(EASTL_PATH)test\packages\EAMain\include;$(EASTL_PATH)test\packages\EAStdC\include$(EASTL_PATH)test\packages\EATest\include;$(EASTL_PATH)test\packages\EAThread\include;$(SolutionDir)DirectXTex\DirectXTex;$(FBXSDK_PATH)include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(FRAMEWORK_PATH)include;$(EASTL_PATH)include;$(EASTL_PATH)test\packages\EAAssert\include;$(EASTL_PATH)test\packages\EABase\include/Common;$(EASTL_PATH)test\packages\EAMain\include;$(EASTL_PATH)test\packages\EAStdC\include$(EASTL_PATH)test\packages\EATest\include;$(EASTL_PATH)test\packages\EAThread\include;$(SolutionDir)DirectXTex\DirectXTex;$(FBXSDK_PATH)include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -109,7 +109,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(EASTL_PATH)include;$(EASTL_PATH)test\packages\EAAssert\include;$(EASTL_PATH)test\packages\EABase\include/Common;$(EASTL_PATH)test\packages\EAMain\include;$(EASTL_PATH)test\packages\EAStdC\include$(EASTL_PATH)test\packages\EATest\include;$(EASTL_PATH)test\packages\EAThread\include;$(SolutionDir)DirectXTex\DirectXTex;$(FBXSDK_PATH)include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(FRAMEWORK_PATH)include;$(EASTL_PATH)include;$(EASTL_PATH)test\packages\EAAssert\include;$(EASTL_PATH)test\packages\EABase\include/Common;$(EASTL_PATH)test\packages\EAMain\include;$(EASTL_PATH)test\packages\EAStdC\include$(EASTL_PATH)test\packages\EATest\include;$(EASTL_PATH)test\packages\EAThread\include;$(SolutionDir)DirectXTex\DirectXTex;$(FBXSDK_PATH)include</AdditionalIncludeDirectories>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -135,31 +135,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="allocators.cpp" />
-    <ClCompile Include="datatypes.cpp" />
-    <ClCompile Include="dx11depend.cpp" />
-    <ClCompile Include="dx11resdesc.cpp" />
-    <ClCompile Include="dx11util.cpp" />
+    <ClCompile Include="..\Framework\source\allocators.cpp" />
+    <ClCompile Include="..\Framework\source\datatypes.cpp" />
+    <ClCompile Include="..\Framework\source\dx11depend.cpp" />
+    <ClCompile Include="..\Framework\source\dx11res.cpp" />
+    <ClCompile Include="..\Framework\source\dx11resdesc.cpp" />
+    <ClCompile Include="..\Framework\source\dx11util.cpp" />
+    <ClCompile Include="..\Framework\source\fbximport.cpp" />
+    <ClCompile Include="..\Framework\source\renderinstance.cpp" />
+    <ClCompile Include="..\Framework\source\winmain.cpp" />
     <ClCompile Include="dxentry.cpp" />
-    <ClCompile Include="dx11res.cpp" />
-    <ClCompile Include="fbximport.cpp" />
-    <ClCompile Include="renderinstance.cpp" />
-    <ClCompile Include="winmain.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="allocators.h" />
-    <ClInclude Include="datatypes.h" />
-    <ClInclude Include="defined.h" />
-    <ClInclude Include="defined_alloc_macro.h" />
-    <ClInclude Include="defined_type.h" />
-    <ClInclude Include="defined_macro.h" />
-    <ClInclude Include="dx11depend.h" />
-    <ClInclude Include="dx11resdesc.h" />
-    <ClInclude Include="dxentry.h" />
-    <ClInclude Include="dx11res.h" />
-    <ClInclude Include="dx11util.h" />
-    <ClInclude Include="fbximport.h" />
-    <ClInclude Include="renderinstance.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Char_Max.png" />

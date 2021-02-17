@@ -4,6 +4,7 @@
   <PropertyGroup Label="UserMacros">
     <FBXSDK_PATH>D:\Libraries\FBX\FBX SDK\2020.1.1\</FBXSDK_PATH>
     <EASTL_PATH>..\EASTL\</EASTL_PATH>
+    <FRAMEWORK_PATH>..\Framework\</FRAMEWORK_PATH>
   </PropertyGroup>
   <PropertyGroup>
     <_PropertySheetDisplayName>EXTERNAL_PATH</_PropertySheetDisplayName>
@@ -15,6 +16,9 @@
     </BuildMacro>
     <BuildMacro Include="EASTL_PATH">
       <Value>$(EASTL_PATH)</Value>
+    </BuildMacro>
+    <BuildMacro Include="FRAMEWORK_PATH">
+      <Value>$(FRAMEWORK_PATH)</Value>
     </BuildMacro>
   </ItemGroup>
 </Project>

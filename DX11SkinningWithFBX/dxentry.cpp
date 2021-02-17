@@ -84,6 +84,14 @@ _declspec(align(16)) struct SkinningConfigCB
 	uint poseOffset;
 };
 
+void GetDXWindowSetting(OUT WindowSetting* set)
+{
+	set->windowName = L"DX11SkinningWithFBX";
+	set->windowWidth = 1024;
+	set->windowHeight = 768;
+	set->maxFrameRate = 144;
+}
+
 HRESULT DXDeviceInit(UINT width, UINT height, UINT maxFrameRate, bool debug)
 {
 	HRESULT hr = S_OK;
@@ -140,53 +148,25 @@ HRESULT DXDeviceInit(UINT width, UINT height, UINT maxFrameRate, bool debug)
 	return hr;
 }
 
-Vector4f
-g_CurrentPos = Vector4f(-100.0f, 75.f, 150.0f, 0.0f),
-g_ObjectPos = Vector4f(0.0f, 0, 0.0f, 0.0f);
+HRESULT DXDeviceInit(UINT width, UINT height, UINT maxFrameRate, bool debug);
+HRESULT RenderResourceInit(bool debug);
 
-void UpdateFrameCB(void* ptr, void* ref)
+HRESULT DXEntryInit(HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, UINT maxFrameRate, bool debug)
 {
-	DirectX::FXMVECTOR
-		scale = XMVectorSet(0.2f, 0.2f, 0.2f, 0.2f),
-		rotationOrigin = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f),
-		rotationQuat = XMVectorSet(0, 0, 0, 1),
-		translate = XMVectorSet(0, 0, 0, 1);
-	g_World = DirectX::XMMatrixAffineTransformation(
-		scale, rotationOrigin, rotationQuat, translate
-	);
+	DWORD startMilliSecond = GetTickCount();
+	HRESULT hr = S_OK;
+	{
+		g_hWnd = hWnd;
+		g_hInstance = hInstance;
 
-	static float time = 0.f;
-	static DWORD startTime = GetTickCount();
-	DWORD currentTime = GetTickCount();
-	time = (currentTime - startTime) / 1000.0f;
+		hr = DXDeviceInit(width, height, maxFrameRate, debug);
+		FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to initialize device..");
+		hr = RenderResourceInit(debug);
+		FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create resource view..");
+	}
+	printf("intialize time : %dms\n", GetTickCount() - startMilliSecond);
 
-	XMVECTOR
-		eye = XMLoadFloat4((XMFLOAT4*)&g_CurrentPos),
-		at = XMLoadFloat4((XMFLOAT4*)&g_ObjectPos),
-		up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-	XMMATRIX viewMatrix = DirectX::XMMatrixLookAtLH(eye, at, up);
-
-	OnFrameCB* cbPtr = (OnFrameCB*)ptr;
-	cbPtr->transfromMatrix = g_World * viewMatrix * g_Projection;
-	cbPtr->viewMatrix = viewMatrix;
-	cbPtr->worldMatrix = g_World;
-	cbPtr->view = (g_ObjectPos - g_CurrentPos).normalized();
-	cbPtr->baseColor = Vector4f(1, 0, 0, 0);
-	cbPtr->tintColor = Vector4f::One();
-	cbPtr->lightDir = Vector4f(1, 1, 1, 0).normalized();
-}
-
-void UpdateImmutableCB(void* ptr, void* ref)
-{
-	ImmutableCB* immutableCB = reinterpret_cast<ImmutableCB*>(ptr);
-	immutableCB->position = Vector4f();
-}
-
-void UpdaterResizeCB(void* ptr, void* ref)
-{
-	OnResizeCB* resizeCB = reinterpret_cast<OnResizeCB*>(ptr);
-	resizeCB->projectionMatrix = g_Projection = 
-		DirectX::XMMatrixPerspectiveFovLH(XM_PIDIV4, g_D3D11ViewPort.Width / g_D3D11ViewPort.Height, 0.01f, 1000000.0f);
+	return hr;
 }
 
 // TODO:: naive resizing function..
@@ -232,6 +212,144 @@ HRESULT DXEntryResize(UINT width, UINT height)
 	ExecuteExplicitlyDX11(g_D3D11ImmediateContext, &g_ContextState, &g_ExternalResources, g_DepSet.resizeDependancyCount, g_DepSet.resizeDependancy);
 
 	return hr;
+}
+
+void DXEntryClean()
+{
+	if (g_KeyInputDevice) 
+	{
+		g_KeyInputDevice->Unacquire();
+		g_KeyInputDevice->Release();
+		g_KeyInputDevice = nullptr;
+	}
+
+	if (g_Input)
+	{
+		g_Input->Release();
+		g_Input = nullptr;
+	}
+
+	ReleaseResources(&g_ExternalResources);
+	ReleaseContext(&g_ContextState);
+
+	ReleaseDX11Dependancy(&g_DepSet);
+
+	if (g_D3D11ImmediateContext)
+	{
+		g_D3D11ImmediateContext->ClearState();
+		g_D3D11ImmediateContext->Release();
+	}
+
+	SAFE_RELEASE(g_D3D11RenderTargetView);
+	SAFE_RELEASE(g_D3D11DepthStencialView);
+	SAFE_RELEASE(g_DXGISwapChain);
+	SAFE_RELEASE(g_DXGIFactory);
+
+#if defined _DEBUG | DEBUG
+	ID3D11Debug *dbg;
+	g_D3D11Device->QueryInterface(IID_ID3D11Debug, (void**)(&dbg));
+	if (dbg)
+	{
+		dbg->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+		dbg->Release();
+	}
+#endif
+
+	g_D3D11Device->Release();
+}
+void ReadKey();
+void RenderDependancy();
+
+void DXEntryFrameUpdate()
+{
+	g_FrameCount++;
+	auto start = std::chrono::high_resolution_clock::now();
+	{
+		ReadKey();
+
+		RenderDependancy();
+	}
+	auto elapsed = std::chrono::high_resolution_clock::now() - start;
+	long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+	double tempTime = microseconds / 1000.0;
+	g_AvgFrameTime = g_AvgFrameTime * (g_FrameCount - 1) / g_FrameCount + tempTime / g_FrameCount;
+}
+
+Vector4f
+g_CurrentPos = Vector4f(-100.0f, 75.f, 150.0f, 0.0f),
+g_ObjectPos = Vector4f(0.0f, 0, 0.0f, 0.0f);
+
+
+void ReadKey()
+{
+	HRESULT hr = g_KeyInputDevice->GetDeviceState(sizeof(g_KeyState), &g_KeyState);
+
+	if (FAILED(hr))
+	{
+		if ((hr == DIERR_INPUTLOST) || (hr == DIERR_NOTACQUIRED))
+			g_KeyInputDevice->Acquire();
+	}
+
+	const float step = 0.1f;
+
+	if (g_KeyState[DIK_W] & 0x80)
+		g_CurrentPos.z += step;
+	else if (g_KeyState[DIK_S] & 0x80)
+		g_CurrentPos.z -= step;
+
+	if (g_KeyState[DIK_A] & 0x80)
+		g_CurrentPos.x += step;
+	else if (g_KeyState[DIK_D] & 0x80)
+		g_CurrentPos.x -= step;
+
+	if (g_KeyState[DIK_Q] & 0x80)
+		g_CurrentPos.y += step;
+	else if (g_KeyState[DIK_E] & 0x80)
+		g_CurrentPos.y -= step;
+}
+void UpdateFrameCB(void* ptr, void* ref)
+{
+	DirectX::FXMVECTOR
+		scale = XMVectorSet(0.2f, 0.2f, 0.2f, 0.2f),
+		rotationOrigin = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f),
+		rotationQuat = XMVectorSet(0, 0, 0, 1),
+		translate = XMVectorSet(0, 0, 0, 1);
+	g_World = DirectX::XMMatrixAffineTransformation(
+		scale, rotationOrigin, rotationQuat, translate
+	);
+
+	static float time = 0.f;
+	static DWORD startTime = GetTickCount();
+	DWORD currentTime = GetTickCount();
+	time = (currentTime - startTime) / 1000.0f;
+
+	XMVECTOR
+		eye = XMLoadFloat4((XMFLOAT4*)&g_CurrentPos),
+		at = XMLoadFloat4((XMFLOAT4*)&g_ObjectPos),
+		up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMMATRIX viewMatrix = DirectX::XMMatrixLookAtLH(eye, at, up);
+
+	OnFrameCB* cbPtr = (OnFrameCB*)ptr;
+	cbPtr->transfromMatrix = g_World * viewMatrix * g_Projection;
+	cbPtr->viewMatrix = viewMatrix;
+	cbPtr->worldMatrix = g_World;
+	cbPtr->view = (g_ObjectPos - g_CurrentPos).normalized();
+	cbPtr->baseColor = Vector4f(1, 0, 0, 0);
+	cbPtr->tintColor = Vector4f::One();
+	cbPtr->lightDir = Vector4f(1, 1, 1, 0).normalized();
+}
+
+void UpdateImmutableCB(void* ptr, void* ref)
+{
+	ImmutableCB* immutableCB = reinterpret_cast<ImmutableCB*>(ptr);
+	immutableCB->position = Vector4f();
+}
+
+void UpdaterResizeCB(void* ptr, void* ref)
+{
+	OnResizeCB* resizeCB = reinterpret_cast<OnResizeCB*>(ptr);
+	resizeCB->projectionMatrix = g_Projection =
+		DirectX::XMMatrixPerspectiveFovLH(XM_PIDIV4, g_D3D11ViewPort.Width / g_D3D11ViewPort.Height, 0.01f, 1000000.0f);
 }
 
 HRESULT RenderResourceInit(bool debug)
@@ -321,7 +439,7 @@ HRESULT RenderResourceInit(bool debug)
 	DX11InternalResourceDescBuffer buffer2;
 	FAILED_ERROR_MESSAGE_RETURN(
 		LoadResourceAndDependancyFromInstance(
-			g_D3D11Device, ARRAYSIZE(renderInstances), renderInstances, 
+			g_D3D11Device, ARRAYSIZE(renderInstances), renderInstances,
 			&g_ExternalResources, &buffer2, &g_DepSet
 		),
 		L"fail to load resource & dependacies.."
@@ -335,114 +453,6 @@ HRESULT RenderResourceInit(bool debug)
 	ExecuteExplicitlyDX11(g_D3D11ImmediateContext, &g_ContextState, &g_ExternalResources, g_DepSet.resizeDependancyCount, g_DepSet.resizeDependancy);
 
 	return S_OK;
-}
-
-HRESULT DXEntryInit(HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, UINT maxFrameRate, bool debug)
-{
-	DWORD startMilliSecond = GetTickCount();
-	HRESULT hr = S_OK;
-	{
-		g_hWnd = hWnd;
-		g_hInstance = hInstance;
-
-		hr = DXDeviceInit(width, height, maxFrameRate, debug);
-		FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to initialize device..");
-		hr = RenderResourceInit(debug);
-		FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create resource view..");
-	}
-	printf("intialize time : %dms\n", GetTickCount()- startMilliSecond);
-
-	return hr;
-}
-
-void DXEntryClean()
-{
-	if (g_KeyInputDevice) 
-	{
-		g_KeyInputDevice->Unacquire();
-		g_KeyInputDevice->Release();
-		g_KeyInputDevice = nullptr;
-	}
-
-	if (g_Input)
-	{
-		g_Input->Release();
-		g_Input = nullptr;
-	}
-
-	ReleaseResources(&g_ExternalResources);
-	ReleaseContext(&g_ContextState);
-
-	ReleaseDX11Dependancy(&g_DepSet);
-
-	if (g_D3D11ImmediateContext)
-	{
-		g_D3D11ImmediateContext->ClearState();
-		g_D3D11ImmediateContext->Release();
-	}
-
-	SAFE_RELEASE(g_D3D11RenderTargetView);
-	SAFE_RELEASE(g_D3D11DepthStencialView);
-	SAFE_RELEASE(g_DXGISwapChain);
-	SAFE_RELEASE(g_DXGIFactory);
-
-#if defined _DEBUG | DEBUG
-	ID3D11Debug *dbg;
-	g_D3D11Device->QueryInterface(IID_ID3D11Debug, (void**)(&dbg));
-	if (dbg)
-	{
-		dbg->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
-		dbg->Release();
-	}
-#endif
-
-	g_D3D11Device->Release();
-}
-void ReadKey();
-void Render();
-void RenderDependancy();
-
-void DXEntryFrameUpdate()
-{
-	g_FrameCount++;
-	auto start = std::chrono::high_resolution_clock::now();
-	{
-		ReadKey();
-
-		RenderDependancy();
-	}
-	auto elapsed = std::chrono::high_resolution_clock::now() - start;
-	long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
-	double tempTime = microseconds / 1000.0;
-	g_AvgFrameTime = g_AvgFrameTime * (g_FrameCount - 1) / g_FrameCount + tempTime / g_FrameCount;
-}
-
-void ReadKey()
-{
-	HRESULT hr = g_KeyInputDevice->GetDeviceState(sizeof(g_KeyState), &g_KeyState);
-
-	if (FAILED(hr))
-	{
-		if ((hr == DIERR_INPUTLOST) || (hr == DIERR_NOTACQUIRED))
-			g_KeyInputDevice->Acquire();
-	}
-
-	const float step = 0.1f;
-
-	if (g_KeyState[DIK_W] & 0x80)
-		g_CurrentPos.z += step;
-	else if (g_KeyState[DIK_S] & 0x80)
-		g_CurrentPos.z -= step;
-
-	if (g_KeyState[DIK_A] & 0x80)
-		g_CurrentPos.x += step;
-	else if (g_KeyState[DIK_D] & 0x80)
-		g_CurrentPos.x -= step;
-
-	if (g_KeyState[DIK_Q] & 0x80)
-		g_CurrentPos.y += step;
-	else if (g_KeyState[DIK_E] & 0x80)
-		g_CurrentPos.y -= step;
 }
 
 void RenderDependancy()

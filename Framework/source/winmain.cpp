@@ -88,19 +88,17 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
 	// Register the windows class
 	WNDCLASSW wndClass = GetWindowClass(hInstance, MsgProc, L"Direct3DWindowClass");
-
 	FALSE_ERROR_MESSAGE_RETURN(RegisterClassW(&wndClass), L"fail to register window class..");
 
-	UINT nDefaultWidth = 1024, nDefaultHeight = 768, maxFrameRate = 144;
-
-	WCHAR strWindowTitle[] = L"DX11SkinningWithFBX";
-	HWND hWnd = GetCreatedWindow(hInstance, &wndClass, strWindowTitle, nDefaultWidth, nDefaultHeight);
+	WindowSetting wndSet;
+	GetDXWindowSetting(&wndSet);
+	HWND hWnd = GetCreatedWindow(hInstance, &wndClass, wndSet.windowName, wndSet.windowWidth, wndSet.windowHeight);
 
 	ShowWindow(hWnd, SW_SHOW);
 	UpdateWindow(hWnd);
 	
 	FAILED_ERROR_MESSAGE_RETURN(
-		DXEntryInit(hInstance, hWnd, nDefaultWidth, nDefaultHeight, maxFrameRate, true),
+		DXEntryInit(hInstance, hWnd, wndSet.windowWidth, wndSet.windowHeight, wndSet.maxFrameRate, true),
 		L"Fail to initialize."
 	);
 

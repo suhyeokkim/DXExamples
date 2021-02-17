@@ -1,23 +1,44 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClInclude Include="dxentry.h" />
-    <ClInclude Include="defined.h" />
-    <ClInclude Include="datatypes.h" />
-    <ClInclude Include="fbximport.h" />
-    <ClInclude Include="dxutil.h" />
-    <ClInclude Include="dxres.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="winmain.cpp" />
-    <ClCompile Include="fbximport.cpp" />
-    <ClCompile Include="datatypes.cpp" />
-    <ClCompile Include="dxres.cpp" />
     <ClCompile Include="dxentry.cpp" />
+    <ClCompile Include="..\Framework\source\dx11util.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Framework\source\fbximport.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Framework\source\renderinstance.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Framework\source\winmain.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Framework\source\allocators.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Framework\source\datatypes.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Framework\source\dx11depend.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Framework\source\dx11res.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Framework\source\dx11resdesc.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Resources">
       <UniqueIdentifier>{648431a7-9347-44a8-90d0-4a70fe168dd1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Framework">
+      <UniqueIdentifier>{789131e8-e8dd-4104-82c4-7de043c421ed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Framework\source">
+      <UniqueIdentifier>{0fa1c21f-1ac5-4624-a31d-dc523bcb1e0b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

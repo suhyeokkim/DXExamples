@@ -1,11 +1,9 @@
-Texture2D diffuseTexture : register(t0);
-SamplerState linearSampler : register(s0);
 
-cbuffer Tutoiral7ResizeCB : register(b1)
+cbuffer ResizeCB : register(b1)
 {
 	matrix projection;
 }
-cbuffer Tutoiral7OnFrameCB : register(b2)
+cbuffer OnFrameCB : register(b2)
 {
 	matrix transform;
 	matrix view;
@@ -41,10 +39,13 @@ PS_INPUT vertex(VS_INPUT input)
 	return output;
 }
 
+Texture2D diffuseTexture : register(t0);
+SamplerState linearSampler : register(s0);
+
 float4 pixel(PS_INPUT input) : SV_Target
-{
+{ 
+	return diffuseTexture.Sample(linearSampler, input.uv);
 	float3 diffuse = diffuseTexture.Sample(linearSampler, input.uv).xyz;
 	float clampCos = saturate(dot(input.normal, lightDir.xyz));
-
 	return float4(diffuse * tint.xyz * (clampCos + (float)base.x), 1);
 }

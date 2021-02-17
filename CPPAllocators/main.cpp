@@ -200,7 +200,7 @@ bool operator!=(const TrackingAllocatorEASTL& a, const TrackingAllocatorEASTL& b
 	return strcmp(a.get_name(), b.get_name());
 }
 
-#include "../DX11SkinningWithFBX/allocators.h"
+#include "allocators.h"
 
 int main()
 {

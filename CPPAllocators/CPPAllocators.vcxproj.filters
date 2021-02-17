@@ -2,9 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="..\DX11SkinningWithFBX\allocators.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\DX11SkinningWithFBX\allocators.h" />
+    <ClCompile Include="..\Framework\source\allocators.cpp" />
   </ItemGroup>
 </Project>

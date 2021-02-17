@@ -214,7 +214,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 {
 	std::cout << "call LoadResourceAndDependancyFromInstance " << std::endl;
 
-	eastl::vector<eastl::pair<const wchar_t*, FBXAdjChunk>, EASTLAllocator> fbxPathChunkVector(EASTL_TEMPARARY_NAME);
+	eastl::vector<PathFBXAdjChunkPair, EASTLAllocator> fbxPathChunkVector(EASTL_TEMPARARY_NAME);
 	eastl::vector<const wchar_t*, EASTLAllocator> texturePathVector(EASTL_TEMPARARY_NAME);
 	eastl::vector<ShaderParamSampler, EASTLAllocator> samplerStateVector(EASTL_TEMPARARY_NAME);
 	eastl::vector<eastl::pair<uint, ShaderParamCB>, EASTLAllocator> constantBufferVector(EASTL_TEMPARARY_NAME);
@@ -245,7 +245,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 			auto it = eastl::find_if(
 				fbxPathChunkVector.begin(), 
 				fbxPathChunkVector.end(), 
-				[=](eastl::pair<const wchar_t*, FBXAdjChunk> val) -> bool
+				[=](PathFBXAdjChunkPair val) -> bool
 				{
 					return wcscmp(val.first, instance.geometry.filePath) == 0;
 				}
@@ -423,7 +423,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 					itod.srvCurrentIndexVector[shaderIndex].push_back(
 						InstanceToDependancy::SRVParamIndices(
 							InstanceToDependancy::SRVParamIndices::SRVArrayKind::Texture2D,
-							paramIndex, static_cast<uint>(eastl::distance(texturePathVector.begin(), it))
+							paramIndex, (uint)(eastl::distance(texturePathVector.begin(), it))
 						)
 					);
 				}
@@ -445,7 +445,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 
 					itod.samplerCurrentIndexVector[shaderIndex].push_back(
 						eastl::pair<uint, uint>(
-							paramIndex, eastl::distance(samplerStateVector.begin(), it)
+							paramIndex, (uint)eastl::distance(samplerStateVector.begin(), it)
 						)
 					);
 				}
@@ -622,6 +622,7 @@ HRESULT LoadResourceAndDependancyFromInstance(
 		DX11Resources::SkinningInstance* skin = 
 			instance.isSkinDeform ? &res->skinningInstances[itod.skinInstanceIndex] : nullptr;
 
+		if (skin)
 		for (uint sidx = 0; sidx < 6; sidx++)
 		{
 			if (sidx < 5 && !(instance.shaderFlag & (0x01 << sidx))) continue;
