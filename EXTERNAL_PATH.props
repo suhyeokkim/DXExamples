@@ -5,11 +5,19 @@
     <FBXSDK_PATH>D:\Libraries\FBX\FBX SDK\2020.1.1\</FBXSDK_PATH>
     <EASTL_PATH>..\EASTL\</EASTL_PATH>
     <FRAMEWORK_PATH>..\Framework\</FRAMEWORK_PATH>
+    <RESOURCE_PATH>..\resources\</RESOURCE_PATH>
+    <SHADER_RESOURCE_PATH>..\resources\shaders\</SHADER_RESOURCE_PATH>
+    <MODEL_RESOURCE_PATH>..\resources\models\</MODEL_RESOURCE_PATH>
   </PropertyGroup>
   <PropertyGroup>
     <_PropertySheetDisplayName>EXTERNAL_PATH</_PropertySheetDisplayName>
   </PropertyGroup>
-  <ItemDefinitionGroup />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>PROJECT_NAME="$(ProjectName)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <BuildMacro Include="FBXSDK_PATH">
       <Value>$(FBXSDK_PATH)</Value>
@@ -19,6 +27,18 @@
     </BuildMacro>
     <BuildMacro Include="FRAMEWORK_PATH">
       <Value>$(FRAMEWORK_PATH)</Value>
+    </BuildMacro>
+    <BuildMacro Include="RESOURCE_PATH">
+      <Value>$(RESOURCE_PATH)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="SHADER_RESOURCE_PATH">
+      <Value>$(SHADER_RESOURCE_PATH)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="MODEL_RESOURCE_PATH">
+      <Value>$(MODEL_RESOURCE_PATH)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
     </BuildMacro>
   </ItemGroup>
 </Project>
