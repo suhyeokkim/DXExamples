@@ -1,0 +1,116 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Framework">
+      <UniqueIdentifier>{32c2fa75-53f8-4e20-b374-d09c392ee96e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{2f95abe1-3daf-4d97-bafd-1bcad86226ac}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Framework\source">
+      <UniqueIdentifier>{71572227-ca4a-40a1-bab5-565db3c5a4fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Framework\include">
+      <UniqueIdentifier>{8ab472d6-746b-4ed4-bc12-a673f486c1dd}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Framework\include\defined_type.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\dx11depend.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\dx11res.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\dx11resdesc.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\dx11util.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\dxentry.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\fbximport.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\renderinstance.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\winmain.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\allocators.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\containers.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\datatypes.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\defined.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\defined_alloc_macro.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+    <ClInclude Include="Framework\include\defined_macro.h">
+      <Filter>Framework\include</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Framework\source\dx11res.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="Framework\source\dx11resdesc.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="Framework\source\dx11util.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="Framework\source\fbximport.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="Framework\source\renderinstance.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="Framework\source\winmain.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="Framework\source\allocators.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="Framework\source\containers.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="Framework\source\datatypes.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="Framework\source\dx11depend.cpp">
+      <Filter>Framework\source</Filter>
+    </ClCompile>
+    <ClCompile Include="dxentry.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\resources\lpshead\bump-lowRes.png">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="..\resources\lpshead\lambertian.jpg">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="..\resources\lpshead\rendered.jpg">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="..\resources\lpshead\bump.png">
+      <Filter>Resources</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="..\resources\lpshead\head.OBJ">
+      <Filter>Resources</Filter>
+    </Object>
+  </ItemGroup>
+</Project>
