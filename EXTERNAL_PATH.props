@@ -8,6 +8,13 @@
     <RESOURCE_PATH>..\resources\</RESOURCE_PATH>
     <SHADER_RESOURCE_PATH>..\resources\shaders\</SHADER_RESOURCE_PATH>
     <MODEL_RESOURCE_PATH>..\resources\models\</MODEL_RESOURCE_PATH>
+    <DXTEX_INCLUDE_PATH>$(SolutionDir)DirectXTex\DirectXTex</DXTEX_INCLUDE_PATH>
+    <GEOMETRY_INCLUDE_PATH>$(SolutionDir)Geometry</GEOMETRY_INCLUDE_PATH>
+    <INPUT_INCLUDE_PATH>$(SolutionDir)Input</INPUT_INCLUDE_PATH>
+    <EXT_INCLUDE_PATH>$(DXTEX_INCLUDE_PATH);$(GEOMETRY_INCLUDE_PATH);$(INPUT_INCLUDE_PATH);$(COMMON_INCLUDE_PATH)</EXT_INCLUDE_PATH>
+    <EXT_LIBRARY_PATH>$(OutDir)</EXT_LIBRARY_PATH>
+    <COMMON_INCLUDE_PATH>$(SolutionDir)Common</COMMON_INCLUDE_PATH>
+    <EXT_LIBRARY_BIN>Geometry.lib; Input.lib; Common.lib;</EXT_LIBRARY_BIN>
   </PropertyGroup>
   <PropertyGroup>
     <_PropertySheetDisplayName>EXTERNAL_PATH</_PropertySheetDisplayName>
@@ -39,6 +46,29 @@
     <BuildMacro Include="MODEL_RESOURCE_PATH">
       <Value>$(MODEL_RESOURCE_PATH)</Value>
       <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="DXTEX_INCLUDE_PATH">
+      <Value>$(DXTEX_INCLUDE_PATH)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="GEOMETRY_INCLUDE_PATH">
+      <Value>$(GEOMETRY_INCLUDE_PATH)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+    <BuildMacro Include="INPUT_INCLUDE_PATH">
+      <Value>$(INPUT_INCLUDE_PATH)</Value>
+    </BuildMacro>
+    <BuildMacro Include="EXT_INCLUDE_PATH">
+      <Value>$(EXT_INCLUDE_PATH)</Value>
+    </BuildMacro>
+    <BuildMacro Include="EXT_LIBRARY_PATH">
+      <Value>$(EXT_LIBRARY_PATH)</Value>
+    </BuildMacro>
+    <BuildMacro Include="COMMON_INCLUDE_PATH">
+      <Value>$(COMMON_INCLUDE_PATH)</Value>
+    </BuildMacro>
+    <BuildMacro Include="EXT_LIBRARY_BIN">
+      <Value>$(EXT_LIBRARY_BIN)</Value>
     </BuildMacro>
   </ItemGroup>
 </Project>
