@@ -16,11 +16,11 @@
 #define INOUT
 #define REF
 
-typedef unsigned short         ushort;
-typedef unsigned int           uint;
-typedef signed long int        lint;
-typedef unsigned long int      ulint;
-typedef signed long long int   llint;
-typedef unsigned long long int ullint;
+typedef short                  int16;
+typedef unsigned short         uint16;
+typedef int                    int32;
+typedef unsigned int           uint32;
+typedef signed long long int   int64;
+typedef unsigned long long int uint64;
 typedef double                 dfloat;
 typedef long double            efloat;

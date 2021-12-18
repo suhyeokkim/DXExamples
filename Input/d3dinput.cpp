@@ -2,10 +2,10 @@
 
 bool InitializeInput(HINSTANCE instacne, InputDeviceFlag flags)
 {
-	return false;
+    return false;
 }
 
 bool IsFailed(InputDeviceFlag flag)
 {
-	return false;
+    return false;
 }

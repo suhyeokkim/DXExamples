@@ -5,18 +5,18 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 
-// ¸¶¿ì½º : 2´Â ³×°³ ÀÌ»óÀÇ ¹öÆ°
+// ï¿½ï¿½ï¿½ì½º : 2ï¿½ï¿½ ï¿½×°ï¿½ ï¿½Ì»ï¿½ï¿½ï¿½ ï¿½ï¿½Æ°
 // https://docs.microsoft.com/en-us/previous-versions/windows/desktop/ee418672(v=vs.85)
-// Á¶ÀÌ½ºÆ½ : 1,2 ¸ÓÀÓ?
+// ï¿½ï¿½ï¿½Ì½ï¿½Æ½ : 1,2 ï¿½ï¿½ï¿½ï¿½?
 // https://docs.microsoft.com/ko-kr/previous-versions/windows/desktop/ee418631(v=vs.85)
 
 enum class DECLSPEC_DLL InputDeviceFlag
 {
-	Keyboard				= 0x01,
-	Mouse					= 0x02,
-	ExtendMouse				= 0x04,
-	Joystick				= 0x08,
-	Joystick2				= 0x10,
+    Keyboard                = 0x01,
+    Mouse                    = 0x02,
+    ExtendMouse                = 0x04,
+    Joystick                = 0x08,
+    Joystick2                = 0x10,
 };
 
 DECLSPEC_DLL bool InitializeInput(HINSTANCE instacne, InputDeviceFlag flags);
