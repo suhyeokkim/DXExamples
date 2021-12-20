@@ -58,6 +58,36 @@ int32 Clamp(int32 val, int32 min, int32 max)
         return val;
 }
 
+uint32 Clamp(uint32 val, uint32 min, uint32 max)
+{
+    if (val < min)
+        return min;
+    else if (val > max)
+        return max;
+    else
+        return val;
+}
+
+int64 Clamp(int64 val, int64 min, int64 max)
+{
+    if (val < min)
+        return min;
+    else if (val > max)
+        return max;
+    else
+        return val;
+}
+
+uint64 Clamp(uint64 val, uint64 min, uint64 max)
+{
+    if (val < min)
+        return min;
+    else if (val > max)
+        return max;
+    else
+        return val;
+}
+
 float Clamp(float val, float min, float max)
 {
     return fmax(min, fmin(max, val));
