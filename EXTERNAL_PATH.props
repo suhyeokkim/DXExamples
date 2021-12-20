@@ -11,10 +11,13 @@
     <DXTEX_INCLUDE_PATH>$(SolutionDir)DirectXTex\DirectXTex</DXTEX_INCLUDE_PATH>
     <GEOMETRY_INCLUDE_PATH>$(SolutionDir)Geometry</GEOMETRY_INCLUDE_PATH>
     <INPUT_INCLUDE_PATH>$(SolutionDir)Input</INPUT_INCLUDE_PATH>
-    <EXT_INCLUDE_PATH>$(DXTEX_INCLUDE_PATH);$(GEOMETRY_INCLUDE_PATH);$(INPUT_INCLUDE_PATH);$(COMMON_INCLUDE_PATH)</EXT_INCLUDE_PATH>
-    <EXT_LIBRARY_PATH>$(OutDir)</EXT_LIBRARY_PATH>
     <COMMON_INCLUDE_PATH>$(SolutionDir)Common</COMMON_INCLUDE_PATH>
-    <EXT_LIBRARY_BIN>Geometry.lib; Input.lib; Common.lib;</EXT_LIBRARY_BIN>
+    <EXT_INCLUDE_PATH>$(DXTEX_INCLUDE_PATH);$(GEOMETRY_INCLUDE_PATH);$(INPUT_INCLUDE_PATH);$(COMMON_INCLUDE_PATH);</EXT_INCLUDE_PATH>
+    <EXT_LIBRARY_PATH>$(OutDir)</EXT_LIBRARY_PATH>
+    <COMMON_LIBRARY_BIN>Common.lib</COMMON_LIBRARY_BIN>
+    <GEOMETRY_LIBRARY_BIN>Geometry.lib</GEOMETRY_LIBRARY_BIN>
+    <INPUT_LIBRARY_BIN>Input.lib</INPUT_LIBRARY_BIN>
+    <EXT_LIBRARY_BIN>$(COMMON_LIBRARY_BIN); $(GEOMETRY_LIBRARY_BIN); $(INPUT_LIBRARY_BIN);</EXT_LIBRARY_BIN>
   </PropertyGroup>
   <PropertyGroup>
     <_PropertySheetDisplayName>EXTERNAL_PATH</_PropertySheetDisplayName>
@@ -58,14 +61,23 @@
     <BuildMacro Include="INPUT_INCLUDE_PATH">
       <Value>$(INPUT_INCLUDE_PATH)</Value>
     </BuildMacro>
+    <BuildMacro Include="COMMON_INCLUDE_PATH">
+      <Value>$(COMMON_INCLUDE_PATH)</Value>
+    </BuildMacro>
     <BuildMacro Include="EXT_INCLUDE_PATH">
       <Value>$(EXT_INCLUDE_PATH)</Value>
     </BuildMacro>
     <BuildMacro Include="EXT_LIBRARY_PATH">
       <Value>$(EXT_LIBRARY_PATH)</Value>
     </BuildMacro>
-    <BuildMacro Include="COMMON_INCLUDE_PATH">
-      <Value>$(COMMON_INCLUDE_PATH)</Value>
+    <BuildMacro Include="COMMON_LIBRARY_BIN">
+      <Value>$(COMMON_LIBRARY_BIN)</Value>
+    </BuildMacro>
+    <BuildMacro Include="GEOMETRY_LIBRARY_BIN">
+      <Value>$(GEOMETRY_LIBRARY_BIN)</Value>
+    </BuildMacro>
+    <BuildMacro Include="INPUT_LIBRARY_BIN">
+      <Value>$(INPUT_LIBRARY_BIN)</Value>
     </BuildMacro>
     <BuildMacro Include="EXT_LIBRARY_BIN">
       <Value>$(EXT_LIBRARY_BIN)</Value>

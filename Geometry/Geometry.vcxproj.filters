@@ -28,9 +28,6 @@
     <ClInclude Include="bvh.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="defined_type.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="geometry.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
