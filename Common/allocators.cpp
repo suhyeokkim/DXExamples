@@ -5,7 +5,6 @@
 #include "allocators.h"
 #include "container.h"
 
-#define ALLOCATOR_MIN_ALIGNMENT 8
 
 struct MemRange
 {
@@ -143,8 +142,8 @@ struct AllocatorEntry
     {
         memChunkList.Init(nullptr, sizeof(MemChunk));
     }
-    AllocatorEntry(const char* name, unsigned debug, size_t min_page_size) :
-        minPageSize(min_page_size), lastRefPage(0), debug(debug), allocByteCount(0)
+    AllocatorEntry(const char* name, unsigned debug, size_t minPageSize) :
+        minPageSize(minPageSize), lastRefPage(0), debug(debug), allocByteCount(0)
     {
         ALLOC_SIZE_AND_STRCPY(nullptr, this->name, name_buffer_max, name);
         memChunkList.Init(nullptr, sizeof(MemChunk));
@@ -265,6 +264,17 @@ AllocatorEntry* FindEntry(const char* name)
             return g_Entries + i;
     return nullptr;
 }
+bool RemoveEntry(const char* name)
+{
+    auto entry = FindEntry(name);
+
+    if (entry == nullptr) {
+        return false;
+    } 
+
+    entry->~AllocatorEntry();
+    return true;
+}
 
 const int32 g_MinPageSize = 16 * 1024 * 1024;
 
@@ -274,13 +284,16 @@ DECLSPEC_DLL void* memAlloc(size_t size, size_t alignment, size_t alignOffset, c
         return _aligned_offset_malloc(size, alignment, alignOffset);
     } else {
         auto entry = FindEntry(addrspace);
-        auto index = AddEntry(addrspace, g_MinPageSize);
 
-        if (index < 0) {
-            return nullptr;
-        } else {
-            entry = g_Entries + index;
-        }
+        if (entry == nullptr) {
+            auto index = AddEntry(addrspace, g_MinPageSize);
+
+            if (index < 0) {
+                return nullptr;
+            } else {
+                entry = g_Entries + index;
+            }
+        } 
 
         return entry->Allocate(size, alignment, alignOffset);
     }
@@ -321,7 +334,25 @@ DECLSPEC_DLL size_t memPageSize(const char* addrspace)
         return false;
     }
 
-    return entry->allocByteCount;
+    return entry->totalPageSize;
+}
+
+DECLSPEC_DLL size_t memMinPageSize()
+{
+    return g_MinPageSize;
+}
+
+DECLSPEC_DLL int32 validPageCount()
+{
+    int32 count = 0;
+
+    for (auto i = 0; i < AllocEntryCount; i++) {
+        if (g_Entries[i].name != nullptr) {
+            count++;
+        }
+    }
+
+    return count;
 }
 
 DECLSPEC_DLL void* operator new[](size_t size, const char* pName, const char* file, int line)
