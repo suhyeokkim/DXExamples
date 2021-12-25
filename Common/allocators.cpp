@@ -138,24 +138,24 @@ struct AllocatorEntry
     const size_t name_buffer_max = 256;
 
     AllocatorEntry() :
-        name(nullptr), minPageSize(0), lastRefPage(0), debug(0), allocByteCount(0)
+        name(nullptr), minPageSize(0), lastRefPage(0), debug(0), allocByteCount(0), totalPageSize(0)
     {
         memChunkList.Init(nullptr, sizeof(MemChunk));
     }
     AllocatorEntry(const char* name, unsigned debug, size_t minPageSize) :
-        minPageSize(minPageSize), lastRefPage(0), debug(debug), allocByteCount(0)
+        minPageSize(minPageSize), lastRefPage(0), debug(debug), allocByteCount(0), totalPageSize(0)
     {
         ALLOC_SIZE_AND_STRCPY(nullptr, this->name, name_buffer_max, name);
         memChunkList.Init(nullptr, sizeof(MemChunk));
     }
     AllocatorEntry(const AllocatorEntry& o) :
-        minPageSize(o.minPageSize), lastRefPage(o.lastRefPage), debug(o.debug), allocByteCount(o.allocByteCount)
+        minPageSize(o.minPageSize), lastRefPage(o.lastRefPage), debug(o.debug), allocByteCount(o.allocByteCount), totalPageSize(0)
     {
         ALLOC_SIZE_AND_STRCPY(nullptr, this->name, name_buffer_max, name);
         memChunkList.CopyFrom(o.memChunkList);
     }
     AllocatorEntry(const AllocatorEntry& o, const char* name) :
-        minPageSize(o.minPageSize), lastRefPage(o.lastRefPage), debug(o.debug), allocByteCount(o.allocByteCount)
+        minPageSize(o.minPageSize), lastRefPage(o.lastRefPage), debug(o.debug), allocByteCount(o.allocByteCount), totalPageSize(0)
     {
         ALLOC_SIZE_AND_STRCPY(nullptr, this->name, name_buffer_max, name);
         memChunkList.CopyFrom(o.memChunkList);
