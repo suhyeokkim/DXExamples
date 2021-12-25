@@ -16,6 +16,8 @@
 
 void GetDXWindowSetting(OUT WindowInstance* set)
 {
+    DebugPrintScope _(L"GetDXWindowSetting");
+
     set->settings.windowName = L"DX12Tutorial0";
     set->settings.windowWidth = 1024;
     set->settings.windowHeight = 768;
@@ -24,7 +26,9 @@ void GetDXWindowSetting(OUT WindowInstance* set)
 
 HRESULT DXEntryInit(DXInstance* inst, HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, uint32 maxFrameRate, bool debug)
 {
-    memset(inst, 0, sizeof(inst));
+    DebugPrintScope _(L"DXEntryInit");
+
+    *inst = { 0, };
     auto hr = (HRESULT)0;
 
     auto createFactoryFlags = (uint32)0;
@@ -94,6 +98,8 @@ HRESULT DXEntryInit(DXInstance* inst, HINSTANCE hInstance, HWND hWnd, UINT width
 
 void DXEntryClean(DXInstance* dx)
 {
+    DebugPrintScope _(L"DXEntryClean");
+
     for (auto i = 0; i < COMMANDS_COUNT; i++) {
         DestroyDXCommands(dx->commands + i);
     }
@@ -110,10 +116,12 @@ void DXEntryClean(DXInstance* dx)
 
 void DXEntryFrameUpdate(DXInstance* dx)
 {
-
+    // DebugPrintScope _(L"DXEntryFrameUpdate");
 }
 
 HRESULT DXEntryResize(uint32 width, uint32 height)
 {
+    DebugPrintScope _(L"DXEntryResize");
+
     return S_OK;
 }

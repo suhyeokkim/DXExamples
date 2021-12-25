@@ -41,6 +41,8 @@ struct WindowScope
 
     HRESULT Init(HINSTANCE hInstance)
     {
+        DebugPrintScope _(L"WindowScope::Init");
+
         // Register the windows class
         WNDCLASSW wndClass = GetWindowClass(hInstance, MsgProc, L"Direct3DWindowClass");
         FALSE_ERROR_MESSAGE_RETURN(RegisterClassW(&wndClass), L"fail to register window class..");
@@ -63,6 +65,8 @@ struct WindowScope
 
     void Loop()
     {
+        DebugPrintScope _(L"WindowScope::Loop");
+
         MSG msg = { 0, };
 
         while (msg.message != WM_QUIT)
@@ -81,6 +85,8 @@ struct WindowScope
 
     ~WindowScope()
     {
+        DebugPrintScope _(L"~WindowScope");
+
         DXEntryClean(&wndInst.dx);
 
         puts("[WindowScope] off");
@@ -88,6 +94,8 @@ struct WindowScope
 
     static LRESULT CALLBACK MsgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
+        //DebugPrintScope _(L"WindowScope::MsgProc");
+
         PAINTSTRUCT ps;
         HDC hdc;
 
@@ -111,6 +119,8 @@ struct WindowScope
 
     static WNDCLASSW GetWindowClass(HINSTANCE hInstance, WNDPROC msgProc, LPCWSTR className)
     {
+        DebugPrintScope _(L"WindowScope::GetWindowClass");
+
         WNDCLASSW wndClass;
         memset(&wndClass, 0, sizeof(WNDCLASS));
         wndClass.style = CS_DBLCLKS;
@@ -123,6 +133,8 @@ struct WindowScope
 
     static HWND GetCreatedWindow(HINSTANCE hInstance, LPWNDCLASSW wndClass, LPCWSTR windowTitle, UINT width, UINT height)
     {
+        DebugPrintScope _(L"WindowScope::GetCreatedWindow");
+
         RECT rc;
         SetRect(&rc, 0, 0, width, height);
         AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
