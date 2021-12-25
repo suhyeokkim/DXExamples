@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="dxentry.h" />
+    <ClInclude Include="winmain.h" />
+    <ClInclude Include="dx12lib.h" />
+    <ClInclude Include="dx12cmd.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="dxentry.cpp" />
+    <ClCompile Include="winmain.cpp" />
+    <ClCompile Include="dx12lib.cpp" />
+    <ClCompile Include="dx12cmd.cpp" />
+  </ItemGroup>
+</Project>
