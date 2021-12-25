@@ -1,6 +1,6 @@
 #pragma once
 
-__declspec(dllimport) class KDTree
+class __declspec(dllimport) KDTree
 {
 };
 

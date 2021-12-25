@@ -1,4 +1,4 @@
-﻿#include "math_util.h"
+#include "math_util.h"
 
 #pragma region POD Common
 

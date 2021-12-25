@@ -1,6 +1,6 @@
 #pragma once
 
-__declspec(dllimport) class BVH
+class __declspec(dllimport) BVH
 {
 };
 
