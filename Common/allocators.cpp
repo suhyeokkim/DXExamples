@@ -125,7 +125,7 @@ struct MemChunk
 
 struct AllocatorEntry
 {
-    char* name;
+    wchar_t name[256];
     unsigned debug;
     size_t allocByteCount;
     size_t minPageSize;
@@ -136,26 +136,26 @@ struct AllocatorEntry
     const size_t name_buffer_max = 256;
 
     AllocatorEntry() :
-        name(nullptr), minPageSize(0), lastRefPage(0), debug(0), allocByteCount(0), totalPageSize(0)
+        name(L""), minPageSize(0), lastRefPage(0), debug(0), allocByteCount(0), totalPageSize(0)
     {
         memChunkList.Init(nullptr, sizeof(MemChunk));
     }
-    AllocatorEntry(const char* name, unsigned debug, size_t minPageSize) :
+    AllocatorEntry(const wchar_t* name, unsigned debug, size_t minPageSize) :
         minPageSize(minPageSize), lastRefPage(0), debug(debug), allocByteCount(0), totalPageSize(0)
     {
-        ALLOC_SIZE_AND_STRCPY(nullptr, this->name, name_buffer_max, name);
+        wcscpy_s(this->name, name);
         memChunkList.Init(nullptr, sizeof(MemChunk));
     }
     AllocatorEntry(const AllocatorEntry& o) :
         minPageSize(o.minPageSize), lastRefPage(o.lastRefPage), debug(o.debug), allocByteCount(o.allocByteCount), totalPageSize(0)
     {
-        ALLOC_SIZE_AND_STRCPY(nullptr, this->name, name_buffer_max, name);
+        wcscpy_s(this->name, o.name);
         memChunkList.CopyFrom(o.memChunkList);
     }
-    AllocatorEntry(const AllocatorEntry& o, const char* name) :
+    AllocatorEntry(const AllocatorEntry& o, const wchar_t* name) :
         minPageSize(o.minPageSize), lastRefPage(o.lastRefPage), debug(o.debug), allocByteCount(o.allocByteCount), totalPageSize(0)
     {
-        ALLOC_SIZE_AND_STRCPY(nullptr, this->name, name_buffer_max, name);
+        wcscpy_s(this->name, name);
         memChunkList.CopyFrom(o.memChunkList);
     }
     ~AllocatorEntry()
@@ -238,7 +238,7 @@ struct AllocatorEntry
 const int AllocEntryCount = 16;
 AllocatorEntry g_Entries[AllocEntryCount];
 
-size_t AddEntry(const char* name, int32 min_page_size)
+size_t AddEntry(const wchar_t* name, int32 min_page_size)
 {
     int32 index = std::numeric_limits<int32>::max();
     for (int32 i = 0; i < AllocEntryCount; i++)
@@ -255,14 +255,14 @@ size_t AddEntry(const char* name, int32 min_page_size)
 
     return index;
 }
-AllocatorEntry* FindEntry(const char* name)
+AllocatorEntry* FindEntry(const wchar_t* name)
 {
     for (int32 i = 0; i < AllocEntryCount; i++)
-        if (g_Entries[i].name != nullptr && !strcmp(g_Entries[i].name, name))
+        if (g_Entries[i].name != nullptr && !wcscmp(g_Entries[i].name, name))
             return g_Entries + i;
     return nullptr;
 }
-bool RemoveEntry(const char* name)
+bool RemoveEntry(const wchar_t* name)
 {
     auto entry = FindEntry(name);
 
@@ -276,9 +276,9 @@ bool RemoveEntry(const char* name)
 
 const int32 g_MinPageSize = 16 * 1024 * 1024;
 
-DECLSPEC_DLL void* memAlloc(size_t size, size_t alignment, size_t alignOffset, const char* addrspace)
+DECLSPEC_DLL void* memAlloc(size_t size, size_t alignment, size_t alignOffset, const wchar_t* addrspace)
 {
-    if (strcmp(SYSTEM_NAME, addrspace) == 0) {
+    if (wcscmp(SYSTEM_NAME, addrspace) == 0) {
         return _aligned_offset_malloc(size, alignment, alignOffset);
     } else {
         auto entry = FindEntry(addrspace);
@@ -297,9 +297,9 @@ DECLSPEC_DLL void* memAlloc(size_t size, size_t alignment, size_t alignOffset, c
     }
 }
 
-DECLSPEC_DLL bool memFree(void* ptr, const char* addrspace)
+DECLSPEC_DLL bool memFree(void* ptr, const wchar_t* addrspace)
 {
-    if (strcmp(SYSTEM_NAME, addrspace) == 0) {
+    if (wcscmp(SYSTEM_NAME, addrspace) == 0) {
         _aligned_free(ptr);
         return true;
     } else {
@@ -313,7 +313,7 @@ DECLSPEC_DLL bool memFree(void* ptr, const char* addrspace)
     }
 }
 
-DECLSPEC_DLL size_t memAllocSize(const char* addrspace)
+DECLSPEC_DLL size_t memAllocSize(const wchar_t* addrspace)
 {
     auto entry = FindEntry(addrspace);
 
@@ -324,7 +324,7 @@ DECLSPEC_DLL size_t memAllocSize(const char* addrspace)
     return entry->allocByteCount;
 }
 
-DECLSPEC_DLL size_t memPageSize(const char* addrspace)
+DECLSPEC_DLL size_t memPageSize(const wchar_t* addrspace)
 {
     auto entry = FindEntry(addrspace);
 

@@ -5,7 +5,7 @@
 TEST_CASE("test memory allocate", "[Allocator]") {
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF);
 
-    auto addrspace0 = "1234";
+    auto addrspace0 = L"1234";
 
     const int count = 4;
     uint32 sa[count] = { 12, 16, 33, 7 };
