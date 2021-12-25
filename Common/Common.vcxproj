@@ -143,6 +143,9 @@
     <ClInclude Include="defined_type.h" />
     <ClInclude Include="symbols.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include=".editorconfig" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

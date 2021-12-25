@@ -157,6 +157,9 @@
       <Project>{25a30397-0f61-4fd5-a3ad-7625ac470cd6}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include=".editorconfig" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
