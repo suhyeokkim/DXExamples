@@ -101,3 +101,36 @@ TEST_CASE("test clamp", "[Math]") {
         REQUIRE(Clamp(value2, min, max) == result2);
     }
 }
+
+TEST_CASE("test lerp", "[Math]") {
+    {
+        float min = 00, max = 10;
+        float value0 = 0.0f, result0 = 0;
+        float value1 = 0.5f, result1 = 5;
+        float value2 = 1.1f, result2 = 11;
+
+        REQUIRE(Lerp(min, max, value0) == result0);
+        REQUIRE(Lerp(min, max, value1) == result1);
+        REQUIRE(Lerp(min, max, value2) == result2);
+    }
+    {
+        dfloat min = 00, max = 10;
+        dfloat value0 = 0.0, result0 = 0;
+        dfloat value1 = 0.5, result1 = 5;
+        dfloat value2 = 1.1, result2 = 11;
+
+        REQUIRE(Lerp(min, max, value0) == result0);
+        REQUIRE(Lerp(min, max, value1) == result1);
+        REQUIRE(Lerp(min, max, value2) == result2);
+    }
+    {
+        efloat min = 00, max = 10;
+        efloat value0 = 0.0l, result0 = 0;
+        efloat value1 = 0.5l, result1 = 5;
+        efloat value2 = 1.1l, result2 = 11;
+
+        REQUIRE(Lerp(min, max, value0) == result0);
+        REQUIRE(Lerp(min, max, value1) == result1);
+        REQUIRE(Lerp(min, max, value2) == result2);
+    }
+}
