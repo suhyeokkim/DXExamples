@@ -11,15 +11,27 @@
 
 using namespace std;
 
-void RedirectIOToConsole()
+struct RedirectConsoleScope
 {
-    AllocConsole();
+    RedirectConsoleScope()
+    {
+        AllocConsole();
 
-    FILE* stream;
-    freopen_s(&stream, "CONIN$", "r", stdin);
-    freopen_s(&stream, "CONOUT$", "w", stdout);
-    freopen_s(&stream, "CONOUT$", "w", stderr);
-}
+        FILE* stream;
+        freopen_s(&stream, "CONIN$", "r", stdin);
+        freopen_s(&stream, "CONOUT$", "w", stdout);
+        freopen_s(&stream, "CONOUT$", "w", stderr);
+
+        puts("[RedirectConsoleScope] on");
+    }
+
+    ~RedirectConsoleScope()
+    {
+        puts("[RedirectConsoleScope] off");
+
+        FreeConsole();
+    }
+};
 
 LRESULT CALLBACK MsgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -85,7 +97,7 @@ void WindowLoop(HWND hWnd, WindowInstance& instance)
 
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
-    RedirectIOToConsole();
+    RedirectConsoleScope _;
 
     // Register the windows class
     WNDCLASSW wndClass = GetWindowClass(hInstance, MsgProc, L"Direct3DWindowClass");
@@ -101,12 +113,15 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     
     FAILED_ERROR_MESSAGE_RETURN(
         DXEntryInit(&wndInst.dx, hInstance, hWnd, wndSet.windowWidth, wndSet.windowHeight, wndSet.maxFrameRate, true),
-        L"Fail to initialize."
+        L"fail to initialize."
     );
 
     WindowLoop(hWnd, wndInst);
     DXEntryClean(&wndInst.dx);
-    FreeConsole();
+
+#if defined(_DEBUG)
+    auto var = getchar();
+#endif
 
     return 0;
 }
