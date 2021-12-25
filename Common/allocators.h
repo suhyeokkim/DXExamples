@@ -17,13 +17,3 @@ DECLSPEC_DLL size_t memAllocSize(const char* addrspace);
 DECLSPEC_DLL size_t memPageSize(const char* addrspace);
 DECLSPEC_DLL size_t memMinPageSize();
 DECLSPEC_DLL int32 validPageCount();
-
-// EASTL 레거시 코드
-DECLSPEC_DLL void* operator new[](size_t size, const char* pName, int flags, unsigned debugFlags, const char* file, int line);
-DECLSPEC_DLL void* operator new[](size_t size, const char* pName, const char* file, int line);
-DECLSPEC_DLL void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line);
-DECLSPEC_DLL void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, const char* file, int line);
-DECLSPEC_DLL void operator delete[](void* p, const char* pName, const char* file, int line);
-DECLSPEC_DLL void operator delete[](void* p, const char* pName, int flags, unsigned debugFlags, const char* file, int line);
-DECLSPEC_DLL void operator delete[](void* p, unsigned align, const char* pName, const char* file, int line);
-DECLSPEC_DLL void operator delete[](void* p, unsigned align, const char* pName, int flags, unsigned debugFlags, const char* file, int line);

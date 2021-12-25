@@ -137,7 +137,6 @@
     <ClInclude Include="allocators.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="container.h" />
-    <ClInclude Include="defined.h" />
     <ClInclude Include="defined_macro.h" />
     <ClInclude Include="defined_type.h" />
     <ClInclude Include="symbols.h" />

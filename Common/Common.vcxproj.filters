@@ -37,9 +37,6 @@
     <ClInclude Include="defined_macro.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="defined.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />

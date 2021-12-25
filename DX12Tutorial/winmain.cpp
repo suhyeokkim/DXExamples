@@ -6,8 +6,8 @@
 #include <cstdio>
 
 #include "winmain.h"
-#include "defined.h"
 #include "dxentry.h"
+#include "defined_macro.h"
 
 using namespace std;
 
