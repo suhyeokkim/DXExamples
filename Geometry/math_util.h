@@ -52,7 +52,7 @@ struct DECLSPEC_DLL Vector2f
             float y;
         };
         float dataByfloat[2];
-        byte  data[2 * sizeof(float)];
+        uint8 data[2 * sizeof(float)];
     };
 
     Vector2f();
@@ -134,7 +134,7 @@ struct DECLSPEC_DLL Vector3f
             float z;
         };
         float dataByfloat[3];
-        byte  data[3 * sizeof(float)];
+        uint8 data[3 * sizeof(float)];
     };
 
     Vector3f();
@@ -218,7 +218,7 @@ struct DECLSPEC_DLL Vector4f
             float w;
         };
         float dataByfloat[4];
-        byte  data[4 * sizeof(float)];
+        uint8 data[4 * sizeof(float)];
     };
 
     Vector4f();
@@ -410,7 +410,7 @@ struct DECLSPEC_DLL Ray
             Vector3f origin;
             Vector3f direction;
         };
-        byte data[24];
+        uint8 data[24];
     };
 
     Ray();
@@ -431,7 +431,7 @@ struct DECLSPEC_DLL Bounds
             Vector3f center;
             Vector3f extents;
         };
-        byte data[24];
+        uint8 data[24];
     };
 
     Bounds();
