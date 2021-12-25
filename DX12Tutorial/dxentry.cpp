@@ -99,15 +99,13 @@ void DXEntryClean(DXInstance* dx)
     }
 
     for (auto i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; i++) {
-        if (dx->heaps[i]) {
-            dx->heaps[i]->Release();
-        }
+        SAFE_RELEASE(dx->heaps[i]);
     }
 
-    dx->infoQueue->Release();
-    dx->swapChain->Release();
-    dx->dxgiFactory->Release();
-    dx->dx12Device->Release();
+    SAFE_RELEASE(dx->infoQueue);
+    SAFE_RELEASE(dx->swapChain);
+    SAFE_RELEASE(dx->dxgiFactory);
+    SAFE_RELEASE(dx->dx12Device);
 }
 
 void DXEntryFrameUpdate(DXInstance* dx)

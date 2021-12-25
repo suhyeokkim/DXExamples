@@ -1,5 +1,26 @@
 #pragma once
 
+#pragma region 메모리 해제
+
+#define SAFE_FREE(x) \
+    if (x) { \
+        free(x); \
+    }
+
+#define SAFE_ALIGNED_FREE(x) \
+    if (x) { \
+        _aligned_free(x); \
+    }
+
+#define SAFE_RELEASE(x) \
+    if (x) { \
+        x->Release(); \
+    }
+
+#pragma endregion
+
+#pragma region 에러 핸들링
+
 #define ASSERT(x) assert(x);
 #define ERROR_MESSAGE(str) \
     { \
@@ -391,3 +412,5 @@
     { \
         return hr; \
     }
+
+#pragma endregion
