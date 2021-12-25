@@ -45,12 +45,12 @@ struct MemChunk
     {
         size_t start_point = std::numeric_limits<size_t>::max();
 
-        if (rangeList.GetCount() > 0)
+        if (rangeList.Count() > 0)
         {
             size_t aligned_start = 0, aligned_end = 0;
             int32 insert_index = 0;
 
-            for (auto i = 0; i < rangeList.GetCount() + 1; i++)
+            for (auto i = 0; i < rangeList.Count() + 1; i++)
             {
                 if (i == 0)
                 {
@@ -58,7 +58,7 @@ struct MemChunk
                     auto range = (MemRange*)rangeList.Start();
                     aligned_end = FLOOR_ALIGNED_TO(range->start, alignment, aligned_offset);
                 }
-                else if (i == rangeList.GetCount())
+                else if (i == rangeList.Count())
                 {
                     auto range = (MemRange*)rangeList.Last();
                     aligned_start = CEIL_ALIGNED_TO(range->start + range->count, alignment, aligned_offset);
@@ -103,7 +103,7 @@ struct MemChunk
         if (memPtr <= p && (void*)((char*)memPtr + size) > p)
         {
             auto i = 0;
-            auto rangeCount = rangeList.GetCount();
+            auto rangeCount = rangeList.Count();
             for (; i < rangeCount; i++) {
                 auto r = (MemRange*)rangeList[i];
                 if ((void*)((char*)memPtr + r->start) == p)
@@ -162,7 +162,7 @@ struct AllocatorEntry
     }
     ~AllocatorEntry()
     {
-        for (auto i = 0; i < memChunkList.GetCount(); i++)
+        for (auto i = 0; i < memChunkList.Count(); i++)
         {
             auto memChunk = (MemChunk*)memChunkList[i];
             if (memChunk->memPtr)
@@ -176,7 +176,7 @@ struct AllocatorEntry
     }
     void* Allocate(size_t numBytes, size_t alignment, size_t offset, int flags = 0)
     {
-        if (memChunkList.GetCount() == 0)
+        if (memChunkList.Count() == 0)
         {
             size_t allocSize = numBytes < minPageSize ? minPageSize : numBytes;
             totalPageSize += allocSize;
@@ -193,7 +193,7 @@ struct AllocatorEntry
             return p;
         }
 
-        for (auto i = 0; i < memChunkList.GetCount(); i++) {
+        for (auto i = 0; i < memChunkList.Count(); i++) {
             auto memChunk = (MemChunk*)memChunkList[i];
             if (memChunk->GetEmptyMemAndAppend(numBytes, alignment, offset, flags, &p))
             {
@@ -209,7 +209,7 @@ struct AllocatorEntry
         auto chunk = MemChunk(page, allocSize);
         memChunkList.InsertLast(1, &chunk, nullptr);
         
-        lastRefPage = memChunkList.GetCount() - 1;
+        lastRefPage = memChunkList.Count() - 1;
         lastRefChunk = (MemChunk*)memChunkList[lastRefPage];
 
         if (lastRefChunk->GetEmptyMemAndAppend(numBytes, alignment, offset, flags, &p)) {
@@ -222,7 +222,7 @@ struct AllocatorEntry
 
     bool Deallocate(void* p)
     {
-        for (auto i = 0; i < memChunkList.GetCount(); i++)
+        for (auto i = 0; i < memChunkList.Count(); i++)
         {
             auto memChunk = (MemChunk*)memChunkList[i];
             size_t count;

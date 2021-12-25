@@ -108,7 +108,7 @@ DECLSPEC_DLL bool ArrayList::Insert(int32 startIndex, int32 count, NOTNULL void*
         return false;
     }
 
-    // °ø°£ È®º¸ ÇÏ±â, ÀÌ°Å ¾øÀ¸¸é Add ¶û µ¿ÀÏ
+    // ê³µê°„ í™•ë³´ í•˜ê¸°, ì´ê±° ì—†ìœ¼ë©´ Add ë‘ ë™ì¼
     if (startIndex + 1 < this->count) {
         auto srcArrPtr = (char*)singleChunkPtr + ((startIndex)         * step);
         auto dstArrPtr = (char*)singleChunkPtr + ((startIndex + count) * step);
@@ -118,7 +118,7 @@ DECLSPEC_DLL bool ArrayList::Insert(int32 startIndex, int32 count, NOTNULL void*
         memmove(dstArrPtr, srcArrPtr, remainItemCount * step);
     }
 
-    // °ø°£ È®º¸ ÈÄ ¿Å±â±â
+    // ê³µê°„ í™•ë³´ í›„ ì˜®ê¸°ê¸°
     auto destArrPtr = (char*)singleChunkPtr + (startIndex * step);
     memcpy(destArrPtr, ptr, count * step);
 
@@ -136,7 +136,7 @@ DECLSPEC_DLL bool ArrayList::Insert(int32 startIndex, int32 count, NOTNULL void*
 
 DECLSPEC_DLL bool ArrayList::Remove(int32 startIndex, int32 count)
 {
-    // ¸¶Áö¸· ¾Æ´Ï¸é?
+    // ë§ˆì§€ë§‰ ì•„ë‹ˆë©´?
     if (startIndex + count < this->count) {
         auto srcArrPtr = (char*)singleChunkPtr + ((startIndex + count) * step);
         auto dstArrPtr = (char*)singleChunkPtr + ((startIndex)         * step);
@@ -191,22 +191,22 @@ DECLSPEC_DLL void* ArrayList::Last() const
     return (char*)singleChunkPtr + (count - 1) * step;
 }
 
-DECLSPEC_DLL int32 ArrayList::GetCount() const
+DECLSPEC_DLL int32 ArrayList::Count() const
 {
     return count;
 }
 
-DECLSPEC_DLL int32 ArrayList::GetStep() const
+DECLSPEC_DLL int32 ArrayList::Step() const
 {
     return step;
 }
 
-DECLSPEC_DLL uint64 ArrayList::GetCapacity() const
+DECLSPEC_DLL uint64 ArrayList::Capacity() const
 {
     return capacity;
 }
 
-DECLSPEC_DLL int32 ArrayList::GetAlignment() const
+DECLSPEC_DLL int32 ArrayList::Alignment() const
 {
     return alignment;
 }

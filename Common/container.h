@@ -10,7 +10,7 @@
 #define ARRAYLIST_DEFAULT_ALIGNMENT 32
 
 /// <summary>
-/// C ½ºÅ¸ÀÏ ÄÁÅ×ÀÌ³Ê, ABI ¸¦ À§ÇØ ÅÛÇÃ¸´ »ç¿ë ±İÁö
+/// C ìŠ¤íƒ€ì¼ ì»¨í…Œì´ë„ˆ, ABI ë¥¼ ìœ„í•´ í…œí”Œë¦¿ ì‚¬ìš© ê¸ˆì§€
 /// </summary>
 class DECLSPEC_DLL ArrayList
 {
@@ -38,16 +38,15 @@ public: // crud helper
     bool RemoveLast();
     bool RemoveAll();
 
-public: // set accessor
+public: // list accessor
     void* operator[](uint64 index) const;
     void* Start() const;
     void* Last() const;
 
-public: // list accessor
-    int32 GetCount() const;
-    int32 GetStep() const;
-    uint64 GetCapacity() const;
-    int32 GetAlignment() const;
+    int32 Count() const;
+    int32 Step() const;
+    uint64 Capacity() const;
+    int32 Alignment() const;
 
 private:
     void* singleChunkPtr;
