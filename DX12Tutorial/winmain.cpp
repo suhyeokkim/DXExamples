@@ -45,7 +45,7 @@ struct WindowScope
 
         // Register the windows class
         WNDCLASSW wndClass = GetWindowClass(hInstance, MsgProc, L"Direct3DWindowClass");
-        FALSE_ERROR_MESSAGE_RETURN(RegisterClassW(&wndClass), L"fail to register window class..");
+        FALSE_ERROR_MESSAGE_RETURN_CODE(RegisterClassW(&wndClass), L"fail to register window class..", E_FAIL);
 
         WindowInstance wndInst;
         GetDXWindowSetting(&wndInst);
