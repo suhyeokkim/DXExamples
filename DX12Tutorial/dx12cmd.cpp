@@ -27,6 +27,8 @@ HRESULT CreateDXCommands(ID3D12Device2* device, DXCommands* commands, D3D12_COMM
 
         hr = CreateEventHandle();
         FAILED_ERROR_MESSAGE_GOTO(hr, L"fail to create win eventhandle in DXCommands..", CREATEDXCOMMANDS_CLEAR);
+
+        commands->fenceValues[i] = { 0, };
     }
 
     return S_OK;

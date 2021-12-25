@@ -14,6 +14,7 @@ struct DXCommands
     ID3D12GraphicsCommandList* commandList[g_CmdListCount];
     ID3D12Fence* fences[g_CmdListCount];
     HANDLE* fenceEvents[g_CmdListCount];
+    uint64 fenceValues[g_CmdListCount];
 };
 
 HRESULT CreateDXCommands(ID3D12Device2* device, DXCommands* commands, D3D12_COMMAND_LIST_TYPE type);

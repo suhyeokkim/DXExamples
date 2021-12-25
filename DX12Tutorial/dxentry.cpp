@@ -101,7 +101,10 @@ void DXEntryClean(DXInstance* dx)
     DebugPrintScope _(L"DXEntryClean");
 
     for (auto i = 0; i < COMMANDS_COUNT; i++) {
-        DestroyDXCommands(dx->commands + i);
+        auto commandPtr = dx->commands + i;
+        Flush(commandPtr->queue, commandPtr->fences[i], commandPtr->fenceValues + i, commandPtr->fenceEvents[i]);
+
+        DestroyDXCommands(commandPtr);
     }
 
     for (auto i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; i++) {
