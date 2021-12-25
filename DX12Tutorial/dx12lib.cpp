@@ -50,7 +50,7 @@ HRESULT CreateSwapChain(ID3D12CommandQueue* cmdQueue, HWND hWnd, uint32 width, u
     swapChainDesc.SampleDesc.Quality = 0;
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.BufferCount = bufferCount;
-    swapChainDesc.Scaling = DXGI_SCALING_ASPECT_RATIO_STRETCH;
+    swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
     swapChainDesc.Flags = CheckTearingSupport(dxgiFactory4) ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
