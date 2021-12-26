@@ -43,14 +43,19 @@ struct WindowScope
     {
         DebugPrintScope _(L"WindowScope::Init");
 
+        // Windows 10 Creators update adds Per Monitor V2 DPI awareness context.
+        // Using this awareness context allows the client area of the window 
+        // to achieve 100% scaling while still allowing non-client window content to 
+        // be rendered in a DPI sensitive fashion.
+        SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
         // Register the windows class
-        WNDCLASSW wndClass = GetWindowClass(hInstance, MsgProc, L"Direct3DWindowClass");
+        wndClass = GetWindowClass(hInstance, MsgProc, L"Direct3DWindowClass");
         FALSE_ERROR_MESSAGE_RETURN_CODE(RegisterClassW(&wndClass), L"fail to register window class..", E_FAIL);
 
-        WindowInstance wndInst;
         GetDXWindowSetting(&wndInst);
         const WindowSetting& wndSet = wndInst.settings;
-        HWND hWnd = GetCreatedWindow(hInstance, &wndClass, wndSet.windowName, wndSet.windowWidth, wndSet.windowHeight);
+        hWnd = GetCreatedWindow(hInstance, &wndClass, wndSet.windowName, wndSet.windowWidth, wndSet.windowHeight);
 
         ShowWindow(hWnd, SW_SHOW);
         UpdateWindow(hWnd);
