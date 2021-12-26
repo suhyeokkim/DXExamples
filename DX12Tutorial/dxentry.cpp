@@ -14,6 +14,9 @@
 
 #include <chrono>
 
+uint32 g_ReserveWidth = 0;
+uint32 g_ReserveHeight = 0;
+
 void GetDXWindowSetting(OUT WindowInstance* set)
 {
     DebugPrintScope _(L"GetDXWindowSetting");
@@ -227,11 +230,50 @@ HRESULT DXEntryResize(WindowInstance* wnd, uint32 width, uint32 height)
 {
     DebugPrintScope _(L"DXEntryResize");
 
+    wnd->settings.windowWidth = width;
+    wnd->settings.windowHeight = height;
+
+    DXInstance* dx = &wnd->dx;
+    DXCommands* command = dx->commands;
+    auto queue = command->queue;
+    auto fence = command->fences[0];
+    auto frameValueSeqPtr = command->fenceValueSeq + 0;
+    auto backBufferFenceValuePtr = dx->frameFenceValues + dx->currentBackBufferIndex;
+
+    auto hr = Flush(queue, fence, frameValueSeqPtr, backBufferFenceValuePtr);
+    FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to flush for resize..");
+
+    for (auto i = 0; i < FRAME_COUNT; i++) {
+        auto backBuffer = dx->backBuffers[i];
+        backBuffer->Release();
+        dx->backBuffers[i] = nullptr;
+        
+        dx->frameFenceValues[i] = dx->frameFenceValues[dx->currentBackBufferIndex];
+    }
+
+    DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
+
+    auto swapChain = dx->swapChain;
+    hr = swapChain->GetDesc(&swapChainDesc);
+    FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to get swapchain desc..");
+    hr = swapChain->ResizeBuffers(
+        FRAME_COUNT, width, height, 
+        swapChainDesc.BufferDesc.Format, swapChainDesc.Flags
+    );
+    FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to resize buffers..");
+    
+    dx->currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
+
+    auto rtv = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    UpdateRenderTargetViews(dx->dx12Device, FRAME_COUNT, swapChain, dx->heaps[rtv], dx->backBuffers);
+
     return S_OK;
 }
 
 HRESULT DXEntryReserveResize(uint32 width, uint32 height)
 {
     DebugPrintScope _(L"DXEntryReserveResize");
+
+    g_ReserveWidth = width; g_ReserveHeight = height;
     return S_OK;
 }

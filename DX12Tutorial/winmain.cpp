@@ -113,6 +113,18 @@ struct WindowScope
             PostQuitMessage(0);
             break;
 
+        case WM_SIZE:
+        {
+            RECT clientRect = {};
+            ::GetClientRect(hWnd, &clientRect);
+
+            int width = clientRect.right - clientRect.left;
+            int height = clientRect.bottom - clientRect.top;
+
+            DXEntryReserveResize(width, height);
+        }
+            break;
+
         default:
             return DefWindowProc(hWnd, uMsg, wParam, lParam);
         }
