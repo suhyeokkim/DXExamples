@@ -136,8 +136,7 @@ struct WindowScope
     {
         DebugPrintScope _(L"WindowScope::GetWindowClass");
 
-        WNDCLASSW wndClass;
-        memset(&wndClass, 0, sizeof(WNDCLASS));
+        WNDCLASSW wndClass = {};
         wndClass.style = CS_DBLCLKS;
         wndClass.lpfnWndProc = msgProc;
         wndClass.hInstance = hInstance;
@@ -154,7 +153,7 @@ struct WindowScope
         SetRect(&rc, 0, 0, width, height);
         AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
 
-        return CreateWindow(wndClass->lpszClassName, windowTitle, WS_POPUP | WS_BORDER | WS_CAPTION | WS_SYSMENU, 100, 100, width, height, 0, (HMENU)nullptr, hInstance, 0);
+        return CreateWindow(wndClass->lpszClassName, windowTitle, WS_OVERLAPPEDWINDOW, 100, 100, width, height, 0, (HMENU)nullptr, hInstance, 0);
     }
 };
 

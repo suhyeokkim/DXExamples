@@ -35,7 +35,7 @@ HRESULT EnableDebugLayer()
     FAILED_RETURN(hr);
 
     // debugInterface->EnableDebugLayer();
-    debugInterface->SetEnableGPUBasedValidation(true);
+    // debugInterface->SetEnableGPUBasedValidation(true);
 #endif
 
     return S_OK;
