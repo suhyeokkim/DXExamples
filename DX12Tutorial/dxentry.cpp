@@ -24,29 +24,29 @@ void GetDXWindowSetting(OUT WindowInstance* set)
     set->settings.maxFrameRate = 144;
 }
 
-HRESULT DXEntryInit(DXInstance* inst, HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, uint32 maxFrameRate, bool debug)
+HRESULT DXEntryInit(DXInstance* dx, HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, uint32 maxFrameRate, bool debug)
 {
     DebugPrintScope _(L"DXEntryInit");
 
-    *inst = { 0, };
+    *dx = { 0, };
     auto hr = (HRESULT)0;
 
     auto createFactoryFlags = (uint32)0;
-    hr = CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&inst->dxgiFactory));
+    hr = CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dx->dxgiFactory));
     FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create DXGIFactory..");
 
-    inst->tearingSupport = CheckTearingSupport(inst->dxgiFactory);
+    dx->tearingSupport = CheckTearingSupport(dx->dxgiFactory);
 
-    hr = D3D12CreateDevice(inst->dx12Device, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&inst->dx12Device));
+    hr = D3D12CreateDevice(dx->dx12Device, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&dx->dx12Device));
     FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create D3D12Device..");
 
 #if defined(_DEBUG)
-    hr = inst->dx12Device->QueryInterface(IID_PPV_ARGS(&inst->infoQueue));
+    hr = dx->dx12Device->QueryInterface(IID_PPV_ARGS(&dx->infoQueue));
     if (SUCCEEDED(hr))
     {
-        inst->infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY::D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-        inst->infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY::D3D12_MESSAGE_SEVERITY_ERROR, true);
-        inst->infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY::D3D12_MESSAGE_SEVERITY_WARNING, true);
+        dx->infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY::D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+        dx->infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY::D3D12_MESSAGE_SEVERITY_ERROR, true);
+        dx->infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY::D3D12_MESSAGE_SEVERITY_WARNING, true);
 
         // Suppress whole categories of messages
         //D3D12_MESSAGE_CATEGORY Categories[] = {};
@@ -72,25 +72,25 @@ HRESULT DXEntryInit(DXInstance* inst, HINSTANCE hInstance, HWND hWnd, UINT width
         infoFilter.DenyList.NumIDs = _countof(denyIds);
         infoFilter.DenyList.pIDList = denyIds;
 
-        hr = inst->infoQueue->PushStorageFilter(&infoFilter);
+        hr = dx->infoQueue->PushStorageFilter(&infoFilter);
     }
 #endif
 
     for (auto i = 0; i < g_CmdListCount; i++) {
-        hr = CreateDXCommands(inst->dx12Device, inst->commands + i, inst->commandTypes[i]);
+        hr = CreateDXCommands(dx->dx12Device, dx->commands + i, dx->commandTypes[i]);
         FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create cmd list..");
     }
 
     auto backBufferCount = 3;
-    hr = CreateSwapChain(inst->commands[0].queue, hWnd, width, height, backBufferCount, maxFrameRate, &inst->swapChain);
+    hr = CreateSwapChain(dx->commands[0].queue, hWnd, width, height, backBufferCount, maxFrameRate, &dx->swapChain);
     FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create swap chain..");
 
     auto rtv = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    auto rtvHeapPtr = inst->heaps + rtv;
-    hr = CreateDescriptorHeap(inst->dx12Device, rtv, FRAME_COUNT, rtvHeapPtr);
+    auto rtvHeapPtr = dx->heaps + rtv;
+    hr = CreateDescriptorHeap(dx->dx12Device, rtv, FRAME_COUNT, rtvHeapPtr);
     FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create rtv descriptor heap..");
 
-    hr = UpdateRenderTargetViews(inst->dx12Device, FRAME_COUNT, inst->swapChain, *rtvHeapPtr, inst->backBuffers);
+    hr = UpdateRenderTargetViews(dx->dx12Device, FRAME_COUNT, dx->swapChain, *rtvHeapPtr, dx->backBuffers);
     FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create rtv descriptor heap..");
 
     return S_OK;
