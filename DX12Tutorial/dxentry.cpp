@@ -26,12 +26,13 @@ void GetDXWindowSetting(OUT WindowInstance* set)
 
 HRESULT EnableDebugLayer()
 {
-#if false && defined(_DEBUG)
-    ID3D12Debug* debugInterface;
+#if defined(_DEBUG)
+    ID3D12Debug1* debugInterface;
     auto hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface));
     FAILED_RETURN(hr);
 
-    debugInterface->EnableDebugLayer();
+    // debugInterface->EnableDebugLayer();
+    debugInterface->SetEnableGPUBasedValidation(true);
 #endif
 
     return S_OK;
