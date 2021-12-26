@@ -72,15 +72,12 @@ HRESULT CreateSwapChain(ID3D12CommandQueue* cmdQueue, HWND hWnd, uint32 width, u
 HRESULT CreateDescriptorHeap(ID3D12Device* dx12Device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32 numDescriptors, ID3D12DescriptorHeap** outHeap)
 {
     HRESULT hr;
-    D3D12_DESCRIPTOR_HEAP_DESC desc;
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
     desc.NumDescriptors = numDescriptors;
     desc.Type = type;
-    desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAGS::D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    desc.NodeMask = 0;
 
     hr = dx12Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(outHeap));
-    if (FAILED(hr))
-        return hr;
+    FAILED_RETURN(hr);
 
     return S_OK;
 }
@@ -95,7 +92,7 @@ HRESULT UpdateRenderTargetViews(ID3D12Device2* dx12Device, int32 backBufferCount
     {
         ID3D12Resource* backBuffer = nullptr;
         hr = outSwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer));
-        if (FAILED(hr)) return hr;
+        FAILED_RETURN(hr);
 
         dx12Device->CreateRenderTargetView(backBuffer, nullptr, rtvHandle);
 
