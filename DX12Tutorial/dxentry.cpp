@@ -18,7 +18,7 @@ void GetDXWindowSetting(OUT WindowInstance* set)
 {
     DebugPrintScope _(L"GetDXWindowSetting");
 
-    set->settings.windowName = L"DX12Tutorial0";
+    set->settings.windowName = L"DX12Tutorial";
     set->settings.windowWidth = 1024;
     set->settings.windowHeight = 768;
     set->settings.maxFrameRate = 144;
@@ -42,10 +42,9 @@ HRESULT DXEntryInit(DXInstance* dx, HINSTANCE hInstance, HWND hWnd, UINT width, 
     DebugPrintScope _(L"DXEntryInit");
 
     *dx = { 0, };
-    auto hr = (HRESULT)0;
 
     auto createFactoryFlags = (uint32)0;
-    hr = CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dx->dxgiFactory));
+    auto hr = CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dx->dxgiFactory));
     FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create DXGIFactory..");
 
     dx->tearingSupport = CheckTearingSupport(dx->dxgiFactory);

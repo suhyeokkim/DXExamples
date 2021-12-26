@@ -65,7 +65,7 @@ struct WindowScope
             L"fail to initialize."
         );
 
-        puts("[WindowScope] ok");
+        return S_OK;
     }
 
     void Loop()
@@ -93,8 +93,6 @@ struct WindowScope
         DebugPrintScope _(L"~WindowScope");
 
         DXEntryClean(&wndInst.dx);
-
-        puts("[WindowScope] off");
     }
 
     static LRESULT CALLBACK MsgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -144,7 +142,7 @@ struct WindowScope
         SetRect(&rc, 0, 0, width, height);
         AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
 
-        return CreateWindowW(wndClass->lpszClassName, windowTitle, WS_POPUP | WS_BORDER | WS_CAPTION | WS_SYSMENU, 100, 100, width, height, 0, (HMENU)nullptr, hInstance, 0);
+        return CreateWindow(wndClass->lpszClassName, windowTitle, WS_POPUP | WS_BORDER | WS_CAPTION | WS_SYSMENU, 100, 100, width, height, 0, (HMENU)nullptr, hInstance, 0);
     }
 };
 
