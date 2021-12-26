@@ -32,7 +32,7 @@ struct DXInstance
     };
     DXCommands commands[COMMANDS_COUNT];
 
-    int32 currentFrameIndex;
+    int32 currentBackBufferIndex;
 
     bool tearingSupport;
     bool vsync;

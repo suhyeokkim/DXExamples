@@ -107,7 +107,7 @@ HRESULT DXEntryInit(WindowInstance* wnd, HINSTANCE hInstance, HWND hWnd, UINT wi
     hr = UpdateRenderTargetViews(dx->dx12Device, FRAME_COUNT, dx->swapChain, *rtvHeapPtr, dx->backBuffers);
     FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create rtv descriptor heap..");
 
-    dx->currentFrameIndex = 0;
+    dx->currentBackBufferIndex = 0;
 
     hr = EnableDebugLayer();
     FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to get debugInterface..");
@@ -158,7 +158,7 @@ void DXEntryFrameUpdate(WindowInstance* wnd)
     auto commandAllocator = command.allocators[0];
     auto commandList = command.commandList[0];
 
-    auto backBuffer = dx->backBuffers[dx->currentFrameIndex];
+    auto backBuffer = dx->backBuffers[dx->currentBackBufferIndex];
 
     commandAllocator->Reset();
     commandList->Reset(commandAllocator, nullptr);
@@ -204,9 +204,9 @@ void DXEntryFrameUpdate(WindowInstance* wnd)
         commandQueue->ExecuteCommandLists(_countof(lists), lists);
 
         auto fence = command.fences[0];
-        auto frameFenceValuePtr = dx->frameFenceValues + dx->currentFrameIndex;
-        auto frameValueSeqPtr = command.fenceValueSeq + 0;
-        hr = Signal(commandQueue, fence, frameValueSeqPtr, frameFenceValuePtr);
+        auto backBufferValueSeqPtr = command.fenceValueSeq + 0;
+        auto backBufferFenceValuePtr = dx->frameFenceValues + dx->currentBackBufferIndex;
+        hr = Signal(commandQueue, fence, backBufferValueSeqPtr, backBufferFenceValuePtr);
         FAILED_RETURN_VOID(hr);
 
         uint32 vsync = dx->vsync ? 1 : 0;
@@ -216,10 +216,10 @@ void DXEntryFrameUpdate(WindowInstance* wnd)
         hr = swapChain->Present(vsync, presentFlags);
         FAILED_RETURN_VOID(hr);
 
-        dx->currentFrameIndex = swapChain->GetCurrentBackBufferIndex();
+        dx->currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
         auto fenceEvent = command.fenceEvents[0];
-        WaitForFenceValue(fence, *frameFenceValuePtr, fenceEvent);
+        WaitForFenceValue(fence, *backBufferFenceValuePtr, fenceEvent);
     }
 }
 
