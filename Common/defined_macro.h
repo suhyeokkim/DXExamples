@@ -179,6 +179,14 @@
         _putws(szErrorBuffer); \
         return -1; \
     }
+#define FALSE_ERROR_MESSAGE_THROW(x, str, exp) \
+    if (!(x)) \
+    { \
+        WCHAR szErrorBuffer[MAX_PATH]; \
+        wsprintfW(szErrorBuffer, L"*ERROR* MESSAGE::%s\n", str); \
+        _putws(szErrorBuffer); \
+        throw exp(); \
+    }
 #define FALSE_ERROR_MESSAGE_RETURN_CODE(x, str, failcode) \
     if (!(x)) \
     { \
@@ -314,6 +322,14 @@
         wsprintfW(szErrorBuffer, L"*ERROR* MESSAGE::%s\n", str); \
         _putws(szErrorBuffer); \
         return (HRESULT)(x); \
+    }
+#define FAILED_ERROR_MESSAGE_THROW(x, str, exp) \
+    if (((HRESULT)(x)) < 0) \
+    { \
+        WCHAR szErrorBuffer[MAX_PATH]; \
+        wsprintfW(szErrorBuffer, L"*ERROR* MESSAGE::%s\n", str); \
+        _putws(szErrorBuffer); \
+        throw exp(); \
     }
 #define FAILED_ERROR_MESSAGE_RETURN_ARGS(x, fmt, ...) \
     if (((HRESULT)(x)) < 0) \
