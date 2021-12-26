@@ -38,10 +38,11 @@ HRESULT EnableDebugLayer()
     return S_OK;
 }
 
-HRESULT DXEntryInit(DXInstance* dx, HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, uint32 maxFrameRate, bool debug)
+HRESULT DXEntryInit(WindowInstance* wnd, HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, uint32 maxFrameRate, bool debug)
 {
     DebugPrintScope _(L"DXEntryInit");
 
+    DXInstance* dx = &wnd->dx;
     *dx = { 0, };
 
     auto createFactoryFlags = (uint32)0;
@@ -116,8 +117,10 @@ HRESULT DXEntryInit(DXInstance* dx, HINSTANCE hInstance, HWND hWnd, UINT width, 
     return S_OK;
 }
 
-void DXEntryClean(DXInstance* dx)
+void DXEntryClean(WindowInstance* wnd)
 {
+    DXInstance* dx = &wnd->dx;
+
     DebugPrintScope _(L"DXEntryClean");
 
     for (auto i = 0; i < COMMANDS_COUNT; i++) {
@@ -137,9 +140,18 @@ void DXEntryClean(DXInstance* dx)
     SAFE_RELEASE(dx->dx12Device);
 }
 
-void DXEntryFrameUpdate(DXInstance* dx)
+HRESULT DXEntryResize(WindowInstance* wnd, uint32 width, uint32 height);
+
+void DXEntryFrameUpdate(WindowInstance* wnd)
 {
     // DebugPrintScope _(L"DXEntryFrameUpdate");
+
+    if (g_ReserveWidth != 0 || g_ReserveHeight != 0) {
+        DXEntryResize(wnd, g_ReserveWidth, g_ReserveHeight);
+        g_ReserveWidth = 0; g_ReserveHeight = 0;
+    }
+
+    DXInstance* dx = &wnd->dx;
 
     auto commandIndex = 0;
     auto command = dx->commands[commandIndex];
@@ -211,9 +223,15 @@ void DXEntryFrameUpdate(DXInstance* dx)
     }
 }
 
-HRESULT DXEntryResize(uint32 width, uint32 height)
+HRESULT DXEntryResize(WindowInstance* wnd, uint32 width, uint32 height)
 {
     DebugPrintScope _(L"DXEntryResize");
 
+    return S_OK;
+}
+
+HRESULT DXEntryReserveResize(uint32 width, uint32 height)
+{
+    DebugPrintScope _(L"DXEntryReserveResize");
     return S_OK;
 }

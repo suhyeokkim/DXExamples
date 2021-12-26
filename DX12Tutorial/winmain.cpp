@@ -61,7 +61,7 @@ struct WindowScope
         UpdateWindow(hWnd);
 
         FAILED_ERROR_MESSAGE_RETURN(
-            DXEntryInit(&wndInst.dx, hInstance, hWnd, wndSet.windowWidth, wndSet.windowHeight, wndSet.maxFrameRate, true),
+            DXEntryInit(&wndInst, hInstance, hWnd, wndSet.windowWidth, wndSet.windowHeight, wndSet.maxFrameRate, true),
             L"fail to initialize."
         );
 
@@ -83,7 +83,7 @@ struct WindowScope
             }
             else
             {
-                DXEntryFrameUpdate(&wndInst.dx);
+                DXEntryFrameUpdate(&wndInst);
             }
         }
     }
@@ -92,7 +92,7 @@ struct WindowScope
     {
         DebugPrintScope _(L"~WindowScope");
 
-        DXEntryClean(&wndInst.dx);
+        DXEntryClean(&wndInst);
     }
 
     static LRESULT CALLBACK MsgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
