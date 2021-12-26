@@ -24,6 +24,7 @@ struct DXInstance
     IDXGIFactory4* dxgiFactory;
     IDXGISwapChain4* swapChain;
     ID3D12Resource* backBuffers[FRAME_COUNT];
+    uint64 frameFenceValues[FRAME_COUNT];
 
     D3D12_COMMAND_LIST_TYPE commandTypes[COMMANDS_COUNT] = { 
         D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT,

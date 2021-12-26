@@ -102,7 +102,7 @@ void DXEntryClean(DXInstance* dx)
 
     for (auto i = 0; i < COMMANDS_COUNT; i++) {
         auto commandPtr = dx->commands + i;
-        Flush(commandPtr->queue, commandPtr->fences[i], commandPtr->fenceValues + i, commandPtr->fenceEvents[i]);
+        Flush(commandPtr->queue, commandPtr->fences[i], commandPtr->fenceValueSeq + i, commandPtr->fenceEvents[i]);
 
         DestroyDXCommands(commandPtr);
     }

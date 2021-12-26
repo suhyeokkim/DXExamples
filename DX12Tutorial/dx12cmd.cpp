@@ -16,10 +16,10 @@ HRESULT CreateDXCommands(ID3D12Device2* device, DXCommands* commands, D3D12_COMM
     FAILED_ERROR_MESSAGE_GOTO(hr, L"fail to create qeueu in DXCommands..", CREATEDXCOMMANDS_CLEAR);
 
     for (auto i = 0; i < g_CmdListCount; i++) {
-        hr = CreateCommandAllocator(device, type, commands->allocator + i);
+        hr = CreateCommandAllocator(device, type, commands->allocators + i);
         FAILED_ERROR_MESSAGE_GOTO(hr, L"fail to create dx12allocator in DXCommands..", CREATEDXCOMMANDS_CLEAR);
 
-        hr = CreateCommandList(device, commands->allocator[i], type, commands->commandList + i);
+        hr = CreateCommandList(device, commands->allocators[i], type, commands->commandList + i);
         FAILED_ERROR_MESSAGE_GOTO(hr, L"fail to create dx12commandlist in DXCommands..", CREATEDXCOMMANDS_CLEAR);
 
         hr = CreateFense(device, commands->fences + i);
@@ -28,7 +28,7 @@ HRESULT CreateDXCommands(ID3D12Device2* device, DXCommands* commands, D3D12_COMM
         hr = CreateEventHandle();
         FAILED_ERROR_MESSAGE_GOTO(hr, L"fail to create win eventhandle in DXCommands..", CREATEDXCOMMANDS_CLEAR);
 
-        commands->fenceValues[i] = { 0, };
+        commands->fenceValueSeq[i] = { 0, };
     }
 
     return S_OK;
@@ -46,8 +46,8 @@ HRESULT DestroyDXCommands(DXCommands* commands)
         commands->queue->Release();
     }
     for (auto i = 0; i < g_CmdListCount; i++) {
-        if (commands->allocator[i]) {
-            commands->allocator[i]->Release();
+        if (commands->allocators[i]) {
+            commands->allocators[i]->Release();
         }
         if (commands->commandList[i]) {
             commands->commandList[i]->Release();
