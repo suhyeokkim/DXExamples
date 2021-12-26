@@ -20,7 +20,6 @@ struct DXInstance
 
     ID3D12DescriptorHeap* heaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
-    bool tearingSupport;
     IDXGIFactory4* dxgiFactory;
     IDXGISwapChain4* swapChain;
     ID3D12Resource* backBuffers[FRAME_COUNT];
@@ -32,6 +31,11 @@ struct DXInstance
         D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COPY
     };
     DXCommands commands[COMMANDS_COUNT];
+
+    int32 currentFrameIndex;
+
+    bool tearingSupport;
+    bool vsync;
 };
 
 bool CheckTearingSupport(IDXGIFactory4* factory);

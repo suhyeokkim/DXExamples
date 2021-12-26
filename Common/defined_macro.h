@@ -412,5 +412,10 @@
     { \
         return hr; \
     }
+#define FAILED_RETURN_VOID(hr)  \
+    if (FAILED(hr)) \
+    { \
+        return; \
+    }
 
 #pragma endregion

@@ -24,6 +24,19 @@ void GetDXWindowSetting(OUT WindowInstance* set)
     set->settings.maxFrameRate = 144;
 }
 
+HRESULT EnableDebugLayer()
+{
+#if false && defined(_DEBUG)
+    ID3D12Debug* debugInterface;
+    auto hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface));
+    FAILED_RETURN(hr);
+
+    debugInterface->EnableDebugLayer();
+#endif
+
+    return S_OK;
+}
+
 HRESULT DXEntryInit(DXInstance* dx, HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, uint32 maxFrameRate, bool debug)
 {
     DebugPrintScope _(L"DXEntryInit");
@@ -93,6 +106,13 @@ HRESULT DXEntryInit(DXInstance* dx, HINSTANCE hInstance, HWND hWnd, UINT width, 
     hr = UpdateRenderTargetViews(dx->dx12Device, FRAME_COUNT, dx->swapChain, *rtvHeapPtr, dx->backBuffers);
     FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create rtv descriptor heap..");
 
+    dx->currentFrameIndex = 0;
+
+    hr = EnableDebugLayer();
+    FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to get debugInterface..");
+
+    dx->vsync = true;
+
     return S_OK;
 }
 
@@ -120,6 +140,75 @@ void DXEntryClean(DXInstance* dx)
 void DXEntryFrameUpdate(DXInstance* dx)
 {
     // DebugPrintScope _(L"DXEntryFrameUpdate");
+
+    auto commandIndex = 0;
+    auto command = dx->commands[commandIndex];
+    auto commandAllocator = command.allocators[0];
+    auto commandList = command.commandList[0];
+
+    auto backBuffer = dx->backBuffers[dx->currentFrameIndex];
+
+    commandAllocator->Reset();
+    commandList->Reset(commandAllocator, nullptr);
+
+    auto rtvSize = dx->dx12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+    {
+        // 렌더타겟-버퍼 클리어
+        D3D12_RESOURCE_BARRIER backBufferResBarrier = {};
+        backBufferResBarrier.Transition.pResource = backBuffer;
+        backBufferResBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        backBufferResBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+
+        commandList->ResourceBarrier(1, &backBufferResBarrier);
+
+        auto rtvHeaps = dx->heaps[D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
+        auto rtvHeapStart = rtvHeaps->GetCPUDescriptorHandleForHeapStart();
+        FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
+        D3D12_CPU_DESCRIPTOR_HANDLE rtv;
+        auto rtvIndex = commandIndex;
+        rtv.ptr = SIZE_T(rtvHeapStart.ptr + INT64(rtvSize) * INT64(rtvIndex));
+
+        commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
+    }
+
+    // 여기서 해당 프레임 렌더링!?
+
+    {
+        // 스왑체인-버퍼 표시
+        auto commandQueue = command.queue;
+
+        D3D12_RESOURCE_BARRIER presentBarrier = {};
+        presentBarrier.Transition.pResource = backBuffer;
+        presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+        presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+        commandList->ResourceBarrier(1, &presentBarrier);
+
+        auto hr = commandList->Close();
+        FAILED_RETURN_VOID(hr);
+
+        ID3D12CommandList* const lists[] = { commandList };
+        commandQueue->ExecuteCommandLists(_countof(lists), lists);
+
+        auto fence = command.fences[0];
+        auto frameFenceValuePtr = dx->frameFenceValues + dx->currentFrameIndex;
+        auto frameValueSeqPtr = command.fenceValueSeq + 0;
+        hr = Signal(commandQueue, fence, frameValueSeqPtr, frameFenceValuePtr);
+        FAILED_RETURN_VOID(hr);
+
+        uint32 vsync = dx->vsync ? 1 : 0;
+        uint32 presentFlags = dx->tearingSupport && !vsync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+
+        auto swapChain = dx->swapChain;
+        hr = swapChain->Present(vsync, presentFlags);
+        FAILED_RETURN_VOID(hr);
+
+        dx->currentFrameIndex = swapChain->GetCurrentBackBufferIndex();
+
+        auto fenceEvent = command.fenceEvents[0];
+        WaitForFenceValue(fence, *frameFenceValuePtr, fenceEvent);
+    }
 }
 
 HRESULT DXEntryResize(uint32 width, uint32 height)
