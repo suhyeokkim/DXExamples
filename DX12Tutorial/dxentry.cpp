@@ -25,6 +25,8 @@ void GetDXWindowSetting(OUT WindowSetting* set)
     set->windowWidth = 1024;
     set->windowHeight = 768;
     set->maxFrameRate = 144;
+    set->fullScreen = false;
+    set->windowStyle = WS_OVERLAPPEDWINDOW;
 }
 
 HRESULT EnableDebugLayer()

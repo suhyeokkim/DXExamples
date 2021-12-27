@@ -53,7 +53,7 @@ struct WindowScope
 
         GetDXWindowSetting(&wndInst.settings);
         const WindowSetting& wndSet = wndInst.settings;
-        wndInst.hWnd = GetCreatedWindow(hInstance, &wndInst.wndClass, wndSet.windowName, wndSet.windowWidth, wndSet.windowHeight);
+        wndInst.hWnd = GetCreatedWindow(hInstance, &wndInst.wndClass, wndSet.windowName, wndSet.windowStyle, wndSet.windowWidth, wndSet.windowHeight);
 
         ShowWindow(wndInst.hWnd, SW_SHOW);
         UpdateWindow(wndInst.hWnd);
@@ -61,6 +61,10 @@ struct WindowScope
         FAILED_ERROR_MESSAGE_RETURN(
             DXEntryInit(&wndInst, hInstance, wndInst.hWnd, wndSet.windowWidth, wndSet.windowHeight, wndSet.maxFrameRate, true),
             L"fail to initialize."
+        );
+
+        FALSE_ERROR_MESSAGE_RETURN_CODE(
+            ::GetWindowRect(wndInst.hWnd, &wndInst.rect), L"failed to GetWindowRect..", E_FAIL
         );
 
         return S_OK;
@@ -143,15 +147,15 @@ struct WindowScope
         return wndClass;
     }
 
-    static HWND GetCreatedWindow(HINSTANCE hInstance, LPWNDCLASSW wndClass, LPCWSTR windowTitle, UINT width, UINT height)
+    static HWND GetCreatedWindow(HINSTANCE hInstance, LPWNDCLASSW wndClass, LPCWSTR windowTitle, DWORD windowStyle, UINT width, UINT height)
     {
         DebugPrintScope _(L"WindowScope::GetCreatedWindow");
 
         RECT rc;
         SetRect(&rc, 0, 0, width, height);
-        AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
+        AdjustWindowRect(&rc, windowStyle, false);
 
-        return CreateWindow(wndClass->lpszClassName, windowTitle, WS_OVERLAPPEDWINDOW, 100, 100, width, height, 0, (HMENU)nullptr, hInstance, 0);
+        return CreateWindow(wndClass->lpszClassName, windowTitle, windowStyle, 100, 100, width, height, 0, (HMENU)nullptr, hInstance, 0);
     }
 };
 
