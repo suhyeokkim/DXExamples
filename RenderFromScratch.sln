@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.902
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31729.503
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DX11Tutorial4", "DX11Tutorial4\DX11Tutorial4.vcxproj", "{7595BF65-9C10-4BA9-911F-6825326DA2FE}"
 EndProject
@@ -43,6 +43,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DX12Tutorial", "DX12Tutorial\DX12Tutorial.vcxproj", "{ABD3C944-70BF-4059-8CEB-926444BED04D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DX12", "DX12", "{26BEA6E2-6D2A-43C0-B409-62DB3832CB7E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DX12Tutorial2", "DX12Tutorial2\DX12Tutorial2.vcxproj", "{509D73CB-8D4A-486D-9819-2FBBB68D6DDB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -172,6 +174,14 @@ Global
 		{ABD3C944-70BF-4059-8CEB-926444BED04D}.Release|x64.Build.0 = Release|x64
 		{ABD3C944-70BF-4059-8CEB-926444BED04D}.Release|x86.ActiveCfg = Release|Win32
 		{ABD3C944-70BF-4059-8CEB-926444BED04D}.Release|x86.Build.0 = Release|Win32
+		{509D73CB-8D4A-486D-9819-2FBBB68D6DDB}.Debug|x64.ActiveCfg = Debug|x64
+		{509D73CB-8D4A-486D-9819-2FBBB68D6DDB}.Debug|x64.Build.0 = Debug|x64
+		{509D73CB-8D4A-486D-9819-2FBBB68D6DDB}.Debug|x86.ActiveCfg = Debug|Win32
+		{509D73CB-8D4A-486D-9819-2FBBB68D6DDB}.Debug|x86.Build.0 = Debug|Win32
+		{509D73CB-8D4A-486D-9819-2FBBB68D6DDB}.Release|x64.ActiveCfg = Release|x64
+		{509D73CB-8D4A-486D-9819-2FBBB68D6DDB}.Release|x64.Build.0 = Release|x64
+		{509D73CB-8D4A-486D-9819-2FBBB68D6DDB}.Release|x86.ActiveCfg = Release|Win32
+		{509D73CB-8D4A-486D-9819-2FBBB68D6DDB}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -192,6 +202,7 @@ Global
 		{C7EC6809-CCBA-46CF-A2BC-D0F7CD7CF2FF} = {26801999-FAC0-4122-A4AB-ED45F9B88AB1}
 		{ABD3C944-70BF-4059-8CEB-926444BED04D} = {26BEA6E2-6D2A-43C0-B409-62DB3832CB7E}
 		{26BEA6E2-6D2A-43C0-B409-62DB3832CB7E} = {5C8B60DA-40E6-42D2-9A61-9C5A98C12DB6}
+		{509D73CB-8D4A-486D-9819-2FBBB68D6DDB} = {26BEA6E2-6D2A-43C0-B409-62DB3832CB7E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0E1ACB44-444C-43B6-83AC-7BA3E7F03957}
