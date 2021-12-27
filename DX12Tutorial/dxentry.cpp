@@ -17,14 +17,14 @@
 uint32 g_ReserveWidth = 0;
 uint32 g_ReserveHeight = 0;
 
-void GetDXWindowSetting(OUT WindowInstance* set)
+void GetDXWindowSetting(OUT WindowSetting* set)
 {
     DebugPrintScope _(L"GetDXWindowSetting");
 
-    set->settings.windowName = L"DX12Tutorial";
-    set->settings.windowWidth = 1024;
-    set->settings.windowHeight = 768;
-    set->settings.maxFrameRate = 144;
+    set->windowName = L"DX12Tutorial";
+    set->windowWidth = 1024;
+    set->windowHeight = 768;
+    set->maxFrameRate = 144;
 }
 
 HRESULT EnableDebugLayer()

@@ -53,7 +53,7 @@ struct WindowScope
         wndClass = GetWindowClass(hInstance, MsgProc, L"Direct3DWindowClass");
         FALSE_ERROR_MESSAGE_RETURN_CODE(RegisterClassW(&wndClass), L"fail to register window class..", E_FAIL);
 
-        GetDXWindowSetting(&wndInst);
+        GetDXWindowSetting(&wndInst.settings);
         const WindowSetting& wndSet = wndInst.settings;
         hWnd = GetCreatedWindow(hInstance, &wndClass, wndSet.windowName, wndSet.windowWidth, wndSet.windowHeight);
 
