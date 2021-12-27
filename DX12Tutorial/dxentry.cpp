@@ -287,7 +287,8 @@ HRESULT DXEntryResize(WindowInstance* wnd, uint32 width, uint32 height)
     dx->currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
     auto rtv = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    UpdateRenderTargetViews(dx->dx12Device, FRAME_COUNT, swapChain, dx->heaps[rtv], dx->backBuffers);
+    hr = UpdateRenderTargetViews(dx->dx12Device, FRAME_COUNT, swapChain, dx->heaps[rtv], dx->backBuffers);
+    FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to update rtv..");
 
     return S_OK;
 }
