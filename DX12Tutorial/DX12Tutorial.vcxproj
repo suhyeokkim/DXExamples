@@ -41,6 +41,9 @@
       <Project>{25a30397-0f61-4fd5-a3ad-7625ac470cd6}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include=".editorconfig" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{ABD3C944-70BF-4059-8CEB-926444BED04D}</ProjectGuid>

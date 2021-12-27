@@ -12,4 +12,7 @@
     <ClCompile Include="dx12lib.cpp" />
     <ClCompile Include="dx12cmd.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include=".editorconfig" />
+  </ItemGroup>
 </Project>
