@@ -13,6 +13,8 @@ struct WindowSetting
 struct DXInstance;
 struct WindowInstance
 {
+    WNDCLASSW wndClass;
+    HWND hWnd;
     WindowSetting settings;
     DXInstance dx;
 };

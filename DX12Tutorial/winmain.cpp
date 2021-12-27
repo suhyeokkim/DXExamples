@@ -35,9 +35,7 @@ struct RedirectConsoleScope
 
 struct WindowScope
 {
-    WNDCLASSW wndClass;
     WindowInstance wndInst;
-    HWND hWnd;
 
     HRESULT Init(HINSTANCE hInstance)
     {
@@ -50,18 +48,18 @@ struct WindowScope
         SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
         // Register the windows class
-        wndClass = GetWindowClass(hInstance, MsgProc, L"Direct3DWindowClass");
-        FALSE_ERROR_MESSAGE_RETURN_CODE(RegisterClassW(&wndClass), L"fail to register window class..", E_FAIL);
+        wndInst.wndClass = GetWindowClass(hInstance, MsgProc, L"Direct3DWindowClass");
+        FALSE_ERROR_MESSAGE_RETURN_CODE(RegisterClassW(&wndInst.wndClass), L"fail to register window class..", E_FAIL);
 
         GetDXWindowSetting(&wndInst.settings);
         const WindowSetting& wndSet = wndInst.settings;
-        hWnd = GetCreatedWindow(hInstance, &wndClass, wndSet.windowName, wndSet.windowWidth, wndSet.windowHeight);
+        wndInst.hWnd = GetCreatedWindow(hInstance, &wndInst.wndClass, wndSet.windowName, wndSet.windowWidth, wndSet.windowHeight);
 
-        ShowWindow(hWnd, SW_SHOW);
-        UpdateWindow(hWnd);
+        ShowWindow(wndInst.hWnd, SW_SHOW);
+        UpdateWindow(wndInst.hWnd);
 
         FAILED_ERROR_MESSAGE_RETURN(
-            DXEntryInit(&wndInst, hInstance, hWnd, wndSet.windowWidth, wndSet.windowHeight, wndSet.maxFrameRate, true),
+            DXEntryInit(&wndInst, hInstance, wndInst.hWnd, wndSet.windowWidth, wndSet.windowHeight, wndSet.maxFrameRate, true),
             L"fail to initialize."
         );
 
