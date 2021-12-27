@@ -294,6 +294,61 @@ HRESULT DXEntryResize(WindowInstance* wnd, uint32 width, uint32 height)
 
 HRESULT DXEntryFullScreen(WindowInstance* wnd, bool fullScreen)
 {
+    wnd->settings.fullScreen = fullScreen;
+
+    if (fullScreen) {
+        FALSE_ERROR_MESSAGE_RETURN_CODE(
+            ::GetWindowRect(wnd->hWnd, &wnd->rect), L"failed to GetWindowRect..", E_FAIL
+        );
+
+        auto fullScreenStyle = 
+            WS_OVERLAPPEDWINDOW &
+            ~(WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
+        FALSE_ERROR_MESSAGE_RETURN_CODE(
+            ::SetWindowLongW(wnd->hWnd, GWL_STYLE, fullScreenStyle), 
+            L"failed to SetWindowLongW..", E_FAIL
+        );
+
+        auto hMonitor = ::MonitorFromWindow(wnd->hWnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFOEX monitorInfo = {};
+        monitorInfo.cbSize = sizeof(MONITORINFOEX);
+        FALSE_ERROR_MESSAGE_RETURN_CODE(
+            ::GetMonitorInfoW(hMonitor, &monitorInfo), L"failed to GetMonitorInfoW..", E_FAIL
+        );
+
+        FALSE_ERROR_MESSAGE_RETURN_CODE(
+            ::SetWindowPos(wnd->hWnd, HWND_TOPMOST,
+                monitorInfo.rcMonitor.left,
+                monitorInfo.rcMonitor.top,
+                monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
+                monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
+                SWP_FRAMECHANGED | SWP_NOACTIVATE
+            ), L"failed to SetWindowPos..", E_FAIL
+        );
+
+        FALSE_ERROR_MESSAGE_RETURN_CODE(
+            ::ShowWindow(wnd->hWnd, SW_SHOW), L"failed to ShowWindow..", E_FAIL
+        );
+    } else {
+        FALSE_ERROR_MESSAGE_RETURN_CODE(
+            ::SetWindowLongW(wnd->hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW),
+            L"failed to SetWindowLongW..", E_FAIL
+        );
+
+        FALSE_ERROR_MESSAGE_RETURN_CODE(
+            ::SetWindowPos(wnd->hWnd, HWND_TOPMOST,
+                wnd->rect.left,
+                wnd->rect.top,
+                wnd->rect.right - wnd->rect.left,
+                wnd->rect.bottom - wnd->rect.top,
+                SWP_FRAMECHANGED | SWP_NOACTIVATE
+            ), L"failed to SetWindowPos..", E_FAIL
+        );
+        FALSE_ERROR_MESSAGE_RETURN_CODE(
+            ::ShowWindow(wnd->hWnd, SW_SHOW), L"failed to ShowWindow..", E_FAIL
+        );
+    }
+
     return S_OK;
 }
 
