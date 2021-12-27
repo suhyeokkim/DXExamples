@@ -14,8 +14,28 @@
 
 #include <chrono>
 
-uint32 g_ReserveWidth = 0;
-uint32 g_ReserveHeight = 0;
+HRESULT DXEntryResize(WindowInstance* wnd, uint32 width, uint32 height);
+HRESULT DXEntryFullScreen(WindowInstance* wnd, bool fullScreen);
+
+struct WindowState
+{
+    uint32 reserveWidth;
+    uint32 reserveHeight;
+    bool fullScreen;
+
+    void UpdateWindowIfDiff(WindowInstance* wnd)
+    {
+        if (reserveWidth != 0 || reserveHeight != 0) {
+            DXEntryResize(wnd, reserveWidth, reserveHeight);
+            reserveWidth = 0; reserveHeight = 0;
+        }
+
+        if (fullScreen != wnd->settings.fullScreen) {
+            DXEntryFullScreen(wnd, fullScreen);
+        }
+    }
+} g_WindowState;
+
 
 void GetDXWindowSetting(OUT WindowSetting* set)
 {
@@ -27,6 +47,10 @@ void GetDXWindowSetting(OUT WindowSetting* set)
     set->maxFrameRate = 144;
     set->fullScreen = false;
     set->windowStyle = WS_OVERLAPPEDWINDOW;
+
+    g_WindowState.reserveWidth = 0;
+    g_WindowState.reserveHeight = 0;
+    g_WindowState.fullScreen = false;
 }
 
 HRESULT EnableDebugLayer()
@@ -145,16 +169,12 @@ void DXEntryClean(WindowInstance* wnd)
     SAFE_RELEASE(dx->dx12Device);
 }
 
-HRESULT DXEntryResize(WindowInstance* wnd, uint32 width, uint32 height);
 
 void DXEntryFrameUpdate(WindowInstance* wnd)
 {
     // DebugPrintScope _(L"DXEntryFrameUpdate");
 
-    if (g_ReserveWidth != 0 || g_ReserveHeight != 0) {
-        DXEntryResize(wnd, g_ReserveWidth, g_ReserveHeight);
-        g_ReserveWidth = 0; g_ReserveHeight = 0;
-    }
+    g_WindowState.UpdateWindowIfDiff(wnd);
 
     DXInstance* dx = &wnd->dx;
 
@@ -272,10 +292,22 @@ HRESULT DXEntryResize(WindowInstance* wnd, uint32 width, uint32 height)
     return S_OK;
 }
 
+HRESULT DXEntryFullScreen(WindowInstance* wnd, bool fullScreen)
+{
+    return S_OK;
+}
+
 HRESULT DXEntryReserveResize(uint32 width, uint32 height)
 {
     DebugPrintScope _(L"DXEntryReserveResize");
 
-    g_ReserveWidth = width; g_ReserveHeight = height;
+    g_WindowState.reserveWidth = width;
+    g_WindowState.reserveHeight = height;
+    return S_OK;
+}
+
+HRESULT DXEntryToggleFullscreen()
+{
+    g_WindowState.fullScreen = !g_WindowState.fullScreen;
     return S_OK;
 }

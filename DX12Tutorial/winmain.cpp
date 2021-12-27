@@ -115,6 +115,17 @@ struct WindowScope
             PostQuitMessage(0);
             break;
 
+        case WM_SYSKEYDOWN:
+        case WM_KEYDOWN:
+            switch (wParam)
+            {
+            case VK_F11:
+                DXEntryToggleFullscreen();
+                break;
+            default:
+                return DefWindowProc(hWnd, uMsg, wParam, lParam);
+            }
+
         case WM_SIZE:
         {
             RECT clientRect = {};
