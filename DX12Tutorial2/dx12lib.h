@@ -9,8 +9,8 @@
 
 #include <chrono>
 
-#define FRAME_COUNT 3
-#define COMMANDS_COUNT 3
+constexpr int FRAME_COUNT = 3;
+constexpr int COMMANDS_COUNT = 3;
 
 struct DXCommands;
 struct DXInstance

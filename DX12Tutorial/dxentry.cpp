@@ -119,7 +119,7 @@ HRESULT DXEntryInit(WindowInstance* wnd, HINSTANCE hInstance, HWND hWnd, UINT wi
     }
 #endif
 
-    for (auto i = 0; i < g_CmdListCount; i++) {
+    for (auto i = 0; i < CMDLIST_COUNT; i++) {
         hr = CreateDXCommands(dx->dx12Device, dx->commands + i, dx->commandTypes[i]);
         FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create cmd list..");
     }

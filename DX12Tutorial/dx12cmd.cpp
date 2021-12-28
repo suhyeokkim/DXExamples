@@ -15,7 +15,7 @@ HRESULT CreateDXCommands(ID3D12Device2* device, DXCommands* commands, D3D12_COMM
     hr = CreateCommandQueue(device, type, &commands->queue);
     FAILED_ERROR_MESSAGE_GOTO(hr, L"fail to create qeueu in DXCommands..", CREATEDXCOMMANDS_CLEAR);
 
-    for (auto i = 0; i < g_CmdListCount; i++) {
+    for (auto i = 0; i < CMDLIST_COUNT; i++) {
         hr = CreateCommandAllocator(device, type, commands->allocators + i);
         FAILED_ERROR_MESSAGE_GOTO(hr, L"fail to create dx12allocator in DXCommands..", CREATEDXCOMMANDS_CLEAR);
 
@@ -45,7 +45,7 @@ HRESULT DestroyDXCommands(DXCommands* commands)
     if (commands->queue) {
         commands->queue->Release();
     }
-    for (auto i = 0; i < g_CmdListCount; i++) {
+    for (auto i = 0; i < CMDLIST_COUNT; i++) {
         if (commands->allocators[i]) {
             commands->allocators[i]->Release();
         }
