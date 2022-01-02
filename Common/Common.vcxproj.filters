@@ -17,6 +17,9 @@
     <ClCompile Include="allocators.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="mempage.cpp">
+      <Filter>헤더 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="container.h">
@@ -36,6 +39,9 @@
     </ClInclude>
     <ClInclude Include="defined_macro.h">
       <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="mempage.h">
+      <Filter>소스 파일</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

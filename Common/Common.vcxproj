@@ -136,6 +136,7 @@
   <ItemGroup>
     <ClCompile Include="allocators.cpp" />
     <ClCompile Include="container.cpp" />
+    <ClCompile Include="mempage.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="allocators.h" />
@@ -143,6 +144,7 @@
     <ClInclude Include="container.h" />
     <ClInclude Include="defined_macro.h" />
     <ClInclude Include="defined_type.h" />
+    <ClInclude Include="mempage.h" />
     <ClInclude Include="symbols.h" />
   </ItemGroup>
   <ItemGroup>
