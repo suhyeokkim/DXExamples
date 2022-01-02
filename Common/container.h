@@ -16,7 +16,7 @@ class DECLSPEC_DLL ArrayList
 {
 public: // crud
     bool Init(
-        void (*initializer)(void*, void*), int32 step,
+        const wchar_t* addrspace, int32 step,
         int32 alignment = s_DefaultAlignment, uint64 capacity = s_DefaultCapacity
     );
     bool Destroy();
@@ -50,8 +50,8 @@ public: // list accessor
 
 private:
     void* singleChunkPtr;
-    void (*initializer)(void*, void*);
-
+    
+    const wchar_t* addrspace;
     int32 count;
     int32 step;
     uint64 capacity;

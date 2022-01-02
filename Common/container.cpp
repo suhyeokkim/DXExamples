@@ -1,17 +1,16 @@
 #include "container.h"
+#include "allocators.h"
 
-
-DECLSPEC_DLL bool ArrayList::Init(
-    void(*initializer)(void*, void*), int32 step, int32 alignment, uint64 capacity
-)
+// 할당자 사용 안함;
+DECLSPEC_DLL bool ArrayList::Init(const wchar_t* addrspace, int32 step, int32 alignment, uint64 capacity)
 {
-    this->initializer = initializer;
+    this->addrspace = addrspace != nullptr && wcscmp(addrspace, L"") != 0? addrspace: SYSTEM_NAME;
     this->step = step;
     this->capacity = capacity;
     this->alignment = alignment;
     this->count = 0;
 
-    singleChunkPtr = _aligned_offset_malloc(step * capacity, alignment, 0);
+    singleChunkPtr = memAlloc(step * capacity, alignment, 0, this->addrspace);
     return singleChunkPtr != nullptr;
 }
 
@@ -21,12 +20,12 @@ DECLSPEC_DLL bool ArrayList::Destroy()
 
     if (singleChunkPtr != nullptr) {
         this->capacity = 0;
-        _aligned_free(singleChunkPtr);
+        memFree(singleChunkPtr, addrspace);
     }
 
     this->alignment = 0;
     this->step = 0;
-    this->initializer = nullptr;
+    this->addrspace = nullptr;
 
     return true;
 }
@@ -55,16 +54,23 @@ DECLSPEC_DLL bool ArrayList::CopyFrom(const ArrayList& list)
     return true;
 }
 
+#define min(a, b) (a < b? a: b)
+
 DECLSPEC_DLL bool ArrayList::ResizeMem(uint64 capacity)
 {
-    auto ptr = _aligned_offset_realloc(singleChunkPtr, (uint64)step * capacity, alignment, 0);
+    auto newPtr = memAlloc((uint64)step * capacity, alignment, 0, addrspace);
 
-    if (ptr == nullptr) {
+    if (newPtr == nullptr) {
         return false;
     }
 
+    if (singleChunkPtr != nullptr) {
+        auto minCapacitySize = min((uint64)step * capacity, (uint64)step * this->capacity);
+        memcpy(newPtr, singleChunkPtr, minCapacitySize);
+    }
+
     this->capacity = capacity;
-    this->singleChunkPtr = ptr;
+    singleChunkPtr = newPtr;
 
     if (capacity < count) {
         count = capacity;
@@ -121,13 +127,6 @@ DECLSPEC_DLL bool ArrayList::Insert(int32 startIndex, int32 count, NOTNULL void*
     // 공간 확보 후 옮기기
     auto destArrPtr = (char*)singleChunkPtr + (startIndex * step);
     memcpy(destArrPtr, ptr, count * step);
-
-    if (initializer != nullptr) {
-        for (auto i = 0; i < count; i++) {
-            auto itemPtr = (char*)singleChunkPtr + ((this->count + i) * step);
-            initializer(itemPtr, param);
-        }
-    }
 
     this->count = this->count + count;
 
