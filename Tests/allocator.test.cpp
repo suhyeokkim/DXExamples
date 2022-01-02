@@ -36,6 +36,8 @@ TEST_CASE("test memory allocate", "[Allocator]") {
             sp[i][j] = (char)0;
         }
     }
+
+    REQUIRE(memPageFree(addrspace0));
 }
 
 TEST_CASE("test memory allocate (page locked)", "[Allocator]") {

@@ -30,7 +30,9 @@ DECLSPEC_DLL void* memAlloc(size_t size, size_t alignment, size_t alignOffset, c
 
 DECLSPEC_DLL bool memFree(void* ptr, const wchar_t* addrspace)
 {
-    if (wcscmp(SYSTEM_NAME, addrspace) == 0) {
+    if (addrspace == nullptr ||
+        wcscmp(L"", addrspace) == 0 ||
+        wcscmp(SYSTEM_NAME, addrspace) == 0) {
         _aligned_free(ptr);
         return true;
     } else {
@@ -49,7 +51,7 @@ DECLSPEC_DLL size_t memAllocSize(const wchar_t* addrspace)
     auto entry = FindEntry(addrspace);
 
     if (entry == nullptr) {
-        return false;
+        return 0;
     }
 
     return entry->allocByteCount;
@@ -57,10 +59,16 @@ DECLSPEC_DLL size_t memAllocSize(const wchar_t* addrspace)
 
 DECLSPEC_DLL size_t memPageSize(const wchar_t* addrspace)
 {
+    if (addrspace == nullptr ||
+        wcscmp(L"", addrspace) == 0 ||
+        wcscmp(SYSTEM_NAME, addrspace) == 0) {
+        return 0;
+    }
+
     auto entry = FindEntry(addrspace);
 
     if (entry == nullptr) {
-        return false;
+        return 0;
     }
 
     return entry->totalPageSize;
@@ -73,6 +81,12 @@ DECLSPEC_DLL size_t memPageMinSize(bool pageLocked)
 
 DECLSPEC_DLL bool memPageAdd(const wchar_t* addrspace, size_t pageSize, bool pageLocked)
 {
+    if (addrspace == nullptr ||
+        wcscmp(L"", addrspace) == 0 ||
+        wcscmp(SYSTEM_NAME, addrspace) == 0) {
+        return false;
+    }
+
     auto entry = FindEntry(addrspace);
 
     if (entry != nullptr) {
@@ -86,6 +100,12 @@ DECLSPEC_DLL bool memPageAdd(const wchar_t* addrspace, size_t pageSize, bool pag
 
 DECLSPEC_DLL bool memPageFree(const wchar_t* addrspace)
 {
+    if (addrspace == nullptr ||
+        wcscmp(L"", addrspace) == 0 ||
+        wcscmp(SYSTEM_NAME, addrspace) == 0) {
+        return false;
+    }
+
     return RemoveEntry(addrspace);
 }
 
@@ -94,7 +114,8 @@ DECLSPEC_DLL int32 validPageCount()
     int32 count = 0;
 
     for (auto i = 0; i < ALLOCATOR_ENTRY_COUNT; i++) {
-        if (GetEntry(i)->name != nullptr) {
+        auto entry = GetEntry(i);
+        if (wcscmp(entry->name, L"") == 0) {
             count++;
         }
     }

@@ -137,8 +137,11 @@ AllocatorEntry::~AllocatorEntry()
             }
 
             _aligned_free(memChunk->memPtr);
+            memChunk->memPtr = nullptr;
         }
     }
+    memChunkList.Destroy();
+    this->name[0] = L'\0';
 }
 
 void* AllocatorEntry::Allocate(size_t numBytes, int flags)

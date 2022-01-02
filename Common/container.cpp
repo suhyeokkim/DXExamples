@@ -16,13 +16,13 @@ DECLSPEC_DLL bool ArrayList::Init(const wchar_t* addrspace, int32 step, int32 al
 
 DECLSPEC_DLL bool ArrayList::Destroy()
 {
-    this->count = 0;
-
     if (singleChunkPtr != nullptr) {
         this->capacity = 0;
         memFree(singleChunkPtr, addrspace);
+        singleChunkPtr = nullptr;
     }
 
+    this->count = 0;
     this->alignment = 0;
     this->step = 0;
     this->addrspace = nullptr;
@@ -54,7 +54,7 @@ DECLSPEC_DLL bool ArrayList::CopyFrom(const ArrayList& list)
     return true;
 }
 
-#define min(a, b) (a < b? a: b)
+#define min(a, b) ((a < b)? (a): (b))
 
 DECLSPEC_DLL bool ArrayList::ResizeMem(uint64 capacity)
 {
