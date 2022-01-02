@@ -67,4 +67,40 @@ TEST_CASE("test ArrayList", "[Container.ArrayList]") {
     REQUIRE(list.Capacity() == 2);
     REQUIRE(list.Count() == 2);
     REQUIRE(Equal(datas, 0, list, 2));
+
+    REQUIRE(list.Destroy());
+
+    REQUIRE(list.Init(
+        L"1234",
+        sizeof(TestData),
+        ArrayList::s_DefaultAlignment,
+        1
+    ));
+
+    REQUIRE(list.Insert(0, dataSize, datas, nullptr));
+    REQUIRE(list.Count() == 4);
+    REQUIRE(Equal(datas, 0, list, 4));
+
+    REQUIRE(list.RemoveFirst());
+    REQUIRE(list.Count() == 3);
+    REQUIRE(Equal(datas, 1, list, 3));
+
+    REQUIRE(list.RemoveLast());
+    REQUIRE(list.Count() == 2);
+    REQUIRE(Equal(datas, 1, list, 2));
+
+    REQUIRE(list.InsertStart(1, datas, nullptr));
+    REQUIRE(list.Count() == 3);
+    REQUIRE(Equal(datas, 0, list, 3));
+
+    REQUIRE(list.InsertLast(1, datas + 3, nullptr));
+    REQUIRE(list.Count() == 4);
+    REQUIRE(Equal(datas, 0, list, 4));
+
+    REQUIRE(list.ResizeMem(2));
+    REQUIRE(list.Capacity() == 2);
+    REQUIRE(list.Count() == 2);
+    REQUIRE(Equal(datas, 0, list, 2));
+
+    REQUIRE(list.Destroy());
 }
