@@ -120,8 +120,6 @@ DECLSPEC_DLL Vector2f Min(const Vector2f &p1, const Vector2f &p2);
 DECLSPEC_DLL Vector2f Max(const Vector2f &p1, const Vector2f &p2);
 DECLSPEC_DLL Vector2f Abs(const Vector2f &v);
 DECLSPEC_DLL Vector2f Sqrtv(const Vector2f &v);
-DECLSPEC_DLL Vector3f ToFrameFromBasis(const Vector3f &v, const Vector3f &t, const Vector3f &b, const Vector3f &n);
-DECLSPEC_DLL Vector3f ToBasisFromFrame(const Vector3f &v, const Vector3f &t, const Vector3f &b, const Vector3f &n);
 
 struct DECLSPEC_DLL Vector3f
 {
@@ -205,6 +203,8 @@ DECLSPEC_DLL Vector3f Min(const Vector3f &p1, const Vector3f &p2);
 DECLSPEC_DLL Vector3f Max(const Vector3f &p1, const Vector3f &p2);
 DECLSPEC_DLL Vector3f Abs(const Vector3f &v);
 DECLSPEC_DLL Vector3f Sqrtv(const Vector3f &v);
+DECLSPEC_DLL Vector3f ToFrameFromBasis(const Vector3f& v, const Vector3f& t, const Vector3f& b, const Vector3f& n);
+DECLSPEC_DLL Vector3f ToBasisFromFrame(const Vector3f& v, const Vector3f& t, const Vector3f& b, const Vector3f& n);
 
 struct DECLSPEC_DLL Vector4f
 {
