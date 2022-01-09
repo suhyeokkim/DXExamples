@@ -124,8 +124,7 @@ HRESULT DXEntryInit(WindowInstance* wnd, HINSTANCE hInstance, HWND hWnd, UINT wi
         FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create cmd list..");
     }
 
-    auto backBufferCount = 3;
-    hr = CreateSwapChain(dx->commands[0].queue, hWnd, width, height, backBufferCount, maxFrameRate, &dx->swapChain);
+    hr = CreateSwapChain(dx->commands[0].queue, hWnd, width, height, FRAME_COUNT, maxFrameRate, &dx->swapChain);
     FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to create swap chain..");
 
     auto rtv = D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
