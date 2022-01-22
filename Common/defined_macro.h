@@ -22,6 +22,7 @@
 #pragma region 에러 핸들링
 
 #define ASSERT(x) assert(x);
+#define DBGBRK(x) __debugbreak();
 #define ERROR_MESSAGE(str) \
     { \
         WCHAR szErrorBuffer[MAX_PATH]; \

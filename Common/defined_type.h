@@ -4,16 +4,6 @@
 #define _CRTDBG_MAP_ALLOC 
 #endif
 
-#include <cstdlib>
-#include <cassert>
-
-#define IN
-#define OUT
-#define INOUT
-#define REF
-#define NOTNULL
-#define NULLABLE
-
 typedef char                   int8;
 typedef unsigned char          uint8;
 typedef short                  int16;
