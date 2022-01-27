@@ -19,11 +19,13 @@
     <ClInclude Include="defined_macro.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="allocators.ixx" />
-    <ClInclude Include="container.ixx" />
-    <ClInclude Include="mempage.ixx" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="mempage.ixx" />
+    <ClCompile Include="container.ixx" />
+    <ClCompile Include="allocators.ixx" />
   </ItemGroup>
 </Project>

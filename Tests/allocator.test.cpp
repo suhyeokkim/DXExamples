@@ -1,7 +1,7 @@
-#include "allocators.h"
-#include "mempage.h"
-#include "defined_type.h"
 #include "catch.hpp"
+#include "common.h"
+
+import allocators;
 
 TEST_CASE("test memory allocate", "[Allocator]") {
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF);

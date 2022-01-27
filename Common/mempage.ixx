@@ -7,16 +7,15 @@ module;
 #include "defined_type.h"
 #include "symbols.h"
 
-export module DECLSPEC_DLL mempage;
+export module mempage;
 
 export import std.core;
 export import container;
 
-DECLSPEC_DLL export enum Const {
+export enum MemPage.Const {
     ALLOCATOR_MIN_ALIGNMENT = 8,
     ALLOCATOR_MIN_PAGESIZE = 16 * 1024 * 1024,
     ALLOCATOR_MIN_LOCKEDPAGESIZE = 4 * 1024,
-    ALLOCATOR_ENTRY_COUNT = 16,
 };
 
 export struct MemRange
@@ -266,49 +265,3 @@ export struct AllocatorEntry
         return false;
     }
 };
-
-AllocatorEntry g_Entries[ALLOCATOR_ENTRY_COUNT];
-
-DECLSPEC_DLL export AllocatorEntry* GetEntry(int index)
-{
-    return g_Entries + index;
-}
-DECLSPEC_DLL export int32 AddEntry(const wchar_t* name, size_t min_page_size, bool pageLocked)
-{
-    if (name[0] == L'\0') {
-        return -1;
-    }
-
-    int32 index = std::numeric_limits<int32>::max();
-    for (int32 i = 0; i < ALLOCATOR_ENTRY_COUNT; i++)
-        if (wcscmp(g_Entries[i].name, L"") == 0)
-        {
-            index = i;
-            break;
-        }
-
-    if (index == std::numeric_limits<int32>::max()) return -1;
-
-    g_Entries[index].~AllocatorEntry();
-    new (g_Entries + index) AllocatorEntry(name, 1, min_page_size, pageLocked);
-
-    return index;
-}
-DECLSPEC_DLL export AllocatorEntry* FindEntry(const wchar_t* name)
-{
-    for (int32 i = 0; i < ALLOCATOR_ENTRY_COUNT; i++)
-        if (!wcscmp(g_Entries[i].name, name))
-            return g_Entries + i;
-    return nullptr;
-}
-DECLSPEC_DLL export bool RemoveEntry(const wchar_t* name)
-{
-    auto entry = FindEntry(name);
-
-    if (entry == nullptr) {
-        return false;
-    }
-
-    entry->~AllocatorEntry();
-    return true;
-}

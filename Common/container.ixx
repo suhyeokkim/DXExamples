@@ -6,10 +6,11 @@ module;
 #include <cstring>
 #include <cstdio>
 
-export module DECLSPEC_DLL container;
+export module container;
 export import std.core;
+export import allocators;
 
-export enum Const {
+export enum ArrayList.Const {
     ARRAYLIST_DEFAULT_CAPACITY = 32,
     ARRAYLIST_DEFAULT_ALIGNMENT = 32
 };
@@ -51,7 +52,7 @@ uint64 BiggerPow(uint64 current, uint64 than)
 /// <summary>
 /// C 스타일 컨테이너, ABI 를 위해 템플릿 사용 금지
 /// </summary>
-DECLSPEC_DLL export class ArrayList
+export class ArrayList
 {
 public: // crud
     bool Init(

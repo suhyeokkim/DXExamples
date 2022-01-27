@@ -1,5 +1,7 @@
-#include "common.h"
 #include "catch.hpp"
+#include "common.h"
+
+import container;
 
 struct TestData {
     uint64 d0;
