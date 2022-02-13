@@ -1,6 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <windows.h>
+#include <winuser.h>
 #include <iostream>
 #include <fcntl.h> 
 #include <cstdio>
@@ -8,6 +9,7 @@
 #include "winmain.h"
 #include "dxentry.h"
 #include "defined_macro.h"
+#include "root.h"
 #include "debug.h"
 
 using namespace std;
@@ -36,11 +38,14 @@ struct RedirectConsoleScope
 
 struct WindowScope
 {
-    WindowInstance wndInst;
+    Root* root;
 
-    HRESULT Init(HINSTANCE hInstance)
+    HRESULT Init(HINSTANCE hInstance, Root* root)
     {
         DebugPrintScope _(L"WindowScope::Init");
+        WindowInstance& wndInst = root->wnd;
+        WindowSetting& wndSet = root->settings;
+        WindowContext& wndCtx = root->wndctx;
 
         // Windows 10 Creators update adds Per Monitor V2 DPI awareness context.
         // Using this awareness context allows the client area of the window 
@@ -52,21 +57,25 @@ struct WindowScope
         wndInst.wndClass = GetWindowClass(hInstance, MsgProc, L"Direct3DWindowClass");
         FALSE_ERROR_MESSAGE_RETURN_CODE(RegisterClassW(&wndInst.wndClass), L"fail to register window class..", E_FAIL);
 
-        GetDXWindowSetting(&wndInst.settings);
-        const WindowSetting& wndSet = wndInst.settings;
+        GetDXWindowSetting(&wndSet, &wndCtx);
         wndInst.hWnd = GetCreatedWindow(hInstance, &wndInst.wndClass, wndSet.windowName, wndSet.windowStyle, wndSet.windowWidth, wndSet.windowHeight);
+
+        SetWindowLongPtr(wndInst.hWnd, GWLP_USERDATA, (LONG_PTR)root);
 
         ShowWindow(wndInst.hWnd, SW_SHOW);
         UpdateWindow(wndInst.hWnd);
 
         FAILED_ERROR_MESSAGE_RETURN(
-            DXEntryInit(&wndInst, hInstance, wndInst.hWnd, wndSet.windowWidth, wndSet.windowHeight, wndSet.maxFrameRate, true),
+            DXEntryInit(root, hInstance, wndInst.hWnd, wndSet.windowWidth, wndSet.windowHeight, wndSet.maxFrameRate, true),
             L"fail to initialize."
         );
 
         FALSE_ERROR_MESSAGE_RETURN_CODE(
             ::GetWindowRect(wndInst.hWnd, &wndInst.rect), L"failed to GetWindowRect..", E_FAIL
         );
+
+
+        this->root = root;
 
         return S_OK;
     }
@@ -86,7 +95,7 @@ struct WindowScope
             }
             else
             {
-                DXEntryFrameUpdate(&wndInst);
+                DXEntryFrameUpdate(root);
             }
         }
     }
@@ -95,7 +104,7 @@ struct WindowScope
     {
         DebugPrintScope _(L"~WindowScope");
 
-        DXEntryClean(&wndInst);
+        DXEntryClean(root);
     }
 
     static LRESULT CALLBACK MsgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -121,8 +130,11 @@ struct WindowScope
             switch (wParam)
             {
             case VK_F11:
-                DXEntryToggleFullscreen();
-                break;
+            {
+                auto rootPtr = (Root*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+                DXEntryToggleFullscreen(rootPtr);
+            }
+            break;
             default:
                 return DefWindowProc(hWnd, uMsg, wParam, lParam);
             }
@@ -135,9 +147,10 @@ struct WindowScope
             int width = clientRect.right - clientRect.left;
             int height = clientRect.bottom - clientRect.top;
 
-            DXEntryReserveResize(width, height);
+            auto rootPtr = (Root*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+            DXEntryReserveResize(rootPtr, width, height);
         }
-            break;
+        break;
 
         default:
             return DefWindowProc(hWnd, uMsg, wParam, lParam);
@@ -174,10 +187,11 @@ struct WindowScope
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
     RedirectConsoleScope _;
+    Root root;
     WindowScope wndScope;
 
     FAILED_ERROR_MESSAGE_RETURN(
-        wndScope.Init(hInstance), 
+        wndScope.Init(hInstance, &root),
         L"WindowScope init fail.."
     );
     wndScope.Loop();

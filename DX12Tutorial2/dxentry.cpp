@@ -15,43 +15,34 @@
 
 #include <chrono>
 
-HRESULT DXEntryResize(WindowInstance* wnd, uint32 width, uint32 height);
-HRESULT DXEntryFullScreen(WindowInstance* wnd, bool fullScreen);
-
-struct WindowState
+void UpdateWindowIfDiff(Root* root)
 {
-    uint32 reserveWidth;
-    uint32 reserveHeight;
-    bool fullScreen;
+    auto wndctx = &root->wndctx;
 
-    void UpdateWindowIfDiff(WindowInstance* wnd)
-    {
-        if (reserveWidth != 0 || reserveHeight != 0) {
-            DXEntryResize(wnd, reserveWidth, reserveHeight);
-            reserveWidth = 0; reserveHeight = 0;
-        }
-
-        if (fullScreen != wnd->settings.fullScreen) {
-            DXEntryFullScreen(wnd, fullScreen);
-        }
+    if (wndctx->reserveWidth != 0 || wndctx->reserveHeight != 0) {
+        DXEntryResize(root, wndctx->reserveWidth, wndctx->reserveHeight);
+        wndctx->reserveWidth = 0; wndctx->reserveHeight = 0;
     }
-} g_WindowState;
 
+    if (wndctx->fullScreen != root->settings.fullScreen) {
+        DXEntryFullScreen(root, wndctx->fullScreen);
+    }
+}
 
-void GetDXWindowSetting(OUT WindowSetting* set)
+void GetDXWindowSetting(WindowSetting* set, WindowContext* ctx)
 {
     DebugPrintScope _(L"GetDXWindowSetting");
 
-    set->windowName = L"DX12Tutorial";
+    set->windowName = L"DX12Tutorial2";
     set->windowWidth = 1024;
     set->windowHeight = 768;
     set->maxFrameRate = 144;
     set->fullScreen = false;
     set->windowStyle = WS_OVERLAPPEDWINDOW;
 
-    g_WindowState.reserveWidth = 0;
-    g_WindowState.reserveHeight = 0;
-    g_WindowState.fullScreen = false;
+    ctx->reserveWidth = 0;
+    ctx->reserveHeight = 0;
+    ctx->fullScreen = false;
 }
 
 HRESULT EnableDebugLayer()
@@ -68,11 +59,14 @@ HRESULT EnableDebugLayer()
     return S_OK;
 }
 
-HRESULT DXEntryInit(WindowInstance* wnd, HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, uint32 maxFrameRate, bool debug)
+HRESULT DXEntryInit(Root* root, HINSTANCE hInstance, HWND hWnd, UINT width, UINT height, uint32 maxFrameRate, bool debug)
 {
     DebugPrintScope _(L"DXEntryInit");
 
-    DXInstance* dx = &wnd->dx;
+    WindowSetting* wndset = &root->settings;
+    WindowInstance* wnd = &root->wnd;
+    DXInstance* dx = &root->dx;
+    
     *dx = { 0, };
 
     auto createFactoryFlags = (uint32)0;
@@ -147,9 +141,9 @@ HRESULT DXEntryInit(WindowInstance* wnd, HINSTANCE hInstance, HWND hWnd, UINT wi
     return S_OK;
 }
 
-void DXEntryClean(WindowInstance* wnd)
+void DXEntryClean(Root* root)
 {
-    DXInstance* dx = &wnd->dx;
+    DXInstance* dx = &root->dx;
 
     DebugPrintScope _(L"DXEntryClean");
 
@@ -160,6 +154,7 @@ void DXEntryClean(WindowInstance* wnd)
         DestroyDXCommands(commandPtr);
     }
 
+    DestroyDXResource(&dx->res);
     for (auto i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; i++) {
         SAFE_RELEASE(dx->heaps[i]);
     }
@@ -170,14 +165,15 @@ void DXEntryClean(WindowInstance* wnd)
     SAFE_RELEASE(dx->dx12Device);
 }
 
-
-void DXEntryFrameUpdate(WindowInstance* wnd)
+void DXEntryFrameUpdate(Root* root)
 {
     // DebugPrintScope _(L"DXEntryFrameUpdate");
 
-    g_WindowState.UpdateWindowIfDiff(wnd);
+    UpdateWindowIfDiff(root);
 
-    DXInstance* dx = &wnd->dx;
+    auto dx = &root->dx;
+    auto dxres = &dx->res;
+    auto ctx = &root->ctx;
 
     auto commandIndex = 0;
     auto command = dx->commands[commandIndex];
@@ -249,14 +245,14 @@ void DXEntryFrameUpdate(WindowInstance* wnd)
     }
 }
 
-HRESULT DXEntryResize(WindowInstance* wnd, uint32 width, uint32 height)
+HRESULT DXEntryResize(Root* root, uint32 width, uint32 height)
 {
     DebugPrintScope _(L"DXEntryResize");
 
-    wnd->settings.windowWidth = width;
-    wnd->settings.windowHeight = height;
+    root->settings.windowWidth = width;
+    root->settings.windowHeight = height;
 
-    DXInstance* dx = &wnd->dx;
+    DXInstance* dx = &root->dx;
     DXCommands* command = dx->commands;
     auto queue = command->queue;
     auto fence = command->fences[0];
@@ -294,9 +290,10 @@ HRESULT DXEntryResize(WindowInstance* wnd, uint32 width, uint32 height)
     return S_OK;
 }
 
-HRESULT DXEntryFullScreen(WindowInstance* wnd, bool fullScreen)
+HRESULT DXEntryFullScreen(Root* root, bool fullScreen)
 {
-    wnd->settings.fullScreen = fullScreen;
+    root->settings.fullScreen = fullScreen;
+    auto wnd = &root->wnd;
 
     if (fullScreen) {
         FALSE_ERROR_MESSAGE_RETURN_CODE(
@@ -354,17 +351,19 @@ HRESULT DXEntryFullScreen(WindowInstance* wnd, bool fullScreen)
     return S_OK;
 }
 
-HRESULT DXEntryReserveResize(uint32 width, uint32 height)
+HRESULT DXEntryReserveResize(Root* root, uint32 width, uint32 height)
 {
     DebugPrintScope _(L"DXEntryReserveResize");
 
-    g_WindowState.reserveWidth = width;
-    g_WindowState.reserveHeight = height;
+    auto& wndctx = root->wndctx;
+    wndctx.reserveWidth = width;
+    wndctx.reserveHeight = height;
     return S_OK;
 }
 
-HRESULT DXEntryToggleFullscreen()
+HRESULT DXEntryToggleFullscreen(Root* root)
 {
-    g_WindowState.fullScreen = !g_WindowState.fullScreen;
+    auto& wndctx = root->wndctx;
+    wndctx.fullScreen = !wndctx.fullScreen;
     return S_OK;
 }

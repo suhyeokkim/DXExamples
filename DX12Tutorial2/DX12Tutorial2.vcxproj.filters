@@ -5,12 +5,14 @@
     <ClInclude Include="dx12lib.h" />
     <ClInclude Include="dxentry.h" />
     <ClInclude Include="winmain.h" />
+    <ClInclude Include="root.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dx12lib.cpp" />
     <ClCompile Include="dxentry.cpp" />
     <ClCompile Include="winmain.cpp" />
     <ClCompile Include="dx12cmd.cpp" />
+    <ClCompile Include="root.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
