@@ -8,6 +8,7 @@
 #include "winmain.h"
 #include "dxentry.h"
 #include "defined_macro.h"
+#include "debug.h"
 
 using namespace std;
 

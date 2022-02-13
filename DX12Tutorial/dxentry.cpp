@@ -11,6 +11,7 @@
 #include "common.h"
 #include "geometry.h"
 #include "input.h"
+#include "debug.h"
 
 #include <chrono>
 
