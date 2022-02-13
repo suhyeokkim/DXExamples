@@ -1,4 +1,4 @@
-#include "math_util.h"
+#include "geometry.h"
 #include "catch.hpp"
 
 TEST_CASE("test clamp", "[Math]") {
@@ -135,7 +135,7 @@ TEST_CASE("test lerp", "[Math]") {
     }
 }
 
-TEST_CASE("test vector2 test", "[Math]") {
+TEST_CASE("test vector2", "[Math]") {
     Vector2f v2;
     REQUIRE(v2.x == 0);
     REQUIRE(v2.y == 0);
@@ -223,4 +223,10 @@ TEST_CASE("test vector2 test", "[Math]") {
     REQUIRE(Clamp(2 * Vector2f::One(), 0, 1) == Vector2f::One());
     REQUIRE(Sqrtv(4 * Vector2f::One()) == 2 * Vector2f::One());
     //DECLSPEC_DLL Vector2f Reflect(const Vector2f & v, const Vector2f & n);
+}
+
+TEST_CASE("test quaternion", "[Math]") {
+}
+
+TEST_CASE("test matrix", "[Math]") {
 }

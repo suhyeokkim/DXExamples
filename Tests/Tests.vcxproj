@@ -144,8 +144,7 @@
   <ItemGroup>
     <ClCompile Include="allocator.test.cpp" />
     <ClCompile Include="arraylist.test.cpp" />
-    <ClCompile Include="math.test.cpp" />
-    <ClCompile Include="input.test.cpp" />
+    <ClCompile Include="geometry.test.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
