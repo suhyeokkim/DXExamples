@@ -1,6 +1,8 @@
 #pragma once
 
-class __declspec(dllimport) BVH
+#include "symbols.h"
+
+class DECLSPEC_DLL BVH
 {
 };
 
