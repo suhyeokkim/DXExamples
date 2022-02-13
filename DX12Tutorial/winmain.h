@@ -1,6 +1,7 @@
 #pragma once
 
-#include "dx12lib.h"
+#include <windows.h>
+#include "defined_type.h"
 
 struct WindowSetting
 {
@@ -12,12 +13,16 @@ struct WindowSetting
     DWORD windowStyle;
 };
 
-struct DXInstance;
 struct WindowInstance
 {
     WNDCLASSW wndClass;
     HWND hWnd;
     RECT rect;
-    WindowSetting settings;
-    DXInstance dx;
+};
+
+struct WindowContext
+{
+    uint32 reserveWidth;
+    uint32 reserveHeight;
+    bool fullScreen;
 };
