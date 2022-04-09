@@ -1,14 +1,119 @@
 #include "transforms.h"
 
+Matrix4x4 ProjectionPerspectiveLH(const Projection& proj)
+{
+    return ProjectionPerspectiveLH(proj.fov, proj.aspect, proj.nearZ, proj.farZ);
+}
 
 Matrix4x4 ProjectionPerspectiveLH(float fovAngleY, float aspectYToX, float nearZ, float farZ)
 {
-    return Matrix4x4();
+    auto cosFov = cos(fovAngleY + 0.5f);
+    auto sinFov = sin(fovAngleY + 0.5f);
+
+    auto aspectY = cosFov / sinFov;
+    auto aspectX = aspectY / aspectYToX;
+    auto range = farZ / (farZ - nearZ);
+
+    auto m = Matrix4x4();
+
+    /*
+        c/s  0      0            0
+        0    ay/c*s 0            0
+        0    0      f/(f-n)      0
+        0    0      -(f*n)/(f-n) 0
+    */
+
+    m.dataf[0] = aspectX;
+    m.dataf[1 * 4 + 1] = aspectY;
+    m.dataf[2 * 4 + 2] = range;
+    m.dataf[2 + 4 + 3] = -range * nearZ;
+
+    return m;
 }
 
-Matrix4x4 ProjectionPerspectiveRH(float fovAngleY, float aspectYToX, float nearZ, float farZ)
+void TranslateTo(const Vector3f& t, Matrix4x4& mat)
 {
-    return Matrix4x4();
+    /*
+        ?    ?    ?    t.x
+        ?    ?    ?    t.y
+        ?    ?    ?    t.z
+        ?    ?    ?    ?
+    */
+
+    mat.c3.x = t.x;
+    mat.c3.y = t.y;
+    mat.c3.z = t.z;
+}
+
+void RotateTo(const Vector3f& forwardUM, const Vector3f& upUM, Matrix4x4& mat)
+{
+    auto fn = forwardUM.normalized();
+    auto rn = Cross(fn, upUM.normalized());
+    auto un = Cross(rn, fn);
+
+    /*
+        rn.x un.x fn.x ?
+        rn.y un.y fn.y ?
+        rn.z un.z fn.z ?
+        ?    ?    ?    ?
+    */
+
+    mat.c0.x = rn.x;
+    mat.c1.x = rn.y;
+    mat.c2.x = rn.z;
+
+    mat.c0.y = un.x;
+    mat.c1.y = un.y;
+    mat.c2.y = un.z;
+
+    mat.c0.z = fn.x;
+    mat.c1.z = fn.y;
+    mat.c2.z = fn.z;
+}
+
+// https://stackoverflow.com/questions/52413464/look-at-quaternion-using-up-vector/52551983#52551983
+void RotateTo(const Vector3f& forwardUM, const Vector3f& upUM, Quaternion& q)
+{
+    auto fn = forwardUM.normalized();
+    auto rn = Cross(fn, upUM.normalized());
+    auto un = Cross(rn, fn);
+
+    /*
+        rn.x un.x fn.x ?
+        rn.y un.y fn.y ?
+        rn.z un.z fn.z ?
+        ?    ?    ?    ?
+    */
+
+    auto trace = rn.x + un.y + fn.z;
+    if (trace > 0) {
+        auto s = 0.5f / sqrtf(trace + 1.0f);
+        q.w = 0.25f / s;
+        q.x = (un.z - fn.y) * s;
+        q.y = (fn.x - rn.x) * s;
+        q.z = (un.z - fn.y) * s;
+    } else {
+        // trace maximum
+        if (rn.x > un.y && rn.x > fn.z) {
+            auto s = 2.0f * sqrtf(1.0f + rn.x - un.y - fn.z);
+            q.w = (un.z - fn.y) / s;
+            q.x = 0.25 * s;
+            q.y = (un.x + rn.y) / s;
+            q.z = (fn.x + rn.z) / s;
+        } else if (un.y > fn.z) {
+            auto s = 2.0f * sqrtf(1.0f + un.y - rn.x - fn.z);
+            q.w = (fn.x - rn.z) / s;
+            q.z = (un.x + rn.y) / s;
+            q.y = 0.25 * s;
+            q.z = (fn.y + un.z) / s;
+        } else {
+            auto s = 2.0f * sqrtf(1.0f + fn.z - rn.x - un.y);
+            q.w = (rn.y - un.x) / s;
+            q.x = (fn.x + rn.z) / s;
+            q.y = (fn.y + un.z) / s;
+            q.z = 0.25 * s;
+        }
+    }
 }
 
 #pragma region Matrix4x4
@@ -116,11 +221,15 @@ void EulerAngleToQuaternion(const Vector3f& eulerAngle, const EulerAngleOrder or
 
 #pragma endregion
 
+Matrix4x4 TRSToMatrix(const TRS& trs)
+{
+    return TRSToMatrix(trs.translate, trs.rotation, trs.scale);
+}
 
-Matrix4x4 FromTRS(Vector3f translate, Quaternion r, Vector3f scale)
+Matrix4x4 TRSToMatrix(Vector3f translate, Quaternion rotation, Vector3f scale)
 {
     Matrix4x4 m0;
-    ToAffineMatrix(r, m0);
+    ToAffineMatrix(rotation, m0);
 
     m0.dataf[0] *= scale.x;
     m0.dataf[1] *= scale.x;
@@ -142,7 +251,7 @@ Matrix4x4 FromTRS(Vector3f translate, Quaternion r, Vector3f scale)
     return m0;
 }
 
-Matrix4x4 FromTRS(Vector3f translate, Vector3f eulerAngle, EulerAngleOrder order, Vector3f scale)
+Matrix4x4 TRSToMatrix(Vector3f translate, Vector3f eulerAngle, EulerAngleOrder order, Vector3f scale)
 {
     Matrix4x4 m0;
     EulerAngleToMatrix(eulerAngle, order, m0);
@@ -233,7 +342,7 @@ Vector3f ToBasisFromFrame(const Vector3f& v, const Vector3f& t, const Vector3f& 
 
 void TRSToAffine(const TRS& trs, Matrix4x4& mat)
 {
-    mat = FromTRS(trs.translate, trs.rotation, trs.scale);
+    mat = TRSToMatrix(trs.translate, trs.rotation, trs.scale);
 }
 
 void AffineToTRS(const Matrix4x4& mat, TRS& trs)

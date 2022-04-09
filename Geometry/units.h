@@ -295,6 +295,12 @@ struct DECLSPEC_DLL Matrix4x4
     {
         struct
         {
+            /*
+                m00 m01 m02 m03
+                m10 m11 m12 m13
+                m20 m21 m22 m23
+                m30 m31 m32 m33
+            */
             float m00;
             float m10;
             float m20;
@@ -334,6 +340,9 @@ struct DECLSPEC_DLL Matrix4x4
     Vector4f GetColumn(int index) const;
     Vector4f GetRow(int index) const;
 
+    bool SetColumn(int index, const Vector4f& c);
+    bool SetRow(int index, const Vector4f& r);
+
     Vector3f TransformPoint(const Vector3f& pt) const;
     Vector3f TransformVector(const Vector3f& v) const;
 
@@ -342,4 +351,11 @@ struct DECLSPEC_DLL Matrix4x4
 
     Matrix4x4 Transpose() const;
     void Transpose();
+
+    bool Inverse(Matrix4x4& invMat) const;
+    bool Inverse();
+
+    float Determinant() const;
 };
+
+DECLSPEC_DLL Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2);

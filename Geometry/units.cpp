@@ -996,6 +996,119 @@ void Matrix4x4::Transpose()
     m23 = temp;
 }
 
+// https://stackoverflow.com/questions/2624422/efficient-4x4-matrix-inverse-affine-transform
+float Matrix4x4::Determinant() const
+{
+    auto s0 = this->columns[0][0] * this->columns[1][1] - this->columns[1][0] * this->columns[0][1];
+    auto s1 = this->columns[0][0] * this->columns[1][2] - this->columns[1][0] * this->columns[0][2];
+    auto s2 = this->columns[0][0] * this->columns[1][3] - this->columns[1][0] * this->columns[0][3];
+    auto s3 = this->columns[0][1] * this->columns[1][2] - this->columns[1][1] * this->columns[0][2];
+    auto s4 = this->columns[0][1] * this->columns[1][3] - this->columns[1][1] * this->columns[0][3];
+    auto s5 = this->columns[0][2] * this->columns[1][3] - this->columns[1][2] * this->columns[0][3];
+
+    auto c5 = this->columns[2][2] * this->columns[3][3] - this->columns[3][2] * this->columns[2][3];
+    auto c4 = this->columns[2][1] * this->columns[3][3] - this->columns[3][1] * this->columns[2][3];
+    auto c3 = this->columns[2][1] * this->columns[3][2] - this->columns[3][1] * this->columns[2][2];
+    auto c2 = this->columns[2][0] * this->columns[3][3] - this->columns[3][0] * this->columns[2][3];
+    auto c1 = this->columns[2][0] * this->columns[3][2] - this->columns[3][0] * this->columns[2][2];
+    auto c0 = this->columns[2][0] * this->columns[3][1] - this->columns[3][0] * this->columns[2][1];
+
+    return (s0 * c5 - s1 * c4 + s2 * c3 + s3 * c2 - s4 * c1 + s5 * c0);
+}
+
+bool Matrix4x4::Inverse(Matrix4x4& invMat) const
+{
+    auto s0 = this->columns[0][0] * this->columns[1][1] - this->columns[1][0] * this->columns[0][1];
+    auto s1 = this->columns[0][0] * this->columns[1][2] - this->columns[1][0] * this->columns[0][2];
+    auto s2 = this->columns[0][0] * this->columns[1][3] - this->columns[1][0] * this->columns[0][3];
+    auto s3 = this->columns[0][1] * this->columns[1][2] - this->columns[1][1] * this->columns[0][2];
+    auto s4 = this->columns[0][1] * this->columns[1][3] - this->columns[1][1] * this->columns[0][3];
+    auto s5 = this->columns[0][2] * this->columns[1][3] - this->columns[1][2] * this->columns[0][3];
+
+    auto c5 = this->columns[2][2] * this->columns[3][3] - this->columns[3][2] * this->columns[2][3];
+    auto c4 = this->columns[2][1] * this->columns[3][3] - this->columns[3][1] * this->columns[2][3];
+    auto c3 = this->columns[2][1] * this->columns[3][2] - this->columns[3][1] * this->columns[2][2];
+    auto c2 = this->columns[2][0] * this->columns[3][3] - this->columns[3][0] * this->columns[2][3];
+    auto c1 = this->columns[2][0] * this->columns[3][2] - this->columns[3][0] * this->columns[2][2];
+    auto c0 = this->columns[2][0] * this->columns[3][1] - this->columns[3][0] * this->columns[2][1];
+
+    auto det = (s0 * c5 - s1 * c4 + s2 * c3 + s3 * c2 - s4 * c1 + s5 * c0);
+    if (det == 0) {
+        return false;
+    }
+    auto invdet = 1.0 / det;
+    
+    invMat.columns[0][0] = (this->columns[1][1] * c5 - this->columns[1][2] * c4 + this->columns[1][3] * c3) * invdet;
+    invMat.columns[0][1] = (-this->columns[0][1] * c5 + this->columns[0][2] * c4 - this->columns[0][3] * c3) * invdet;
+    invMat.columns[0][2] = (this->columns[3][1] * s5 - this->columns[3][2] * s4 + this->columns[3][3] * s3) * invdet;
+    invMat.columns[0][3] = (-this->columns[2][1] * s5 + this->columns[2][2] * s4 - this->columns[2][3] * s3) * invdet;
+
+    invMat.columns[1][0] = (-this->columns[1][0] * c5 + this->columns[1][2] * c2 - this->columns[1][3] * c1) * invdet;
+    invMat.columns[1][1] = (this->columns[0][0] * c5 - this->columns[0][2] * c2 + this->columns[0][3] * c1) * invdet;
+    invMat.columns[1][2] = (-this->columns[3][0] * s5 + this->columns[3][2] * s2 - this->columns[3][3] * s1) * invdet;
+    invMat.columns[1][3] = (this->columns[2][0] * s5 - this->columns[2][2] * s2 + this->columns[2][3] * s1) * invdet;
+
+    invMat.columns[2][0] = (this->columns[1][0] * c4 - this->columns[1][1] * c2 + this->columns[1][3] * c0) * invdet;
+    invMat.columns[2][1] = (-this->columns[0][0] * c4 + this->columns[0][1] * c2 - this->columns[0][3] * c0) * invdet;
+    invMat.columns[2][2] = (this->columns[3][0] * s4 - this->columns[3][1] * s2 + this->columns[3][3] * s0) * invdet;
+    invMat.columns[2][3] = (-this->columns[2][0] * s4 + this->columns[2][1] * s2 - this->columns[2][3] * s0) * invdet;
+
+    invMat.columns[3][0] = (-this->columns[1][0] * c3 + this->columns[1][1] * c1 - this->columns[1][2] * c0) * invdet;
+    invMat.columns[3][1] = (this->columns[0][0] * c3 - this->columns[0][1] * c1 + this->columns[0][2] * c0) * invdet;
+    invMat.columns[3][2] = (-this->columns[3][0] * s3 + this->columns[3][1] * s1 - this->columns[3][2] * s0) * invdet;
+    invMat.columns[3][3] = (this->columns[2][0] * s3 - this->columns[2][1] * s1 + this->columns[2][2] * s0) * invdet;
+
+    return true;
+}
+
+bool Matrix4x4::Inverse()
+{
+    auto s0 = this->columns[0][0] * this->columns[1][1] - this->columns[1][0] * this->columns[0][1];
+    auto s1 = this->columns[0][0] * this->columns[1][2] - this->columns[1][0] * this->columns[0][2];
+    auto s2 = this->columns[0][0] * this->columns[1][3] - this->columns[1][0] * this->columns[0][3];
+    auto s3 = this->columns[0][1] * this->columns[1][2] - this->columns[1][1] * this->columns[0][2];
+    auto s4 = this->columns[0][1] * this->columns[1][3] - this->columns[1][1] * this->columns[0][3];
+    auto s5 = this->columns[0][2] * this->columns[1][3] - this->columns[1][2] * this->columns[0][3];
+
+    auto c5 = this->columns[2][2] * this->columns[3][3] - this->columns[3][2] * this->columns[2][3];
+    auto c4 = this->columns[2][1] * this->columns[3][3] - this->columns[3][1] * this->columns[2][3];
+    auto c3 = this->columns[2][1] * this->columns[3][2] - this->columns[3][1] * this->columns[2][2];
+    auto c2 = this->columns[2][0] * this->columns[3][3] - this->columns[3][0] * this->columns[2][3];
+    auto c1 = this->columns[2][0] * this->columns[3][2] - this->columns[3][0] * this->columns[2][2];
+    auto c0 = this->columns[2][0] * this->columns[3][1] - this->columns[3][0] * this->columns[2][1];
+
+    auto det = (s0 * c5 - s1 * c4 + s2 * c3 + s3 * c2 - s4 * c1 + s5 * c0);
+    if (det == 0) {
+        return false;
+    }
+    auto invdet = 1.0 / det;
+
+    auto dst = Matrix4x4();
+
+    dst.columns[0][0] = (this->columns[1][1] * c5 - this->columns[1][2] * c4 + this->columns[1][3] * c3) * invdet;
+    dst.columns[0][1] = (-this->columns[0][1] * c5 + this->columns[0][2] * c4 - this->columns[0][3] * c3) * invdet;
+    dst.columns[0][2] = (this->columns[3][1] * s5 - this->columns[3][2] * s4 + this->columns[3][3] * s3) * invdet;
+    dst.columns[0][3] = (-this->columns[2][1] * s5 + this->columns[2][2] * s4 - this->columns[2][3] * s3) * invdet;
+
+    dst.columns[1][0] = (-this->columns[1][0] * c5 + this->columns[1][2] * c2 - this->columns[1][3] * c1) * invdet;
+    dst.columns[1][1] = (this->columns[0][0] * c5 - this->columns[0][2] * c2 + this->columns[0][3] * c1) * invdet;
+    dst.columns[1][2] = (-this->columns[3][0] * s5 + this->columns[3][2] * s2 - this->columns[3][3] * s1) * invdet;
+    dst.columns[1][3] = (this->columns[2][0] * s5 - this->columns[2][2] * s2 + this->columns[2][3] * s1) * invdet;
+
+    dst.columns[2][0] = (this->columns[1][0] * c4 - this->columns[1][1] * c2 + this->columns[1][3] * c0) * invdet;
+    dst.columns[2][1] = (-this->columns[0][0] * c4 + this->columns[0][1] * c2 - this->columns[0][3] * c0) * invdet;
+    dst.columns[2][2] = (this->columns[3][0] * s4 - this->columns[3][1] * s2 + this->columns[3][3] * s0) * invdet;
+    dst.columns[2][3] = (-this->columns[2][0] * s4 + this->columns[2][1] * s2 - this->columns[2][3] * s0) * invdet;
+
+    dst.columns[3][0] = (-this->columns[1][0] * c3 + this->columns[1][1] * c1 - this->columns[1][2] * c0) * invdet;
+    dst.columns[3][1] = (this->columns[0][0] * c3 - this->columns[0][1] * c1 + this->columns[0][2] * c0) * invdet;
+    dst.columns[3][2] = (-this->columns[3][0] * s3 + this->columns[3][1] * s1 - this->columns[3][2] * s0) * invdet;
+    dst.columns[3][3] = (this->columns[2][0] * s3 - this->columns[2][1] * s1 + this->columns[2][2] * s0) * invdet;
+
+    *this = dst;
+    return true;
+}
+
 Vector4f Matrix4x4::GetColumn(int index) const
 {
     return columns[index];
@@ -1007,6 +1120,30 @@ Vector4f Matrix4x4::GetRow(int index) const
         dataf[0 * 4 + index], dataf[1 * 4 + index],
         dataf[2 * 4 + index], dataf[3 * 4 + index]
     );
+}
+
+bool Matrix4x4::SetColumn(int index, const Vector4f& c)
+{
+    if (index < 0 || 4 <= index) {
+        return false;
+    }
+
+    columns[index] = c;
+    return true;
+}
+
+bool Matrix4x4::SetRow(int index, const Vector4f& r)
+{
+    if (index < 0 || 4 <= index) {
+        return false;
+    }
+
+    dataf[0 * 4 + index] = r[0];
+    dataf[1 * 4 + index] = r[1];
+    dataf[2 * 4 + index] = r[2]; 
+    dataf[3 * 4 + index] = r[3];
+
+    return true;
 }
 
 Vector3f Matrix4x4::TransformPoint(const Vector3f& pt) const
@@ -1063,6 +1200,116 @@ Matrix4x4 Matrix4x4::GetIdentity()
 float Matrix4x4::operator[](int index)
 {
     return dataf[index];
+}
+
+Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2)
+{
+    Matrix4x4 m;
+
+    /*  m1                 m2
+        m00 m01 m02 m03    m00 m01 m02 m03
+        m10 m11 m12 m13    m10 m11 m12 m13
+        m20 m21 m22 m23    m20 m21 m22 m23
+        m30 m31 m32 m33    m30 m31 m32 m33
+    */
+
+    m.m00 =
+        m1.m00 * m2.m00 +
+        m1.m01 * m2.m10 +
+        m1.m02 * m2.m20 +
+        m1.m03 * m2.m30;
+
+    m.m10 =
+        m1.m10 * m2.m00 +
+        m1.m11 * m2.m10 +
+        m1.m12 * m2.m20 +
+        m1.m13 * m2.m30;
+
+    m.m20 =
+        m1.m20 * m2.m00 +
+        m1.m21 * m2.m10 +
+        m1.m22 * m2.m20 +
+        m1.m23 * m2.m30;
+
+    m.m30 =
+        m1.m30 * m2.m00 +
+        m1.m31 * m2.m10 +
+        m1.m32 * m2.m20 +
+        m1.m33 * m2.m30;
+
+    m.m01 =
+        m1.m00 * m2.m01 +
+        m1.m01 * m2.m11 +
+        m1.m02 * m2.m21 +
+        m1.m03 * m2.m31;
+
+    m.m11 =
+        m1.m10 * m2.m01 +
+        m1.m11 * m2.m11 +
+        m1.m12 * m2.m21 +
+        m1.m13 * m2.m31;
+
+    m.m21 =
+        m1.m20 * m2.m01 +
+        m1.m21 * m2.m11 +
+        m1.m22 * m2.m21 +
+        m1.m23 * m2.m31;
+
+    m.m31 =
+        m1.m30 * m2.m01 +
+        m1.m31 * m2.m11 +
+        m1.m32 * m2.m21 +
+        m1.m33 * m2.m31;
+
+    m.m02 =
+        m1.m00 * m2.m02 +
+        m1.m01 * m2.m12 +
+        m1.m02 * m2.m22 +
+        m1.m03 * m2.m32;
+
+    m.m12 =
+        m1.m10 * m2.m02 +
+        m1.m11 * m2.m12 +
+        m1.m12 * m2.m22 +
+        m1.m13 * m2.m32;
+
+    m.m22 =
+        m1.m20 * m2.m02 +
+        m1.m21 * m2.m12 +
+        m1.m22 * m2.m22 +
+        m1.m23 * m2.m32;
+
+    m.m32 =
+        m1.m30 * m2.m02 +
+        m1.m31 * m2.m12 +
+        m1.m32 * m2.m22 +
+        m1.m33 * m2.m32;
+
+    m.m03 =
+        m1.m00 * m2.m03 +
+        m1.m01 * m2.m13 +
+        m1.m02 * m2.m23 +
+        m1.m03 * m2.m33;
+
+    m.m13 =
+        m1.m10 * m2.m03 +
+        m1.m11 * m2.m13 +
+        m1.m12 * m2.m23 +
+        m1.m13 * m2.m33;
+
+    m.m23 =
+        m1.m20 * m2.m03 +
+        m1.m21 * m2.m13 +
+        m1.m22 * m2.m23 +
+        m1.m23 * m2.m33;
+
+    m.m33 =
+        m1.m30 * m2.m03 +
+        m1.m31 * m2.m13 +
+        m1.m32 * m2.m23 +
+        m1.m33 * m2.m33;
+
+    return m;
 }
 
 #pragma endregion
