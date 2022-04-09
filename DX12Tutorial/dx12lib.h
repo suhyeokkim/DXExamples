@@ -47,7 +47,7 @@ HRESULT CreateCommandQueue(IN ID3D12Device2* device, IN D3D12_COMMAND_LIST_TYPE 
 HRESULT CreateCommandAllocator(ID3D12Device2* dx12Device, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator** outAllocator);
 HRESULT CreateCommandList(ID3D12Device2* dx12Device, ID3D12CommandAllocator* commandAllocator, D3D12_COMMAND_LIST_TYPE type, ID3D12GraphicsCommandList** outCmdList);
 HRESULT CreateFense(ID3D12Device2* dx12Device, ID3D12Fence** outFence);
-HRESULT CreateEventHandle();
+HRESULT CreateEventHandle(HANDLE* fenceEvent);
 HRESULT DestroyEventHandle(HANDLE event);
 HRESULT Signal(ID3D12CommandQueue* cmdQueue, ID3D12Fence* outFence, uint64* originFenceValue, uint64* outFenceValue);
 HRESULT WaitForFenceValue(ID3D12Fence* outFence, uint64 waitFenceValue, HANDLE fenceEvent, std::chrono::milliseconds duration);

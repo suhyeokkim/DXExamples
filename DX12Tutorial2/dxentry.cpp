@@ -186,25 +186,22 @@ void DXEntryFrameUpdate(Root* root)
     commandList->Reset(commandAllocator, nullptr);
 
     auto rtvSize = dx->dx12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    auto rtvHeaps = dx->heaps[D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
+    auto rtvHeapStart = rtvHeaps->GetCPUDescriptorHandleForHeapStart();
+    FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv;
+    auto rtvIndex = dx->currentBackBufferIndex;
+    rtv.ptr = SIZE_T(rtvHeapStart.ptr + INT64(rtvSize) * INT64(rtvIndex));
 
-    {
-        // 렌더타겟-버퍼 클리어
-        D3D12_RESOURCE_BARRIER backBufferResBarrier = {};
-        backBufferResBarrier.Transition.pResource = backBuffer;
-        backBufferResBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        backBufferResBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+    // 렌더타겟-버퍼 클리어
+    commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 
-        commandList->ResourceBarrier(1, &backBufferResBarrier);
+    D3D12_RESOURCE_BARRIER backBufferResBarrier = {};
+    backBufferResBarrier.Transition.pResource = backBuffer;
+    backBufferResBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    backBufferResBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
-        auto rtvHeaps = dx->heaps[D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
-        auto rtvHeapStart = rtvHeaps->GetCPUDescriptorHandleForHeapStart();
-        FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
-        D3D12_CPU_DESCRIPTOR_HANDLE rtv;
-        auto rtvIndex = commandIndex;
-        rtv.ptr = SIZE_T(rtvHeapStart.ptr + INT64(rtvSize) * INT64(rtvIndex));
-
-        commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
-    }
+    commandList->ResourceBarrier(1, &backBufferResBarrier);
 
     // 여기서 해당 프레임 렌더링!?
 
@@ -214,8 +211,8 @@ void DXEntryFrameUpdate(Root* root)
 
         D3D12_RESOURCE_BARRIER presentBarrier = {};
         presentBarrier.Transition.pResource = backBuffer;
-        presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-        presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 
         commandList->ResourceBarrier(1, &presentBarrier);
 

@@ -196,7 +196,7 @@ void DXEntryFrameUpdate(Root* root)
         auto rtvHeapStart = rtvHeaps->GetCPUDescriptorHandleForHeapStart();
         FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
         D3D12_CPU_DESCRIPTOR_HANDLE rtv;
-        auto rtvIndex = commandIndex;
+        auto rtvIndex = dx->currentBackBufferIndex;
         rtv.ptr = SIZE_T(rtvHeapStart.ptr + INT64(rtvSize) * INT64(rtvIndex));
 
         commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
@@ -210,8 +210,8 @@ void DXEntryFrameUpdate(Root* root)
 
         D3D12_RESOURCE_BARRIER presentBarrier = {};
         presentBarrier.Transition.pResource = backBuffer;
-        presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-        presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        presentBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        presentBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 
         commandList->ResourceBarrier(1, &presentBarrier);
 

@@ -116,7 +116,11 @@ HRESULT CreateCommandQueue(IN ID3D12Device2* device, IN D3D12_COMMAND_LIST_TYPE 
     desc.Flags = D3D12_COMMAND_QUEUE_FLAGS::D3D12_COMMAND_QUEUE_FLAG_DISABLE_GPU_TIMEOUT;
     desc.NodeMask = 0;
 
-    return device->CreateCommandQueue(&desc, IID_PPV_ARGS(outCommandQueue));
+    auto hr = device->CreateCommandQueue(&desc, IID_PPV_ARGS(outCommandQueue));
+    FAILED_ERROR_MESSAGE_RETURN(hr, L"failed to create command queue..")
+
+    SET_DX_DEBUG_NAME(*outCommandQueue, L"dx12_device");
+    return S_OK;
 }
 
 /// <summary>
@@ -157,11 +161,11 @@ HRESULT CreateFense(ID3D12Device2* dx12Device, ID3D12Fence** outFence)
 /// <summary>
 /// 이벤트 핸들 만들어잉
 /// </summary>
-HRESULT CreateEventHandle()
+HRESULT CreateEventHandle(HANDLE* fenceEvent)
 {
-    HANDLE fenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    *fenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
-    if (!fenceEvent) {
+    if (!(*fenceEvent)) {
         return S_FALSE;
     }
 
@@ -195,23 +199,27 @@ HRESULT Signal(ID3D12CommandQueue* cmdQueue, ID3D12Fence* outFence, uint64* orig
 /// </summary>
 HRESULT WaitForFenceValue(ID3D12Fence* outFence, uint64 waitFenceValue, HANDLE fenceEvent, std::chrono::milliseconds duration)
 {
-    if (outFence->GetCompletedValue() < waitFenceValue) {
+    auto value = outFence->GetCompletedValue();
+    if (value < waitFenceValue) {
         auto hr = outFence->SetEventOnCompletion(waitFenceValue, fenceEvent);
         FAILED_RETURN(hr);
 
         // conditional_variable, ctxt_switch cost
-        hr = ::WaitForSingleObject(fenceEvent, scast<DWORD>(duration.count()));
+        auto dw = ::WaitForSingleObject(fenceEvent, scast<DWORD>(duration.count()));
 
-        switch (hr)
+        switch (dw)
         {
-        case WAIT_OBJECT_0:
-            break;
-        case WAIT_TIMEOUT:
-            break;
         case WAIT_FAILED:
-            return WAIT_FAILED;
         case WAIT_ABANDONED:
-            assert(false || "WAIT_ABANDONED returned");
+        {
+            auto err = GetLastError();
+            LOG_ARGS(L"fail to WaitForFenceValue, code=%x..", err);
+            return E_FAIL;
+        }
+        case WAIT_OBJECT_0:
+        case WAIT_TIMEOUT:
+        default:
+            return S_OK;
         }
     }
 
