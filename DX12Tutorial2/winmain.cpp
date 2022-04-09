@@ -166,7 +166,9 @@ struct WindowScope
             case VK_F11:
             {
                 auto rootPtr = (Root*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
-                DXEntryToggleFullscreen(rootPtr);
+
+                auto hr = ::DXEntryToggleFullscreen(rootPtr);
+                FAILED_ERROR_MESSAGE_RETURN_CODE(hr, L"failed to toggle fullscreen..", E_FAIL)
             }
             break;
             default:
@@ -176,13 +178,27 @@ struct WindowScope
         case WM_SIZE:
         {
             RECT clientRect = {};
-            ::GetClientRect(hWnd, &clientRect);
+            FALSE_ERROR_MESSAGE_RETURN_CODE(
+                ::GetClientRect(hWnd, &clientRect),
+                L"failed to GetClientRect..",
+                E_FAIL
+            );
 
             int width = clientRect.right - clientRect.left;
             int height = clientRect.bottom - clientRect.top;
 
             auto rootPtr = (Root*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
-            DXEntryReserveResize(rootPtr, width, height);
+
+            FALSE_ERROR_MESSAGE_RETURN_CODE(
+                ::GetWindowRect(rootPtr->wnd.hWnd, &rootPtr->wnd.rect), 
+                L"failed to GetWindowRect..",
+                E_FAIL
+            );
+
+            FAILED_ERROR_MESSAGE_RETURN(
+                ::DXEntryReserveResize(rootPtr, width, height), 
+                L"failed to reserve resize.."
+            )
         }
         break;
 
