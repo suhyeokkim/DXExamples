@@ -6,6 +6,7 @@
     <ClInclude Include="dx12lib.h" />
     <ClInclude Include="dx12cmd.h" />
     <ClInclude Include="root.h" />
+    <ClInclude Include="debug.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dxentry.cpp" />
@@ -13,6 +14,7 @@
     <ClCompile Include="dx12lib.cpp" />
     <ClCompile Include="dx12cmd.cpp" />
     <ClCompile Include="root.cpp" />
+    <ClCompile Include="debug.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />

@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="debug.h" />
     <ClInclude Include="dx12cmd.h" />
     <ClInclude Include="dx12lib.h" />
     <ClInclude Include="dxentry.h" />
@@ -26,6 +27,7 @@
     <ClInclude Include="winmain.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="debug.cpp" />
     <ClCompile Include="dx12cmd.cpp" />
     <ClCompile Include="dx12lib.cpp" />
     <ClCompile Include="dxentry.cpp" />
