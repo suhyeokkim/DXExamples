@@ -183,8 +183,11 @@ void DXEntryFrameUpdate(Root* root)
 
     auto backBuffer = dx->backBuffers[dx->currentBackBufferIndex];
 
-    commandAllocator->Reset();
-    commandList->Reset(commandAllocator, nullptr);
+    auto hr = commandAllocator->Reset();
+    FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to reset allocator..");
+
+    hr = commandList->Reset(commandAllocator, nullptr);
+    FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to reset commandList..");
 
     auto rtvSize = dx->dx12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     auto rtvHeaps = dx->heaps[D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
@@ -206,9 +209,9 @@ void DXEntryFrameUpdate(Root* root)
 
     // 여기서 해당 프레임 렌더링!?
 
+    // 스왑체인-버퍼 표시
     {
-        // 스왑체인-버퍼 표시
-        auto commandQueue = command.queue;
+        auto commandQueue = command->queue;
 
         D3D12_RESOURCE_BARRIER presentBarrier = {};
         presentBarrier.Transition.pResource = backBuffer;
@@ -217,30 +220,33 @@ void DXEntryFrameUpdate(Root* root)
 
         commandList->ResourceBarrier(1, &presentBarrier);
 
-        auto hr = commandList->Close();
-        FAILED_RETURN_VOID(hr);
+        hr = commandList->Close();
+        FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to close cmdlist..");
 
         ID3D12CommandList* const lists[] = { commandList };
         commandQueue->ExecuteCommandLists(_countof(lists), lists);
 
-        auto fence = command.fences[0];
-        auto backBufferValueSeqPtr = command.fenceValueSeq + 0;
+        auto fence = command->fences[0];
+        auto backBufferValueSeqPtr = command->fenceValueSeq + 0;
         auto backBufferFenceValuePtr = dx->frameFenceValues + dx->currentBackBufferIndex;
         hr = Signal(commandQueue, fence, backBufferValueSeqPtr, backBufferFenceValuePtr);
-        FAILED_RETURN_VOID(hr);
+        FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to signal..");
 
         uint32 vsync = dx->vsync ? 1 : 0;
         uint32 presentFlags = dx->tearingSupport && !vsync ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
         auto swapChain = dx->swapChain;
         hr = swapChain->Present(vsync, presentFlags);
-        FAILED_RETURN_VOID(hr);
+        FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to present..");
 
         dx->currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-        auto fenceEvent = command.fenceEvents[0];
-        WaitForFenceValue(fence, *backBufferFenceValuePtr, fenceEvent);
+        auto fenceEvent = command->fenceEvents[0];
+        hr = WaitForFenceValue(fence, *backBufferFenceValuePtr, fenceEvent);
+        FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to wait fence..");
     }
+
+    return S_OK;
 }
 
 HRESULT DXEntryResize(Root* root, uint32 width, uint32 height)

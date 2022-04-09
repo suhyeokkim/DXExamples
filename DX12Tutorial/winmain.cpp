@@ -75,6 +75,8 @@ struct WindowScope
 
     HRESULT Init(HINSTANCE hInstance, Root* root)
     {
+        this->root = root;
+
         DebugPrintScope _(L"WindowScope::Init");
         WindowInstance& wndInst = root->wnd;
         WindowSetting& wndSet = root->settings;
@@ -98,17 +100,14 @@ struct WindowScope
         ShowWindow(wndInst.hWnd, SW_SHOW);
         UpdateWindow(wndInst.hWnd);
 
-        FAILED_ERROR_MESSAGE_RETURN(
-            DXEntryInit(root, hInstance, wndInst.hWnd, wndSet.windowWidth, wndSet.windowHeight, wndSet.maxFrameRate, true),
-            L"fail to initialize."
-        );
+        auto hr = DXEntryInit(root, hInstance, wndInst.hWnd, wndSet.windowWidth, wndSet.windowHeight, wndSet.maxFrameRate, true);
+        FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to initialize.")
 
         FALSE_ERROR_MESSAGE_RETURN_CODE(
-            ::GetWindowRect(wndInst.hWnd, &wndInst.rect), L"failed to GetWindowRect..", E_FAIL
-        );
-        
-
-        this->root = root;
+            ::GetWindowRect(wndInst.hWnd, &wndInst.rect),
+            L"failed to GetWindowRect..",
+            E_FAIL
+        )
 
         return S_OK;
     }
@@ -128,7 +127,8 @@ struct WindowScope
             }
             else
             {
-                DXEntryFrameUpdate(root);
+                auto hr = DXEntryFrameUpdate(root);
+                FAILED_ERROR_MESSAGE_RETURN_VOID(hr, L"fail to update..")
             }
         }
     }

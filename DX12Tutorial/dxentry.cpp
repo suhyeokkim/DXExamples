@@ -164,7 +164,7 @@ void DXEntryClean(Root* root)
 }
 
 
-void DXEntryFrameUpdate(Root* root)
+HRESULT DXEntryFrameUpdate(Root* root)
 {
     // DebugPrintScope _(L"DXEntryFrameUpdate");
 
@@ -179,8 +179,11 @@ void DXEntryFrameUpdate(Root* root)
 
     auto backBuffer = dx->backBuffers[dx->currentBackBufferIndex];
 
-    commandAllocator->Reset();
-    commandList->Reset(commandAllocator, nullptr);
+    auto hr = commandAllocator->Reset();
+    FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to reset allocator..");
+
+    hr = commandList->Reset(commandAllocator, nullptr);
+    FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to reset commandList..");
 
     auto rtvSize = dx->dx12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
@@ -188,8 +191,8 @@ void DXEntryFrameUpdate(Root* root)
         // 렌더타겟-버퍼 클리어
         D3D12_RESOURCE_BARRIER backBufferResBarrier = {};
         backBufferResBarrier.Transition.pResource = backBuffer;
-        backBufferResBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        backBufferResBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+        backBufferResBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+        backBufferResBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
         commandList->ResourceBarrier(1, &backBufferResBarrier);
 
@@ -216,8 +219,8 @@ void DXEntryFrameUpdate(Root* root)
 
         commandList->ResourceBarrier(1, &presentBarrier);
 
-        auto hr = commandList->Close();
-        FAILED_RETURN_VOID(hr);
+        hr = commandList->Close();
+        FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to close cmdlist..");
 
         ID3D12CommandList* const lists[] = { commandList };
         commandQueue->ExecuteCommandLists(_countof(lists), lists);
@@ -226,20 +229,23 @@ void DXEntryFrameUpdate(Root* root)
         auto backBufferValueSeqPtr = command.fenceValueSeq + 0;
         auto backBufferFenceValuePtr = dx->frameFenceValues + dx->currentBackBufferIndex;
         hr = Signal(commandQueue, fence, backBufferValueSeqPtr, backBufferFenceValuePtr);
-        FAILED_RETURN_VOID(hr);
+        FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to signal..");
 
         uint32 vsync = dx->vsync ? 1 : 0;
         uint32 presentFlags = dx->tearingSupport && !vsync ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
         auto swapChain = dx->swapChain;
         hr = swapChain->Present(vsync, presentFlags);
-        FAILED_RETURN_VOID(hr);
+        FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to present..");
 
         dx->currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
         auto fenceEvent = command.fenceEvents[0];
-        WaitForFenceValue(fence, *backBufferFenceValuePtr, fenceEvent);
+        hr = WaitForFenceValue(fence, *backBufferFenceValuePtr, fenceEvent);
+        FAILED_ERROR_MESSAGE_RETURN(hr, L"fail to wait fence..");
     }
+
+    return S_OK;
 }
 
 HRESULT DXEntryResize(Root* root, uint32 width, uint32 height)
