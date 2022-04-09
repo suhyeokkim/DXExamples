@@ -4,6 +4,7 @@
 #include <dxgi1_6.h>
 #include <DirectXMath.h>
 #include <DirectXTex.h>
+#include <pix.h>
 
 #include "defined_macro.h"
 #include "dxentry.h"
