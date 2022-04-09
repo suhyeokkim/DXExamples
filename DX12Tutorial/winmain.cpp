@@ -184,20 +184,28 @@ struct WindowScope
     }
 };
 
-int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
+int main(int argc, char** argv)
 {
     RedirectConsoleScope _;
-    Root root;
-    WindowScope wndScope;
 
-    FAILED_ERROR_MESSAGE_RETURN(
-        wndScope.Init(hInstance, &root),
-        L"WindowScope init fail.."
-    );
-    wndScope.Loop();
+    {
+        Root root;
+        memset(&root, 0, sizeof(root));
+        WindowScope wndScope;
+        auto processInatance = GetModuleHandle(NULL);
+
+        if (FAILED(wndScope.Init(processInatance, &root)))
+        {
+            goto END;
+        }
+
+        wndScope.Loop();
+    }
+
+END:
 
 #if defined(_DEBUG)
-    puts("[DEBUG] show logs");
+    puts("[DEBUG] press any key to end program..");
     auto var = getchar();
 #endif
 
